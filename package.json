@@ -1,0 +1,16 @@
+{
+  "name": "crmpro",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:admin": "pnpm --filter admin dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:web-stack": "concurrently -n web,api \"pnpm dev:web\" \"pnpm dev:api\"",
+    "dev:admin-stack": "concurrently -n admin,api \"pnpm dev:admin\" \"pnpm dev:api\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "color": "^5.0.1"
+  }
+}
