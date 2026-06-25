@@ -7,7 +7,11 @@
     "dev:admin": "pnpm --filter admin dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:web-stack": "concurrently -n web,api \"pnpm dev:web\" \"pnpm dev:api\"",
-    "dev:admin-stack": "concurrently -n admin,api \"pnpm dev:admin\" \"pnpm dev:api\""
+    "dev:admin-stack": "concurrently -n admin,api \"pnpm dev:admin\" \"pnpm dev:api\"",
+    "dev:all": "concurrently -n web,admin,api \"pnpm dev:web\" \"pnpm dev:admin\" \"pnpm dev:api\"",
+    "docker:up": "docker compose -f docker/docker-compose.local.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.local.yml down",
+    "docker:logs": "docker compose -f docker/docker-compose.local.yml logs -f"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",
