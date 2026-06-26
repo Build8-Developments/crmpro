@@ -10,4 +10,9 @@ export const envValidationSchema = Joi.object({
   JWT_ACCESS_SECRET: Joi.string().allow('').optional(),
   JWT_REFRESH_SECRET: Joi.string().allow('').optional(),
   CORS_ORIGINS: Joi.string().required(),
+  AWS_REGION: Joi.string().required(),
+  AWS_ACCESS_KEY_ID: Joi.string().required(),
+  AWS_SECRET_ACCESS_KEY: Joi.string().required(),
+  AWS_S3_BUCKET: Joi.string().required(),
+  AWS_S3_ENDPOINT: Joi.string().uri().optional(),
 });

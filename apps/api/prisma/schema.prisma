@@ -1,12 +1,141 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum FileAssetCategory {
+  AVATAR
+  IMPORT
+  EXPORT
+  ATTACHMENT
+  BROCHURE
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  maxUsers        Int
+  maxStorageBytes BigInt   @db.BigInt
+  maxLeads        Int
+  maxProjects     Int
+  featureFlags    Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenants Tenant[]
+}
+
+model Tenant {
+  id                 String       @id @default(uuid()) @db.Uuid
+  name               String
+  slug               String       @unique
+  status             TenantStatus @default(TRIAL)
+  subscriptionPlanId String       @db.Uuid
+  storageUsedBytes   BigInt       @default(0) @db.BigInt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
+
+  subscriptionPlan SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+  roles            Role[]
+  users            User[]
+  fileAssets       FileAsset[]
+
+  @@index([subscriptionPlanId])
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  permissions RolePermission[]
+  users       User[]
+
+  @@index([tenantId])
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  roleId       String    @db.Uuid
+  name         String
+  email        String
+  phone        String?
+  passwordHash String
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  tenant             Tenant      @relation(fields: [tenantId], references: [id])
+  role               Role        @relation(fields: [roleId], references: [id])
+  uploadedFileAssets FileAsset[] @relation("UploadedBy")
+  avatarFileAssets   FileAsset[] @relation("AvatarFor")
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([roleId])
+}
+
+model FileAsset {
+  id               String            @id @default(uuid()) @db.Uuid
+  tenantId         String            @db.Uuid
+  uploadedByUserId String            @db.Uuid
+  userId           String?           @db.Uuid
+  category         FileAssetCategory
+  objectKey        String
+  originalFilename String
+  mimeType         String
+  sizeBytes        BigInt            @db.BigInt
+  leadId           String?           @db.Uuid /// Phase 2: add Lead relation
+  projectId        String?           @db.Uuid /// Phase 2: add Project relation
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  uploadedBy User   @relation("UploadedBy", fields: [uploadedByUserId], references: [id])
+  user       User?  @relation("AvatarFor", fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, category])
+  @@index([uploadedByUserId])
+  @@index([userId])
 }
