@@ -248,6 +248,53 @@
           "response": []
         },
         {
+          "name": "Get Permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has permissions and role', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('permissions');",
+                  "  pm.expect(json.data).to.have.property('role');",
+                  "  pm.expect(json.data.permissions).to.be.an('array');",
+                  "  pm.expect(json.data.permissions.length).to.be.above(0);",
+                  "  pm.expect(json.data.role).to.have.property('id');",
+                  "  pm.expect(json.data.role).to.have.property('name');",
+                  "  json.data.permissions.forEach(function (key) {",
+                  "    pm.expect(key).to.match(/^[a-z]+\\.[a-z]+$/);",
+                  "  });",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data) {",
+                  "  console.log(`Role: ${json.data.role?.name} (${json.data.role?.id})`);",
+                  "  console.log(`Permissions (${json.data.permissions.length}): ${json.data.permissions.join(', ')}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/permissions",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "permissions"]
+            },
+            "description": "Returns the authenticated user's RBAC permissions and role for the current tenant.\n\nRequires Bearer token. Use for frontend UI gating — backend routes still enforce permissions via `PermissionsGuard`.\n\n**Response shape:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"permissions\": [\"lead.read\", \"lead.update\"],\n    \"role\": { \"id\": \"...\", \"name\": \"Agent\" }\n  }\n}\n```"
+          },
+          "response": []
+        },
+        {
           "name": "Get Me",
           "event": [
             {
@@ -284,6 +331,271 @@
               "path": ["auth", "me"]
             },
             "description": "Returns the authenticated user profile.\n\nRequires Bearer token. Run **Login** first — collection pre-request script injects `Authorization` automatically."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pipelines",
+      "description": "Pipeline and stage management. Requires owner/manager for write operations; agents have pipeline.read only.",
+      "item": [
+        {
+          "name": "List Pipelines",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has pipelines with stages', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "  if (json.data.length > 0) {",
+                  "    pm.expect(json.data[0]).to.have.property('stages');",
+                  "  }",
+                  "});",
+                  "",
+                  "if (json.data?.length) {",
+                  "  const commercial = json.data.find((p) => p.name === 'Commercial Leasing');",
+                  "  const pipeline = commercial || json.data.find((p) => !p.isDefault) || json.data[0];",
+                  "  pm.environment.set('pipelineId', pipeline.id);",
+                  "  const openStage = pipeline.stages?.find((s) => !s.isClosed);",
+                  "  if (openStage) {",
+                  "    pm.environment.set('stageId', openStage.id);",
+                  "  }",
+                  "  console.log(`Saved pipelineId=${pipeline.id}, stageId=${openStage?.id || '(none)'}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pipelines",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines"]
+            },
+            "description": "List all tenant pipelines with stages ordered by sortOrder."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Pipeline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has pipeline with stages', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('id');",
+                  "  pm.expect(json.data.stages).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pipelines/{{pipelineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines", "{{pipelineId}}"]
+            },
+            "description": "Get a single pipeline by ID. Run **List Pipelines** first to set `pipelineId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Pipeline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('pipelineId', json.data.id);",
+                  "  console.log(`Created pipeline ${json.data.id} with ${json.data.stages?.length || 0} default stages`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Pipeline\",\n  \"isDefault\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pipelines",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines"]
+            },
+            "description": "Create a pipeline with 7 default system stages (New Lead → Lost)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Pipeline",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Pipeline (Updated)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pipelines/{{pipelineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines", "{{pipelineId}}"]
+            },
+            "description": "Update pipeline name or default flag."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Pipeline",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pipelines/{{pipelineId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines", "{{pipelineId}}"]
+            },
+            "description": "Delete a non-default pipeline with no leads. Fails for default pipeline or pipelines with leads."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Stage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('stageId', json.data.id);",
+                  "  console.log(`Created stage ${json.data.id}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Site Visit\",\n  \"sortOrder\": 99,\n  \"color\": \"#22c55e\",\n  \"isClosed\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pipelines/{{pipelineId}}/stages",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines", "{{pipelineId}}", "stages"]
+            },
+            "description": "Add a custom stage. Use a unique sortOrder per pipeline."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Stage",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Site Visit (Updated)\",\n  \"color\": \"#16a34a\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/pipelines/{{pipelineId}}/stages/{{stageId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines", "{{pipelineId}}", "stages", "{{stageId}}"]
+            },
+            "description": "Update stage fields. Closed stages require closeType (WON or LOST)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Stage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pipelines/{{pipelineId}}/stages/{{stageId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["pipelines", "{{pipelineId}}", "stages", "{{stageId}}"]
+            },
+            "description": "Delete a stage not in use by leads. Cannot delete the last stage."
           },
           "response": []
         }

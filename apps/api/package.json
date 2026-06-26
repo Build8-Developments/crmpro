@@ -7,10 +7,12 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "prebuild": "prisma generate",
+    "prebuild": "pnpm --filter @crmpro/shared build && prisma generate",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
+    "prestart": "pnpm --filter @crmpro/shared build",
     "start:dev": "nest start --watch",
+    "prestart:dev": "pnpm --filter @crmpro/shared build",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -29,6 +31,7 @@
     "storage:test": "ts-node scripts/test-storage.ts"
   },
   "dependencies": {
+    "@crmpro/shared": "workspace:*",
     "@aws-sdk/client-s3": "^3.1075.0",
     "@aws-sdk/s3-request-presigner": "^3.1075.0",
     "@nestjs/common": "^11.0.1",
@@ -53,6 +56,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
+    "@faker-js/faker": "^10.5.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",

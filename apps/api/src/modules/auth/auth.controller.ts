@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -10,7 +11,10 @@ import { extractLoginSessionMetadata } from './utils/request-metadata.util';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
@@ -71,6 +75,24 @@ export class AuthController {
     return {
       success: true,
       data: sessions,
+    };
+  }
+
+  @Get('permissions')
+  @UseGuards(JwtAuthGuard)
+  async getPermissions(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    const authorization = await this.permissionsService.getUserAuthorization(
+      user.id,
+      user.tenantId,
+    );
+
+    if (!req.permissionKeys) {
+      req.permissionKeys = new Set(authorization.permissions);
+    }
+
+    return {
+      success: true,
+      data: authorization,
     };
   }
 

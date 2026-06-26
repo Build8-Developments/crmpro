@@ -21,6 +21,51 @@ enum FileAssetCategory {
   BROCHURE
 }
 
+enum LeadStatus {
+  OPEN
+  ARCHIVED
+}
+
+enum PipelineCloseType {
+  WON
+  LOST
+}
+
+enum InterestLevel {
+  LOW
+  MEDIUM
+  HIGH
+  HOT
+}
+
+enum LeadActivityEventType {
+  LEAD_CREATED
+  LEAD_UPDATED
+  STAGE_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  NOTE_ADDED
+  PROJECT_LINKED
+  PROJECT_UNLINKED
+  CALL_LOGGED
+  EMAIL_LOGGED
+  WHATSAPP_LOGGED
+  STATUS_ARCHIVED
+  STATUS_RESTORED
+}
+
+enum AuditActorType {
+  USER
+  SYSTEM
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model SubscriptionPlan {
   id              String   @id @default(uuid()) @db.Uuid
   name            String
@@ -51,6 +96,14 @@ model Tenant {
   roles            Role[]
   users            User[]
   fileAssets       FileAsset[]
+  developers       Developer[]
+  projects         Project[]
+  leadSources      LeadSource[]
+  pipelines        Pipeline[]
+  leads            Lead[]
+  auditLogs        AuditLog[]
+  importJobs       ImportJob[]
+  exportJobs       ExportJob[]
 
   @@index([subscriptionPlanId])
 }
@@ -77,6 +130,7 @@ model Role {
   permissions RolePermission[]
   users       User[]
 
+  @@unique([tenantId, name])
   @@index([tenantId])
 }
 
@@ -104,11 +158,17 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  tenant             Tenant      @relation(fields: [tenantId], references: [id])
-  role               Role        @relation(fields: [roleId], references: [id])
-  uploadedFileAssets FileAsset[] @relation("UploadedBy")
-  avatarFileAssets   FileAsset[] @relation("AvatarFor")
+  tenant             Tenant        @relation(fields: [tenantId], references: [id])
+  role               Role          @relation(fields: [roleId], references: [id])
+  uploadedFileAssets FileAsset[]   @relation("UploadedFiles")
+  avatarFileAssets   FileAsset[]   @relation("UserAvatar")
   sessions           UserSession[]
+  assignedLeads      Lead[]        @relation("AssignedLeads")
+  leadActivities     LeadActivity[]
+  leadNotes          LeadNote[]
+  auditLogs          AuditLog[]
+  importJobs         ImportJob[]
+  exportJobs         ExportJob[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -134,28 +194,281 @@ model UserSession {
   @@index([revokedAt])
 }
 
+model Developer {
+  id        String    @id @default(uuid()) @db.Uuid
+  tenantId  String    @db.Uuid
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  projects Project[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Project {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @db.Uuid
+  developerId String    @db.Uuid
+  name        String
+  location    String?
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant              Tenant                @relation(fields: [tenantId], references: [id])
+  developer           Developer             @relation(fields: [developerId], references: [id])
+  fileAssets          FileAsset[]
+  leadProjectInterests LeadProjectInterest[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([developerId])
+}
+
+model LeadSource {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  leads  Lead[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Pipeline {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  stages PipelineStage[]
+  leads  Lead[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model PipelineStage {
+  id         String             @id @default(uuid()) @db.Uuid
+  /// Denormalized copy for fast tenant filters — not a FK relation to Tenant
+  tenantId   String             @db.Uuid
+  pipelineId String             @db.Uuid
+  name       String
+  color      String?
+  sortOrder  Int
+  isSystem   Boolean            @default(false)
+  isClosed   Boolean            @default(false)
+  closeType  PipelineCloseType?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  leads    Lead[]
+
+  @@unique([pipelineId, sortOrder])
+  @@unique([pipelineId, name])
+  @@index([tenantId])
+  @@index([pipelineId, sortOrder])
+}
+
+model Lead {
+  id                      String     @id @default(uuid()) @db.Uuid
+  tenantId                String     @db.Uuid
+  sourceId                String?    @db.Uuid
+  pipelineId              String     @db.Uuid
+  pipelineStageId         String     @db.Uuid
+  assignedUserId          String?    @db.Uuid
+  status                  LeadStatus @default(OPEN)
+  fullName                String
+  primaryPhone            String
+  primaryPhoneNormalized  String
+  secondaryPhone          String?
+  secondaryPhoneNormalized String?
+  email                   String?
+  budgetMin               Decimal?   @db.Decimal(14, 2)
+  budgetMax               Decimal?   @db.Decimal(14, 2)
+  notesSummary            String?
+  customFields            Json?
+  lastContactedAt         DateTime?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  deletedAt               DateTime?
+
+  tenant                Tenant                @relation(fields: [tenantId], references: [id])
+  source                LeadSource?           @relation(fields: [sourceId], references: [id])
+  pipeline              Pipeline              @relation(fields: [pipelineId], references: [id])
+  pipelineStage         PipelineStage         @relation(fields: [pipelineStageId], references: [id])
+  assignedUser          User?                 @relation("AssignedLeads", fields: [assignedUserId], references: [id])
+  fileAssets            FileAsset[]
+  activities            LeadActivity[]
+  notes                 LeadNote[]
+  leadProjectInterests  LeadProjectInterest[]
+
+  @@index([tenantId, pipelineStageId, assignedUserId])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@index([tenantId, primaryPhoneNormalized])
+  @@index([pipelineId])
+  @@index([pipelineStageId])
+  @@index([sourceId])
+  @@index([assignedUserId])
+}
+
+model LeadProjectInterest {
+  leadId        String         @db.Uuid
+  projectId     String         @db.Uuid
+  interestLevel InterestLevel?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  lead    Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, projectId])
+  @@index([projectId])
+}
+
+model LeadActivity {
+  id          String                @id @default(uuid()) @db.Uuid
+  /// Denormalized copy for fast tenant filters — not a FK relation to Tenant
+  tenantId    String                @db.Uuid
+  leadId      String                @db.Uuid
+  actorUserId String?               @db.Uuid
+  eventType   LeadActivityEventType
+  metadata    Json                  @default("{}")
+  createdAt   DateTime              @default(now())
+
+  lead  Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([leadId, createdAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+model LeadNote {
+  id        String    @id @default(uuid()) @db.Uuid
+  /// Denormalized copy for fast tenant filters — not a FK relation to Tenant
+  tenantId  String    @db.Uuid
+  leadId    String    @db.Uuid
+  authorId  String    @db.Uuid
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  lead   Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([leadId])
+  @@index([tenantId])
+  @@index([authorId])
+}
+
 model FileAsset {
   id               String            @id @default(uuid()) @db.Uuid
   tenantId         String            @db.Uuid
   uploadedByUserId String            @db.Uuid
-  userId           String?           @db.Uuid
+  avatarForUserId  String?           @db.Uuid
   category         FileAssetCategory
-  objectKey        String
+  objectKey        String            @unique
   originalFilename String
   mimeType         String
   sizeBytes        BigInt            @db.BigInt
-  leadId           String?           @db.Uuid /// Phase 2: add Lead relation
-  projectId        String?           @db.Uuid /// Phase 2: add Project relation
+  leadId           String?           @db.Uuid
+  projectId        String?           @db.Uuid
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
 
-  tenant     Tenant @relation(fields: [tenantId], references: [id])
-  uploadedBy User   @relation("UploadedBy", fields: [uploadedByUserId], references: [id])
-  user       User?  @relation("AvatarFor", fields: [userId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  uploadedBy User        @relation("UploadedFiles", fields: [uploadedByUserId], references: [id])
+  avatarFor  User?       @relation("UserAvatar", fields: [avatarForUserId], references: [id])
+  lead       Lead?       @relation(fields: [leadId], references: [id])
+  project    Project?    @relation(fields: [projectId], references: [id])
+  importJobs ImportJob[]
+  exportJobs ExportJob[]
 
   @@index([tenantId])
   @@index([tenantId, category])
   @@index([uploadedByUserId])
-  @@index([userId])
+  @@index([avatarForUserId])
+  @@index([leadId])
+  @@index([projectId])
+}
+
+model AuditLog {
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @db.Uuid
+  actorType   AuditActorType
+  actorUserId String?        @db.Uuid
+  entityType  String
+  entityId    String         @db.Uuid
+  action      String
+  metadata    Json           @default("{}")
+  createdAt   DateTime       @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actor  User?  @relation(fields: [actorUserId], references: [id])
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([actorUserId])
+}
+
+model ImportJob {
+  id              String     @id @default(uuid()) @db.Uuid
+  tenantId        String     @db.Uuid
+  createdByUserId String     @db.Uuid
+  fileAssetId     String     @db.Uuid
+  status          JobStatus  @default(PENDING)
+  totalRows       Int        @default(0)
+  processedRows   Int        @default(0)
+  successfulRows  Int        @default(0)
+  failedRows      Int        @default(0)
+  errorSummary    Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  completedAt     DateTime?
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  createdBy User      @relation(fields: [createdByUserId], references: [id])
+  fileAsset FileAsset @relation(fields: [fileAssetId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdByUserId])
+  @@index([fileAssetId])
+}
+
+model ExportJob {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  createdByUserId String    @db.Uuid
+  fileAssetId     String    @db.Uuid
+  status          JobStatus @default(PENDING)
+  rowCount        Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  completedAt     DateTime?
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  createdBy User      @relation(fields: [createdByUserId], references: [id])
+  fileAsset FileAsset @relation(fields: [fileAssetId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdByUserId])
+  @@index([fileAssetId])
 }

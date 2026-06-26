@@ -1,6 +1,6 @@
 # CRMPro Postman
 
-Local API testing collection for auth flows.
+Local API testing collection for auth and pipeline flows.
 
 ## Files
 
@@ -28,8 +28,37 @@ Local API testing collection for auth flows.
 | `accessToken` | *(empty)* | Auto-filled after login (Chunk 3+) |
 | `refreshToken` | *(empty)* | Auto-filled after login (Chunk 3+) |
 | `sessionId` | *(empty)* | Auto-filled when returned (Chunk 3+) |
+| `pipelineId` | `4444...4402` (Commercial Leasing) | Seeded non-default pipeline; updated by **List Pipelines** |
+| `stageId` | *(empty)* | Auto-filled by **List Pipelines** or **Create Stage** |
 
-Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`).
+Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
+
+## Auth endpoints
+
+| Request | Method | Auth |
+| --- | --- | --- |
+| Login | `POST /auth/login` | Public |
+| Refresh Token | `POST /auth/refresh` | Public |
+| Logout | `POST /auth/logout` | Bearer |
+| Logout All | `POST /auth/logout-all` | Bearer |
+| Get Sessions | `GET /auth/sessions` | Bearer |
+| Get Permissions | `GET /auth/permissions` | Bearer |
+| Get Me | `GET /auth/me` | Bearer |
+
+## Pipeline endpoints
+
+Run **Auth → Login** first (owner or manager for writes).
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Pipelines | `GET /pipelines` | `pipeline.read` |
+| Get Pipeline | `GET /pipelines/:id` | `pipeline.read` |
+| Create Pipeline | `POST /pipelines` | `pipeline.create` |
+| Update Pipeline | `PATCH /pipelines/:id` | `pipeline.update` |
+| Delete Pipeline | `DELETE /pipelines/:id` | `pipeline.delete` |
+| Create Stage | `POST /pipelines/:pipelineId/stages` | `pipeline.update` |
+| Update Stage | `PATCH /pipelines/:pipelineId/stages/:stageId` | `pipeline.update` |
+| Delete Stage | `DELETE /pipelines/:pipelineId/stages/:stageId` | `pipeline.update` |
 
 ## Token auto-save
 
@@ -50,7 +79,7 @@ Collection **pre-request script**:
 - If `accessToken` is set → adds `Authorization: Bearer {{accessToken}}`
 - If empty → no header (login and other public routes work unchanged)
 
-Future protected routes like **Get Me** will work after login once tokens are returned.
+Protected routes work after login once tokens are returned.
 
 ## Clear auth state
 
