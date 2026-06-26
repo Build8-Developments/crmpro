@@ -36,6 +36,32 @@ const ROLE_IDS = {
 const DEFAULT_PIPELINE_ID = '44444444-4444-4444-8444-444444444401';
 const COMMERCIAL_PIPELINE_ID = '44444444-4444-4444-8444-444444444402';
 
+const DEVELOPER_IDS = {
+  palmHills: '66666666-6666-4666-8666-666666666601',
+  emaar: '66666666-6666-4666-8666-666666666602',
+  tmg: '66666666-6666-4666-8666-666666666603',
+  mountainView: '66666666-6666-4666-8666-666666666604',
+  sodic: '66666666-6666-4666-8666-666666666605',
+  hydePark: '66666666-6666-4666-8666-666666666606',
+} as const;
+
+const PROJECT_IDS = {
+  palmHillsNewCairo: '77777777-7777-4777-8777-777777777701',
+  palmHillsOctober: '77777777-7777-4777-8777-777777777702',
+  badya: '77777777-7777-4777-8777-777777777703',
+  uptownCairo: '77777777-7777-4777-8777-777777777704',
+  mivida: '77777777-7777-4777-8777-777777777705',
+  madinaty: '77777777-7777-4777-8777-777777777706',
+  alRehab: '77777777-7777-4777-8777-777777777707',
+  sarai: '77777777-7777-4777-8777-777777777708',
+  mountainViewICity: '77777777-7777-4777-8777-777777777709',
+  ilBosco: '77777777-7777-4777-8777-777777777710',
+  theWaterway: '77777777-7777-4777-8777-777777777711',
+  vyeKarnak: '77777777-7777-4777-8777-777777777712',
+  hydeParkNewCairo: '77777777-7777-4777-8777-777777777713',
+  eastown: '77777777-7777-4777-8777-777777777714',
+} as const;
+
 const SUBSCRIPTION_PLANS = [
   {
     id: PLAN_IDS.starter,
@@ -79,6 +105,10 @@ const PERMISSIONS = [
   { key: 'lead-source.read', description: 'View lead sources' },
   { key: 'lead-source.update', description: 'Update lead sources' },
   { key: 'lead-source.delete', description: 'Delete lead sources' },
+  { key: 'developer.create', description: 'Create developers' },
+  { key: 'developer.read', description: 'View developers' },
+  { key: 'developer.update', description: 'Update developers' },
+  { key: 'developer.delete', description: 'Delete developers' },
   { key: 'project.create', description: 'Create projects' },
   { key: 'project.read', description: 'View projects' },
   { key: 'project.update', description: 'Update projects' },
@@ -124,6 +154,7 @@ const AGENT_PERMISSION_KEYS = [
   'lead.read',
   'lead.update',
   'lead-source.read',
+  'developer.read',
   'project.read',
   'pipeline.read',
   'file.upload',
@@ -182,13 +213,100 @@ const LEAD_SOURCE_NAMES = [
   'Walk-in',
 ] as const;
 
-const DEVELOPER_NAMES = [
-  'Palm Hills Developments',
-  'Emaar Misr',
-  'Talaat Moustafa Group',
-  'Mountain View',
-  'SODIC',
-  'Hyde Park',
+const SAMPLE_DEVELOPERS = [
+  { id: DEVELOPER_IDS.palmHills, name: 'Palm Hills Developments' },
+  { id: DEVELOPER_IDS.emaar, name: 'Emaar Misr' },
+  { id: DEVELOPER_IDS.tmg, name: 'Talaat Moustafa Group' },
+  { id: DEVELOPER_IDS.mountainView, name: 'Mountain View' },
+  { id: DEVELOPER_IDS.sodic, name: 'SODIC' },
+  { id: DEVELOPER_IDS.hydePark, name: 'Hyde Park' },
+] as const;
+
+const SAMPLE_PROJECTS = [
+  {
+    id: PROJECT_IDS.palmHillsNewCairo,
+    developerId: DEVELOPER_IDS.palmHills,
+    name: 'Palm Hills New Cairo',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.palmHillsOctober,
+    developerId: DEVELOPER_IDS.palmHills,
+    name: 'Palm Hills October',
+    location: '6th of October',
+  },
+  {
+    id: PROJECT_IDS.badya,
+    developerId: DEVELOPER_IDS.palmHills,
+    name: 'Badya',
+    location: '6th of October',
+  },
+  {
+    id: PROJECT_IDS.uptownCairo,
+    developerId: DEVELOPER_IDS.emaar,
+    name: 'Uptown Cairo',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.mivida,
+    developerId: DEVELOPER_IDS.emaar,
+    name: 'Mivida',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.madinaty,
+    developerId: DEVELOPER_IDS.tmg,
+    name: 'Madinaty',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.alRehab,
+    developerId: DEVELOPER_IDS.tmg,
+    name: 'Al Rehab',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.sarai,
+    developerId: DEVELOPER_IDS.tmg,
+    name: 'Sarai',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.eastown,
+    developerId: DEVELOPER_IDS.tmg,
+    name: 'Eastown',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.mountainViewICity,
+    developerId: DEVELOPER_IDS.mountainView,
+    name: 'Mountain View iCity',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.ilBosco,
+    developerId: DEVELOPER_IDS.mountainView,
+    name: 'Il Bosco',
+    location: 'New Capital',
+  },
+  {
+    id: PROJECT_IDS.theWaterway,
+    developerId: DEVELOPER_IDS.sodic,
+    name: 'The Waterway',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.vyeKarnak,
+    developerId: DEVELOPER_IDS.sodic,
+    name: 'VYE Karnak',
+    location: 'New Cairo',
+  },
+  {
+    id: PROJECT_IDS.hydeParkNewCairo,
+    developerId: DEVELOPER_IDS.hydePark,
+    name: 'Hyde Park New Cairo',
+    location: 'New Cairo',
+  },
 ] as const;
 
 const prisma = new PrismaClient({
@@ -465,53 +583,36 @@ async function seedUserSessions(
 async function seedDevelopers(tenantId: string): Promise<string[]> {
   const ids: string[] = [];
 
-  for (const name of DEVELOPER_NAMES) {
-    const developer = await prisma.developer.create({
-      data: { tenantId, name },
+  for (const developer of SAMPLE_DEVELOPERS) {
+    const record = await prisma.developer.create({
+      data: {
+        id: developer.id,
+        tenantId,
+        name: developer.name,
+      },
     });
-    ids.push(developer.id);
+    ids.push(record.id);
   }
 
   return ids;
 }
 
-async function seedProjects(
-  tenantId: string,
-  developerIds: string[],
-): Promise<string[]> {
-  const projectNames = [
-    'Badya',
-    'Mountain View iCity',
-    'New Giza',
-    'Madinaty',
-    'Al Rehab',
-    'Eastown',
-    'Sarai',
-    'Il Bosco',
-    'ZED East',
-    'The Waterway',
-  ];
-
+async function seedProjects(tenantId: string): Promise<string[]> {
   const ids: string[] = [];
 
-  for (const name of projectNames) {
-    const project = await prisma.project.create({
+  for (const project of SAMPLE_PROJECTS) {
+    const record = await prisma.project.create({
       data: {
+        id: project.id,
         tenantId,
-        developerId: faker.helpers.arrayElement(developerIds),
-        name,
-        location: faker.helpers.arrayElement([
-          'New Cairo',
-          '6th of October',
-          'North Coast',
-          'Sheikh Zayed',
-          'Ain Sokhna',
-        ]),
+        developerId: project.developerId,
+        name: project.name,
+        location: project.location,
         description: faker.lorem.paragraph(),
-        isActive: faker.datatype.boolean({ probability: 0.9 }),
+        isActive: true,
       },
     });
-    ids.push(project.id);
+    ids.push(record.id);
   }
 
   return ids;
@@ -959,8 +1060,8 @@ async function seedTenantCrmData(
   userIds: string[],
   leadCount: number,
 ): Promise<void> {
-  const developerIds = await seedDevelopers(tenantId);
-  const projectIds = await seedProjects(tenantId, developerIds);
+  await seedDevelopers(tenantId);
+  const projectIds = await seedProjects(tenantId);
   const sourceIds = await seedLeadSources(tenantId);
   const { defaultPipelineId, stages } = await seedPipelines(tenantId);
 
@@ -1034,6 +1135,9 @@ async function main(): Promise<void> {
   console.log('  owner@primeestates.com / Password123!');
   console.log('  manager@primeestates.com / Password123!');
   console.log('  agent@primeestates.com / Password123!');
+  console.log('\nStable sample IDs (prime-estates):');
+  console.log(`  developerId (Palm Hills): ${DEVELOPER_IDS.palmHills}`);
+  console.log(`  projectId (Palm Hills New Cairo): ${PROJECT_IDS.palmHillsNewCairo}`);
   console.log('\nRe-run is idempotent for foundation data; CRM sample data is refreshed each run.');
   console.log('Set SEED_RANDOM_SEED for reproducible faker output.');
 }

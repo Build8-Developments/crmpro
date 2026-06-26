@@ -10,6 +10,11 @@ export const PERMISSIONS = {
   LEAD_SOURCE_UPDATE: 'lead-source.update',
   LEAD_SOURCE_DELETE: 'lead-source.delete',
 
+  DEVELOPER_CREATE: 'developer.create',
+  DEVELOPER_READ: 'developer.read',
+  DEVELOPER_UPDATE: 'developer.update',
+  DEVELOPER_DELETE: 'developer.delete',
+
   PROJECT_CREATE: 'project.create',
   PROJECT_READ: 'project.read',
   PROJECT_UPDATE: 'project.update',
@@ -55,6 +60,12 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.LEAD_SOURCE_UPDATE,
     PERMISSIONS.LEAD_SOURCE_DELETE,
   ],
+  DEVELOPERS: [
+    PERMISSIONS.DEVELOPER_CREATE,
+    PERMISSIONS.DEVELOPER_READ,
+    PERMISSIONS.DEVELOPER_UPDATE,
+    PERMISSIONS.DEVELOPER_DELETE,
+  ],
   PROJECTS: [
     PERMISSIONS.PROJECT_CREATE,
     PERMISSIONS.PROJECT_READ,
@@ -93,6 +104,7 @@ export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
 export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   LEADS: 'Leads',
   LEAD_SOURCES: 'Lead Sources',
+  DEVELOPERS: 'Developers',
   PROJECTS: 'Projects',
   PIPELINES: 'Pipelines',
   USERS: 'Users',
@@ -105,6 +117,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
 export const PERMISSION_GROUP_ORDER = [
   'LEADS',
   'LEAD_SOURCES',
+  'DEVELOPERS',
   'PROJECTS',
   'PIPELINES',
   'USERS',

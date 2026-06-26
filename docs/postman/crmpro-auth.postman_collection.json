@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "crmpro-auth-collection",
     "name": "CRMPro Local",
-    "description": "CRMPro API — local development collection.\n\nImport with `crmpro-local.postman_environment.json`.\n\n**Base URL** includes the `/api/v1` prefix (`http://localhost:3000/api/v1`).\n\nFolders: Auth, Pipelines, Lead Sources, Debug.",
+    "description": "CRMPro API — local development collection.\n\nImport with `crmpro-local.postman_environment.json`.\n\n**Base URL** includes the `/api/v1` prefix (`http://localhost:3000/api/v1`).\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Debug.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -785,6 +785,372 @@
               "path": ["lead-sources", "{{leadSourceId}}"]
             },
             "description": "Delete a lead source not referenced by any leads."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Developers",
+      "description": "Real estate developer management. Agents have read-only access.",
+      "item": [
+        {
+          "name": "List Developers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has developers', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('items');",
+                  "  pm.expect(json.data).to.have.property('pagination');",
+                  "  pm.expect(json.data.items).to.be.an('array');",
+                  "  pm.expect(json.data.pagination.page).to.eql(1);",
+                  "  pm.expect(json.data.pagination.limit).to.eql(20);",
+                  "});",
+                  "",
+                  "if (json.data?.items?.length) {",
+                  "  const palm = json.data.items.find((d) => d.name.includes('Palm Hills'));",
+                  "  const developer = palm || json.data.items[0];",
+                  "  pm.environment.set('developerId', developer.id);",
+                  "  console.log(`Saved developerId=${developer.id} (${developer.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/developers?page=1&limit=20&search=palm&sortBy=name&sortOrder=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["developers"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "palm", "description": "Case-insensitive name search" },
+                { "key": "sortBy", "value": "name", "description": "name | createdAt | updatedAt" },
+                { "key": "sortOrder", "value": "asc", "description": "asc | desc" }
+              ]
+            },
+            "description": "List developers (paginated, searchable, sortable). Excludes soft-deleted rows."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Developer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has developer', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('id');",
+                  "  pm.expect(json.data).to.have.property('name');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/developers/{{developerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["developers", "{{developerId}}"]
+            },
+            "description": "Get a single developer. Run **List Developers** first to set `developerId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Developer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('developerId', json.data.id);",
+                  "  console.log(`Created developer ${json.data.id} (${json.data.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Developer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/developers",
+              "host": ["{{baseUrl}}"],
+              "path": ["developers"]
+            },
+            "description": "Create a developer. Names must be unique per tenant among active developers."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Developer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Developer (Updated)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/developers/{{developerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["developers", "{{developerId}}"]
+            },
+            "description": "Update developer name."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Developer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/developers/{{developerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["developers", "{{developerId}}"]
+            },
+            "description": "Soft-delete a developer with no active projects."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "description": "Real estate project management. Agents have read-only access.",
+      "item": [
+        {
+          "name": "List Projects",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has projects', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('items');",
+                  "  pm.expect(json.data).to.have.property('pagination');",
+                  "  pm.expect(json.data.items).to.be.an('array');",
+                  "  pm.expect(json.data.pagination.page).to.eql(1);",
+                  "  pm.expect(json.data.pagination.limit).to.eql(20);",
+                  "});",
+                  "",
+                  "if (json.data?.items?.length) {",
+                  "  const palm = json.data.items.find((p) => p.name.includes('Palm Hills'));",
+                  "  const project = palm || json.data.items[0];",
+                  "  pm.environment.set('projectId', project.id);",
+                  "  if (project.developer?.id) {",
+                  "    pm.environment.set('developerId', project.developer.id);",
+                  "  }",
+                  "  console.log(`Saved projectId=${project.id} (${project.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects?page=1&limit=20&search=palm&developerId={{developerId}}&isActive=true&sortBy=name&sortOrder=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "palm", "description": "Case-insensitive name/location search" },
+                { "key": "developerId", "value": "{{developerId}}", "description": "Filter by developer UUID (optional)" },
+                { "key": "isActive", "value": "true", "description": "Filter by active status" },
+                { "key": "sortBy", "value": "name", "description": "name | createdAt | updatedAt | isActive" },
+                { "key": "sortOrder", "value": "asc", "description": "asc | desc" }
+              ]
+            },
+            "description": "List projects (paginated, searchable, sortable). Excludes soft-deleted rows. Includes developer summary."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has project', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('id');",
+                  "  pm.expect(json.data).to.have.property('name');",
+                  "  pm.expect(json.data).to.have.property('developer');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}"]
+            },
+            "description": "Get a single project. Run **List Projects** first to set `projectId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('projectId', json.data.id);",
+                  "  console.log(`Created project ${json.data.id} (${json.data.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"developerId\": \"{{developerId}}\",\n  \"name\": \"Test Project\",\n  \"location\": \"New Cairo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"]
+            },
+            "description": "Create a project. Run **List Developers** first to set `developerId`. Names must be unique per tenant among active projects."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Project (Updated)\",\n  \"location\": \"October\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}"]
+            },
+            "description": "Update project fields (developerId, name, location, isActive)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}"]
+            },
+            "description": "Soft-delete a project. Does not block when linked to leads."
           },
           "response": []
         }

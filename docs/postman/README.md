@@ -1,6 +1,6 @@
 # CRMPro Postman
 
-Local API testing collection for auth, pipelines, and lead sources.
+Local API testing collection for auth, pipelines, lead sources, developers, and projects.
 
 ## Files
 
@@ -31,6 +31,8 @@ Local API testing collection for auth, pipelines, and lead sources.
 | `pipelineId` | `4444...4402` (Commercial Leasing) | Seeded non-default pipeline; updated by **List Pipelines** |
 | `stageId` | *(empty)* | Auto-filled by **List Pipelines** or **Create Stage** |
 | `leadSourceId` | *(empty)* | Auto-filled by **List Lead Sources** or **Create Lead Source** |
+| `developerId` | `6666...6601` (Palm Hills) | Seeded developer; updated by **List Developers** or **Create Developer** |
+| `projectId` | `7777...7701` (Palm Hills New Cairo) | Seeded project; updated by **List Projects** or **Create Project** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -83,6 +85,38 @@ List query example:
 GET /lead-sources?page=1&limit=20&search=facebook&sortBy=name&sortOrder=asc
 ```
 
+## Developer endpoints
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Developers | `GET /developers` | `developer.read` |
+| Get Developer | `GET /developers/:id` | `developer.read` |
+| Create Developer | `POST /developers` | `developer.create` |
+| Update Developer | `PATCH /developers/:id` | `developer.update` |
+| Delete Developer | `DELETE /developers/:id` | `developer.delete` |
+
+List query example:
+
+```text
+GET /developers?page=1&limit=20&search=palm&sortBy=name&sortOrder=asc
+```
+
+## Project endpoints
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Projects | `GET /projects` | `project.read` |
+| Get Project | `GET /projects/:id` | `project.read` |
+| Create Project | `POST /projects` | `project.create` |
+| Update Project | `PATCH /projects/:id` | `project.update` |
+| Delete Project | `DELETE /projects/:id` | `project.delete` |
+
+List query example:
+
+```text
+GET /projects?page=1&limit=20&search=palm&developerId=...&isActive=true&sortBy=name&sortOrder=asc
+```
+
 ## Token auto-save
 
 **Login** includes a test script that:
@@ -119,6 +153,10 @@ Paginated list endpoints support:
 **Pipelines** — `search` matches pipeline `name`. Sort: `name`, `createdAt` (default `createdAt` asc).
 
 **Lead sources** — `search` matches source `name`. Sort: `name`, `createdAt` (default `name` asc).
+
+**Developers** — `search` matches developer `name`. Sort: `name`, `createdAt`, `updatedAt` (default `name` asc). Soft-deleted rows excluded.
+
+**Projects** — `search` matches project `name` and `location`. Filters: `developerId`, `isActive`. Sort: `name`, `createdAt`, `updatedAt`, `isActive` (default `name` asc). Soft-deleted rows excluded. List items include `developer` summary.
 
 ## List response shape
 
