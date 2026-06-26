@@ -1,0 +1,328 @@
+{
+  "info": {
+    "_postman_id": "crmpro-auth-collection",
+    "name": "CRMPro Local",
+    "description": "CRMPro API — local development collection.\n\nImport with `crmpro-local.postman_environment.json`.\n\n**Base URL** includes the `/api/v1` prefix (`http://localhost:3000/api/v1`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const accessToken = pm.environment.get('accessToken');",
+          "",
+          "if (accessToken) {",
+          "  pm.request.headers.upsert({",
+          "    key: 'Authorization',",
+          "    value: `Bearer ${accessToken}`,",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints for tenant CRM users.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response has success flag', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "if (json.accessToken) {",
+                  "  pm.environment.set('accessToken', json.accessToken);",
+                  "  console.log('accessToken saved to environment');",
+                  "} else {",
+                  "  console.log('No accessToken in response (expected for Chunk 2)');",
+                  "}",
+                  "",
+                  "if (json.refreshToken) {",
+                  "  pm.environment.set('refreshToken', json.refreshToken);",
+                  "  const sessionId = json.refreshToken.split('.')[0];",
+                  "  if (sessionId) {",
+                  "    pm.environment.set('sessionId', sessionId);",
+                  "  }",
+                  "  console.log('refreshToken saved to environment');",
+                  "}",
+                  "",
+                  "if (json.user) {",
+                  "  console.log(`Logged in as ${json.user.email} (${json.user.role?.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantSlug\": \"{{tenantSlug}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"deviceName\": \"Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login and receive access + refresh tokens. Tokens auto-save to environment."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "if (json.accessToken) {",
+                  "  pm.environment.set('accessToken', json.accessToken);",
+                  "  console.log('accessToken updated');",
+                  "}",
+                  "",
+                  "if (json.refreshToken) {",
+                  "  pm.environment.set('refreshToken', json.refreshToken);",
+                  "  const sessionId = json.refreshToken.split('.')[0];",
+                  "  if (sessionId) {",
+                  "    pm.environment.set('sessionId', sessionId);",
+                  "  }",
+                  "  console.log('refreshToken rotated');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Rotate refresh token and issue new access token. No Bearer auth required."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.environment.set('accessToken', '');",
+                  "pm.environment.set('refreshToken', '');",
+                  "console.log('Cleared local tokens after logout');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Revoke current session. Requires Bearer token from Login."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout All",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is successful', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.environment.set('accessToken', '');",
+                  "pm.environment.set('refreshToken', '');",
+                  "console.log('Cleared local tokens after logout-all');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout-all",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout-all"]
+            },
+            "description": "Revoke all active sessions for the current user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data) {",
+                  "  console.log(`Active sessions: ${json.data.length}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "sessions"]
+            },
+            "description": "List active sessions for the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user profile', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('email');",
+                  "  pm.expect(json.data).to.have.property('role');",
+                  "  pm.expect(json.data).to.have.property('tenant');",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data) {",
+                  "  console.log(`Authenticated as ${json.data.email} (${json.data.role?.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Returns the authenticated user profile.\n\nRequires Bearer token. Run **Login** first — collection pre-request script injects `Authorization` automatically."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Debug",
+      "description": "Optional helpers for local debugging.",
+      "item": [
+        {
+          "name": "Clear Auth Tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('accessToken', '');",
+                  "pm.environment.set('refreshToken', '');",
+                  "pm.environment.set('sessionId', '');",
+                  "console.log('Cleared accessToken, refreshToken, sessionId');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://postman-echo.com/get",
+              "protocol": "https",
+              "host": ["postman-echo", "com"],
+              "path": ["get"]
+            },
+            "description": "Clears stored auth environment variables.\n\nDoes not call CRMPro API. Run when you want a clean auth state."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -10,8 +10,12 @@ export default () => ({
     url: process.env.REDIS_URL,
   },
   auth: {
-    accessSecret: process.env.JWT_ACCESS_SECRET ?? '',
-    refreshSecret: process.env.JWT_REFRESH_SECRET ?? '',
+    accessSecret: process.env.JWT_ACCESS_SECRET,
+    accessExpiration: process.env.JWT_ACCESS_EXPIRATION ?? '15m',
+    refreshTokenExpiration:
+      process.env.REFRESH_TOKEN_EXPIRATION ??
+      process.env.JWT_REFRESH_EXPIRATION ??
+      '7d',
   },
   cors: {
     origins: (process.env.CORS_ORIGINS ?? '')

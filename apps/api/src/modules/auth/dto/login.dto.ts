@@ -1,0 +1,18 @@
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class LoginDto {
+  @IsString()
+  @IsNotEmpty()
+  tenantSlug: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  deviceName?: string;
+}

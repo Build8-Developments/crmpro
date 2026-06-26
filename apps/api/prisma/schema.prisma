@@ -108,10 +108,30 @@ model User {
   role               Role        @relation(fields: [roleId], references: [id])
   uploadedFileAssets FileAsset[] @relation("UploadedBy")
   avatarFileAssets   FileAsset[] @relation("AvatarFor")
+  sessions           UserSession[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([roleId])
+}
+
+model UserSession {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  hashedRefreshToken String
+  deviceName         String?
+  ipAddress          String?
+  userAgent          String?
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model FileAsset {

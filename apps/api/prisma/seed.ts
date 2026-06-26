@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, TenantStatus } from '@prisma/client';
-import { hashSync } from 'bcryptjs';
+import * as argon2 from 'argon2';
 
 const GB = 1024n ** 3n;
 
@@ -18,8 +18,6 @@ const ROLE_IDS = {
   manager: '33333333-3333-4333-8333-333333333302',
   agent: '33333333-3333-4333-8333-333333333303',
 } as const;
-
-const SEED_PASSWORD_HASH = hashSync('Password123!', 10);
 
 const SUBSCRIPTION_PLANS = [
   {
@@ -257,7 +255,7 @@ async function seedRolePermissions(
   );
 }
 
-async function seedUsers(): Promise<void> {
+async function seedUsers(passwordHash: string): Promise<void> {
   for (const user of SAMPLE_USERS) {
     await prisma.user.upsert({
       where: {
@@ -272,14 +270,14 @@ async function seedUsers(): Promise<void> {
         name: user.name,
         email: user.email,
         phone: 'phone' in user ? user.phone : undefined,
-        passwordHash: SEED_PASSWORD_HASH,
+        passwordHash,
         isActive: true,
       },
       update: {
         name: user.name,
         roleId: user.roleId,
         phone: 'phone' in user ? user.phone : null,
-        passwordHash: SEED_PASSWORD_HASH,
+        passwordHash,
         isActive: true,
       },
     });
@@ -288,6 +286,8 @@ async function seedUsers(): Promise<void> {
 
 async function main(): Promise<void> {
   console.log('Seeding Phase 1 foundation data...\n');
+
+  const passwordHash = await argon2.hash('Password123!');
 
   await seedSubscriptionPlans();
   console.log('✓ Seeded subscription plans');
@@ -304,7 +304,7 @@ async function main(): Promise<void> {
   await seedRolePermissions(permissionIds);
   console.log('✓ Seeded role permissions');
 
-  await seedUsers();
+  await seedUsers(passwordHash);
   console.log('✓ Seeded users');
 
   console.log('\nSeed complete.');
