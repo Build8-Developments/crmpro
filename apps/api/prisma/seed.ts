@@ -75,6 +75,10 @@ const PERMISSIONS = [
   { key: 'lead.update', description: 'Update lead details' },
   { key: 'lead.delete', description: 'Delete leads' },
   { key: 'lead.assign', description: 'Assign leads to team members' },
+  { key: 'lead-source.create', description: 'Create lead sources' },
+  { key: 'lead-source.read', description: 'View lead sources' },
+  { key: 'lead-source.update', description: 'Update lead sources' },
+  { key: 'lead-source.delete', description: 'Delete lead sources' },
   { key: 'project.create', description: 'Create projects' },
   { key: 'project.read', description: 'View projects' },
   { key: 'project.update', description: 'Update projects' },
@@ -119,6 +123,7 @@ const TENANT_ROLES = [
 const AGENT_PERMISSION_KEYS = [
   'lead.read',
   'lead.update',
+  'lead-source.read',
   'project.read',
   'pipeline.read',
   'file.upload',

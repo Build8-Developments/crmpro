@@ -5,6 +5,11 @@ export const PERMISSIONS = {
   LEAD_DELETE: 'lead.delete',
   LEAD_ASSIGN: 'lead.assign',
 
+  LEAD_SOURCE_CREATE: 'lead-source.create',
+  LEAD_SOURCE_READ: 'lead-source.read',
+  LEAD_SOURCE_UPDATE: 'lead-source.update',
+  LEAD_SOURCE_DELETE: 'lead-source.delete',
+
   PROJECT_CREATE: 'project.create',
   PROJECT_READ: 'project.read',
   PROJECT_UPDATE: 'project.update',
@@ -44,6 +49,12 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.LEAD_DELETE,
     PERMISSIONS.LEAD_ASSIGN,
   ],
+  LEAD_SOURCES: [
+    PERMISSIONS.LEAD_SOURCE_CREATE,
+    PERMISSIONS.LEAD_SOURCE_READ,
+    PERMISSIONS.LEAD_SOURCE_UPDATE,
+    PERMISSIONS.LEAD_SOURCE_DELETE,
+  ],
   PROJECTS: [
     PERMISSIONS.PROJECT_CREATE,
     PERMISSIONS.PROJECT_READ,
@@ -81,6 +92,7 @@ export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
 /** Display labels for role-editor section headers. */
 export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   LEADS: 'Leads',
+  LEAD_SOURCES: 'Lead Sources',
   PROJECTS: 'Projects',
   PIPELINES: 'Pipelines',
   USERS: 'Users',
@@ -92,6 +104,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
 /** Stable UI iteration order for permission groups. */
 export const PERMISSION_GROUP_ORDER = [
   'LEADS',
+  'LEAD_SOURCES',
   'PROJECTS',
   'PIPELINES',
   'USERS',

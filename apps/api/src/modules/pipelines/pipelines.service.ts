@@ -5,8 +5,19 @@ import {
 } from '@nestjs/common';
 import { PipelineCloseType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import {
+  buildPaginatedResponse,
+  getPaginationParams,
+  PaginatedResponse,
+} from '../../common/pagination';
+import {
+  buildOrderBy,
+  normalizeSearch,
+  SortOrder,
+} from '../../common/query';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
 import { CreateStageDto } from './dto/create-stage.dto';
+import { ListPipelinesQueryDto } from './dto/list-pipelines-query.dto';
 import { UpdatePipelineDto } from './dto/update-pipeline.dto';
 import { UpdateStageDto } from './dto/update-stage.dto';
 import {
@@ -14,12 +25,36 @@ import {
   PipelineStageResponse,
 } from './types/pipeline.types';
 
+const PIPELINE_SORT_FIELDS = ['name', 'createdAt'] as const;
+
+const PIPELINE_SORT_CONFIG = {
+  allowedFields: PIPELINE_SORT_FIELDS,
+  defaultField: 'createdAt' as const,
+  defaultOrder: SortOrder.ASC,
+};
+
 type TransactionClient = Prisma.TransactionClient;
 
 interface ClosedStageInput {
   isClosed: boolean;
   closeType: PipelineCloseType | null | undefined;
 }
+
+type StageRecord = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  color: string | null;
+  isSystem: boolean;
+  isClosed: boolean;
+  closeType: PipelineCloseType | null;
+  pipelineId: string;
+  tenantId: string;
+};
+
+const STAGE_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+} as const;
 
 const DEFAULT_STAGE_DEFS = [
   { name: 'New Lead', color: '#94a3b8', isClosed: false, closeType: null },
@@ -51,14 +86,31 @@ const pipelineInclude = {
 export class PipelinesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listPipelines(tenantId: string): Promise<PipelineResponse[]> {
-    const pipelines = await this.prisma.pipeline.findMany({
-      where: { tenantId },
-      include: pipelineInclude,
-      orderBy: { createdAt: 'asc' },
-    });
+  async listPipelines(
+    tenantId: string,
+    query: ListPipelinesQueryDto,
+  ): Promise<PaginatedResponse<PipelineResponse>> {
+    const { page, limit, skip, take } = getPaginationParams(query);
+    const where = this.buildWhereClause(tenantId, query);
+    const orderBy = this.buildOrderBy(query);
 
-    return pipelines.map((pipeline) => this.toPipelineResponse(pipeline));
+    const [pipelines, totalItems] = await this.prisma.$transaction([
+      this.prisma.pipeline.findMany({
+        where,
+        include: pipelineInclude,
+        orderBy,
+        skip,
+        take,
+      }),
+      this.prisma.pipeline.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      pipelines.map((pipeline) => this.toPipelineResponse(pipeline)),
+      page,
+      limit,
+      totalItems,
+    );
   }
 
   async getPipeline(
@@ -154,13 +206,18 @@ export class PipelinesService {
     }
   }
 
-  async deletePipeline(id: string, tenantId: string): Promise<void> {
+  async deletePipeline(
+    id: string,
+    tenantId: string,
+  ): Promise<{ id: string }> {
     const pipeline = await this.getPipelineOrThrow(id, tenantId);
     await this.ensurePipelineCanBeDeleted(pipeline);
 
     await this.prisma.pipeline.delete({
       where: { id: pipeline.id },
     });
+
+    return { id: pipeline.id };
   }
 
   async createStage(
@@ -175,24 +232,34 @@ export class PipelinesService {
 
     this.validateClosedStageRules({ isClosed, closeType });
 
-    await this.ensureUniqueSortOrder(pipeline.id, dto.sortOrder);
-    if (closeType) {
-      await this.ensureUniqueClosedStage(pipeline.id, closeType);
-    }
+    const stageCount = pipeline.stages.length;
+    this.validateSortOrderForInsert(dto.sortOrder, stageCount);
 
     try {
-      const stage = await this.prisma.pipelineStage.create({
-        data: {
-          tenantId: pipeline.tenantId,
-          pipelineId: pipeline.id,
-          name: dto.name.trim(),
-          sortOrder: dto.sortOrder,
-          color: dto.color ?? null,
-          isClosed,
-          closeType,
-          isSystem: false,
-        },
-      });
+      const stage = await this.prisma.$transaction(async (tx) => {
+        if (closeType) {
+          await this.ensureUniqueClosedStageInTx(
+            tx,
+            pipeline.id,
+            closeType,
+          );
+        }
+
+        await this.shiftStagesOnInsert(tx, pipeline.id, dto.sortOrder);
+
+        return tx.pipelineStage.create({
+          data: {
+            tenantId: pipeline.tenantId,
+            pipelineId: pipeline.id,
+            name: dto.name.trim(),
+            sortOrder: dto.sortOrder,
+            color: dto.color ?? null,
+            isClosed,
+            closeType,
+            isSystem: false,
+          },
+        });
+      }, STAGE_TRANSACTION_OPTIONS);
 
       return this.toStageResponse(stage);
     } catch (error) {
@@ -207,6 +274,8 @@ export class PipelinesService {
     dto: UpdateStageDto,
   ): Promise<PipelineStageResponse> {
     const stage = await this.getStageOrThrow(stageId, pipelineId, tenantId);
+
+    this.validateSystemStageUpdate(stage, dto);
 
     const nextName = dto.name !== undefined ? dto.name.trim() : stage.name;
     const nextSortOrder =
@@ -226,33 +295,48 @@ export class PipelinesService {
       closeType: nextCloseType,
     });
 
-    if (nextSortOrder !== stage.sortOrder) {
-      await this.ensureUniqueSortOrder(
-        pipelineId,
-        nextSortOrder,
-        stage.id,
-      );
-    }
-
-    if (nextCloseType) {
-      await this.ensureUniqueClosedStage(
-        pipelineId,
-        nextCloseType,
-        stage.id,
-      );
+    if (dto.sortOrder !== undefined) {
+      const stageCount = await this.prisma.pipelineStage.count({
+        where: { pipelineId },
+      });
+      this.validateSortOrderForUpdate(nextSortOrder, stageCount);
     }
 
     try {
-      const updated = await this.prisma.pipelineStage.update({
-        where: { id: stage.id },
-        data: {
-          name: nextName,
-          sortOrder: nextSortOrder,
-          color: nextColor,
-          isClosed: nextIsClosed,
-          closeType: nextCloseType,
-        },
-      });
+      const updated = await this.prisma.$transaction(async (tx) => {
+        if (nextCloseType) {
+          await this.ensureUniqueClosedStageInTx(
+            tx,
+            pipelineId,
+            nextCloseType,
+            stage.id,
+          );
+        }
+
+        if (
+          dto.sortOrder !== undefined &&
+          nextSortOrder !== stage.sortOrder
+        ) {
+          await this.reorderStage(
+            tx,
+            pipelineId,
+            stage.id,
+            stage.sortOrder,
+            nextSortOrder,
+          );
+        }
+
+        return tx.pipelineStage.update({
+          where: { id: stage.id },
+          data: {
+            name: nextName,
+            sortOrder: nextSortOrder,
+            color: nextColor,
+            isClosed: nextIsClosed,
+            closeType: nextCloseType,
+          },
+        });
+      }, STAGE_TRANSACTION_OPTIONS);
 
       return this.toStageResponse(updated);
     } catch (error) {
@@ -264,8 +348,12 @@ export class PipelinesService {
     pipelineId: string,
     stageId: string,
     tenantId: string,
-  ): Promise<void> {
+  ): Promise<{ id: string }> {
     const stage = await this.getStageOrThrow(stageId, pipelineId, tenantId);
+
+    if (stage.isSystem) {
+      throw new BadRequestException('Cannot delete a system stage');
+    }
 
     const stageCount = await this.prisma.pipelineStage.count({
       where: { pipelineId },
@@ -285,9 +373,42 @@ export class PipelinesService {
       );
     }
 
-    await this.prisma.pipelineStage.delete({
-      where: { id: stage.id },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pipelineStage.delete({
+        where: { id: stage.id },
+      });
+
+      await this.compactStagesAfterDelete(
+        tx,
+        pipelineId,
+        stage.sortOrder,
+      );
+    }, STAGE_TRANSACTION_OPTIONS);
+
+    return { id: stage.id };
+  }
+
+  private buildWhereClause(
+    tenantId: string,
+    query: ListPipelinesQueryDto,
+  ): Prisma.PipelineWhereInput {
+    const search = normalizeSearch(query.search);
+
+    return {
+      tenantId,
+      ...(search && {
+        name: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      }),
+    };
+  }
+
+  private buildOrderBy(
+    query: ListPipelinesQueryDto,
+  ): Prisma.PipelineOrderByWithRelationInput {
+    return buildOrderBy(query.sortBy, query.sortOrder, PIPELINE_SORT_CONFIG);
   }
 
   private async getPipelineOrThrow(id: string, tenantId: string) {
@@ -307,7 +428,7 @@ export class PipelinesService {
     stageId: string,
     pipelineId: string,
     tenantId: string,
-  ) {
+  ): Promise<StageRecord> {
     const stage = await this.prisma.pipelineStage.findFirst({
       where: {
         id: stageId,
@@ -321,6 +442,60 @@ export class PipelinesService {
     }
 
     return stage;
+  }
+
+  private isTerminalSystemStage(stage: {
+    isSystem: boolean;
+    closeType: PipelineCloseType | null;
+  }): boolean {
+    return (
+      stage.isSystem &&
+      (stage.closeType === PipelineCloseType.WON ||
+        stage.closeType === PipelineCloseType.LOST)
+    );
+  }
+
+  private validateSystemStageUpdate(
+    stage: StageRecord,
+    dto: UpdateStageDto,
+  ): void {
+    if (!stage.isSystem) {
+      return;
+    }
+
+    if (dto.isClosed !== undefined || dto.closeType !== undefined) {
+      throw new BadRequestException(
+        'Cannot modify closed semantics of a system stage',
+      );
+    }
+
+    if (this.isTerminalSystemStage(stage) && dto.sortOrder !== undefined) {
+      throw new BadRequestException(
+        'Cannot reorder terminal system stages (Won/Lost)',
+      );
+    }
+  }
+
+  private validateSortOrderForInsert(
+    sortOrder: number,
+    stageCount: number,
+  ): void {
+    if (sortOrder < 1 || sortOrder > stageCount + 1) {
+      throw new BadRequestException(
+        `sortOrder must be between 1 and ${stageCount + 1}`,
+      );
+    }
+  }
+
+  private validateSortOrderForUpdate(
+    sortOrder: number,
+    stageCount: number,
+  ): void {
+    if (sortOrder < 1 || sortOrder > stageCount) {
+      throw new BadRequestException(
+        `sortOrder must be between 1 and ${stageCount}`,
+      );
+    }
   }
 
   private validateClosedStageRules(input: ClosedStageInput): void {
@@ -339,18 +514,19 @@ export class PipelinesService {
     }
   }
 
-  private async ensureUniqueClosedStage(
+  private async ensureUniqueClosedStageInTx(
+    tx: TransactionClient,
     pipelineId: string,
     closeType: PipelineCloseType,
     excludeStageId?: string,
   ): Promise<void> {
-    const existing = await this.prisma.pipelineStage.findFirst({
+    const existing = await tx.pipelineStage.findFirst({
       where: {
         pipelineId,
         closeType,
         ...(excludeStageId ? { id: { not: excludeStageId } } : {}),
       },
-      select: { id: true, name: true },
+      select: { id: true },
     });
 
     if (existing) {
@@ -360,24 +536,91 @@ export class PipelinesService {
     }
   }
 
-  private async ensureUniqueSortOrder(
+  private async shiftStagesOnInsert(
+    tx: TransactionClient,
     pipelineId: string,
     sortOrder: number,
-    excludeStageId?: string,
   ): Promise<void> {
-    const existing = await this.prisma.pipelineStage.findFirst({
-      where: {
-        pipelineId,
-        sortOrder,
-        ...(excludeStageId ? { id: { not: excludeStageId } } : {}),
-      },
-      select: { id: true },
+    const stagesToShift = await tx.pipelineStage.findMany({
+      where: { pipelineId, sortOrder: { gte: sortOrder } },
+      orderBy: { sortOrder: 'desc' },
+      select: { id: true, sortOrder: true },
     });
 
-    if (existing) {
-      throw new BadRequestException(
-        `sortOrder ${sortOrder} is already used in this pipeline`,
-      );
+    for (const stage of stagesToShift) {
+      await tx.pipelineStage.update({
+        where: { id: stage.id },
+        data: { sortOrder: stage.sortOrder + 1 },
+      });
+    }
+  }
+
+  private async reorderStage(
+    tx: TransactionClient,
+    pipelineId: string,
+    stageId: string,
+    fromOrder: number,
+    toOrder: number,
+  ): Promise<void> {
+    if (fromOrder === toOrder) {
+      return;
+    }
+
+    if (toOrder < fromOrder) {
+      const stagesToShift = await tx.pipelineStage.findMany({
+        where: {
+          pipelineId,
+          sortOrder: { gte: toOrder, lt: fromOrder },
+          id: { not: stageId },
+        },
+        orderBy: { sortOrder: 'desc' },
+        select: { id: true, sortOrder: true },
+      });
+
+      for (const stage of stagesToShift) {
+        await tx.pipelineStage.update({
+          where: { id: stage.id },
+          data: { sortOrder: stage.sortOrder + 1 },
+        });
+      }
+
+      return;
+    }
+
+    const stagesToShift = await tx.pipelineStage.findMany({
+      where: {
+        pipelineId,
+        sortOrder: { gt: fromOrder, lte: toOrder },
+        id: { not: stageId },
+      },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, sortOrder: true },
+    });
+
+    for (const stage of stagesToShift) {
+      await tx.pipelineStage.update({
+        where: { id: stage.id },
+        data: { sortOrder: stage.sortOrder - 1 },
+      });
+    }
+  }
+
+  private async compactStagesAfterDelete(
+    tx: TransactionClient,
+    pipelineId: string,
+    deletedSortOrder: number,
+  ): Promise<void> {
+    const stagesToShift = await tx.pipelineStage.findMany({
+      where: { pipelineId, sortOrder: { gt: deletedSortOrder } },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, sortOrder: true },
+    });
+
+    for (const stage of stagesToShift) {
+      await tx.pipelineStage.update({
+        where: { id: stage.id },
+        data: { sortOrder: stage.sortOrder - 1 },
+      });
     }
   }
 

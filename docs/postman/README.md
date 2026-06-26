@@ -1,6 +1,6 @@
 # CRMPro Postman
 
-Local API testing collection for auth and pipeline flows.
+Local API testing collection for auth, pipelines, and lead sources.
 
 ## Files
 
@@ -30,6 +30,7 @@ Local API testing collection for auth and pipeline flows.
 | `sessionId` | *(empty)* | Auto-filled when returned (Chunk 3+) |
 | `pipelineId` | `4444...4402` (Commercial Leasing) | Seeded non-default pipeline; updated by **List Pipelines** |
 | `stageId` | *(empty)* | Auto-filled by **List Pipelines** or **Create Stage** |
+| `leadSourceId` | *(empty)* | Auto-filled by **List Lead Sources** or **Create Lead Source** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -60,6 +61,28 @@ Run **Auth → Login** first (owner or manager for writes).
 | Update Stage | `PATCH /pipelines/:pipelineId/stages/:stageId` | `pipeline.update` |
 | Delete Stage | `DELETE /pipelines/:pipelineId/stages/:stageId` | `pipeline.update` |
 
+List query example:
+
+```text
+GET /pipelines?page=1&limit=20&search=sales&sortBy=createdAt&sortOrder=desc
+```
+
+## Lead source endpoints
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Lead Sources | `GET /lead-sources` | `lead-source.read` |
+| Get Lead Source | `GET /lead-sources/:id` | `lead-source.read` |
+| Create Lead Source | `POST /lead-sources` | `lead-source.create` |
+| Update Lead Source | `PATCH /lead-sources/:id` | `lead-source.update` |
+| Delete Lead Source | `DELETE /lead-sources/:id` | `lead-source.delete` |
+
+List query example:
+
+```text
+GET /lead-sources?page=1&limit=20&search=facebook&sortBy=name&sortOrder=asc
+```
+
 ## Token auto-save
 
 **Login** includes a test script that:
@@ -80,6 +103,49 @@ Collection **pre-request script**:
 - If empty → no header (login and other public routes work unchanged)
 
 Protected routes work after login once tokens are returned.
+
+## List query params
+
+Paginated list endpoints support:
+
+| Param | Default | Notes |
+| --- | --- | --- |
+| `page` | `1` | Min 1 |
+| `limit` | `20` | Min 1, max 100 |
+| `search` | *(none)* | Trimmed, whitespace-normalized, case-insensitive partial match |
+| `sortBy` | module default | See per-endpoint allowed fields below |
+| `sortOrder` | `asc` | `asc` or `desc` |
+
+**Pipelines** — `search` matches pipeline `name`. Sort: `name`, `createdAt` (default `createdAt` asc).
+
+**Lead sources** — `search` matches source `name`. Sort: `name`, `createdAt` (default `name` asc).
+
+## List response shape
+
+Paginated list endpoints return:
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "totalItems": 50,
+      "totalPages": 3,
+      "hasNextPage": true,
+      "hasPreviousPage": false
+    }
+  }
+}
+```
+
+Query params: `?page=1&limit=20&search=...&sortBy=...&sortOrder=asc`
+
+`GET /auth/sessions` still returns `{ items }` only (not yet paginated or searchable).
+
+Single-resource endpoints return `data` as the object directly.
 
 ## Clear auth state
 

@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
@@ -19,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
 import { CreateStageDto } from './dto/create-stage.dto';
+import { ListPipelinesQueryDto } from './dto/list-pipelines-query.dto';
 import { UpdatePipelineDto } from './dto/update-pipeline.dto';
 import { UpdateStageDto } from './dto/update-stage.dto';
 import { PipelinesService } from './pipelines.service';
@@ -30,8 +32,14 @@ export class PipelinesController {
 
   @Get()
   @RequirePermission(PERMISSIONS.PIPELINE_READ)
-  async listPipelines(@CurrentUser() user: AuthenticatedUser) {
-    const data = await this.pipelinesService.listPipelines(user.tenantId);
+  async listPipelines(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListPipelinesQueryDto,
+  ) {
+    const data = await this.pipelinesService.listPipelines(
+      user.tenantId,
+      query,
+    );
 
     return { success: true, data };
   }
@@ -83,9 +91,9 @@ export class PipelinesController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    await this.pipelinesService.deletePipeline(id, user.tenantId);
+    const data = await this.pipelinesService.deletePipeline(id, user.tenantId);
 
-    return { success: true, message: 'Pipeline deleted successfully' };
+    return { success: true, data };
   }
 
   @Post(':pipelineId/stages')
@@ -129,12 +137,12 @@ export class PipelinesController {
     @Param('pipelineId', ParseUUIDPipe) pipelineId: string,
     @Param('stageId', ParseUUIDPipe) stageId: string,
   ) {
-    await this.pipelinesService.deleteStage(
+    const data = await this.pipelinesService.deleteStage(
       pipelineId,
       stageId,
       user.tenantId,
     );
 
-    return { success: true, message: 'Pipeline stage deleted successfully' };
+    return { success: true, data };
   }
 }

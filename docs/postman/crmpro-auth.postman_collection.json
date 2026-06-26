@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "crmpro-auth-collection",
     "name": "CRMPro Local",
-    "description": "CRMPro API — local development collection.\n\nImport with `crmpro-local.postman_environment.json`.\n\n**Base URL** includes the `/api/v1` prefix (`http://localhost:3000/api/v1`).",
+    "description": "CRMPro API — local development collection.\n\nImport with `crmpro-local.postman_environment.json`.\n\n**Base URL** includes the `/api/v1` prefix (`http://localhost:3000/api/v1`).\n\nFolders: Auth, Pipelines, Lead Sources, Debug.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -228,8 +228,8 @@
                   "});",
                   "",
                   "const json = pm.response.json();",
-                  "if (json.data) {",
-                  "  console.log(`Active sessions: ${json.data.length}`);",
+                  "if (json.data?.items) {",
+                  "  console.log(`Active sessions: ${json.data.items.length}`);",
                   "}"
                 ]
               }
@@ -355,15 +355,19 @@
                   "const json = pm.response.json();",
                   "pm.test('Response has pipelines with stages', function () {",
                   "  pm.expect(json.success).to.eql(true);",
-                  "  pm.expect(json.data).to.be.an('array');",
-                  "  if (json.data.length > 0) {",
-                  "    pm.expect(json.data[0]).to.have.property('stages');",
+                  "  pm.expect(json.data).to.have.property('items');",
+                  "  pm.expect(json.data).to.have.property('pagination');",
+                  "  pm.expect(json.data.items).to.be.an('array');",
+                  "  pm.expect(json.data.pagination.page).to.eql(1);",
+                  "  pm.expect(json.data.pagination.limit).to.eql(20);",
+                  "  if (json.data.items.length > 0) {",
+                  "    pm.expect(json.data.items[0]).to.have.property('stages');",
                   "  }",
                   "});",
                   "",
-                  "if (json.data?.length) {",
-                  "  const commercial = json.data.find((p) => p.name === 'Commercial Leasing');",
-                  "  const pipeline = commercial || json.data.find((p) => !p.isDefault) || json.data[0];",
+                  "if (json.data?.items?.length) {",
+                  "  const commercial = json.data.items.find((p) => p.name === 'Commercial Leasing');",
+                  "  const pipeline = commercial || json.data.items.find((p) => !p.isDefault) || json.data.items[0];",
                   "  pm.environment.set('pipelineId', pipeline.id);",
                   "  const openStage = pipeline.stages?.find((s) => !s.isClosed);",
                   "  if (openStage) {",
@@ -379,11 +383,18 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/pipelines",
+              "raw": "{{baseUrl}}/pipelines?page=1&limit=20&search=sales&sortBy=createdAt&sortOrder=desc",
               "host": ["{{baseUrl}}"],
-              "path": ["pipelines"]
+              "path": ["pipelines"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "sales", "description": "Case-insensitive name search" },
+                { "key": "sortBy", "value": "createdAt", "description": "name | createdAt" },
+                { "key": "sortOrder", "value": "desc", "description": "asc | desc" }
+              ]
             },
-            "description": "List all tenant pipelines with stages ordered by sortOrder."
+            "description": "List tenant pipelines (paginated, searchable, sortable).\n\n**Query:** `page`, `limit` (max 100), `search` (pipeline name), `sortBy` (`name`|`createdAt`), `sortOrder` (`asc`|`desc`).\n\nDefaults: page=1, limit=20, sortBy=createdAt, sortOrder=asc."
           },
           "response": []
         },
@@ -541,7 +552,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Site Visit\",\n  \"sortOrder\": 99,\n  \"color\": \"#22c55e\",\n  \"isClosed\": false\n}",
+              "raw": "{\n  \"name\": \"Site Visit\",\n  \"sortOrder\": 4,\n  \"color\": \"#22c55e\",\n  \"isClosed\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -553,7 +564,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["pipelines", "{{pipelineId}}", "stages"]
             },
-            "description": "Add a custom stage. Use a unique sortOrder per pipeline."
+            "description": "Insert a custom stage at sortOrder. Stages at or after that position shift down (+1). Example: sortOrder 4 inserts before Interested and renumbers later stages."
           },
           "response": []
         },
@@ -596,6 +607,184 @@
               "path": ["pipelines", "{{pipelineId}}", "stages", "{{stageId}}"]
             },
             "description": "Delete a stage not in use by leads. Cannot delete the last stage."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Lead Sources",
+      "description": "Lead acquisition channel management. Agents have read-only access.",
+      "item": [
+        {
+          "name": "List Lead Sources",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead sources', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('items');",
+                  "  pm.expect(json.data).to.have.property('pagination');",
+                  "  pm.expect(json.data.items).to.be.an('array');",
+                  "  pm.expect(json.data.pagination.page).to.eql(1);",
+                  "  pm.expect(json.data.pagination.limit).to.eql(20);",
+                  "});",
+                  "",
+                  "if (json.data?.items?.length) {",
+                  "  pm.environment.set('leadSourceId', json.data.items[0].id);",
+                  "  console.log(`Saved leadSourceId=${json.data.items[0].id} (${json.data.items[0].name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lead-sources?page=1&limit=20&search=facebook&sortBy=name&sortOrder=asc",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-sources"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "facebook", "description": "Case-insensitive name search" },
+                { "key": "sortBy", "value": "name", "description": "name | createdAt" },
+                { "key": "sortOrder", "value": "asc", "description": "asc | desc" }
+              ]
+            },
+            "description": "List lead sources (paginated, searchable, sortable).\n\n**Query:** `page`, `limit` (max 100), `search` (source name), `sortBy` (`name`|`createdAt`), `sortOrder` (`asc`|`desc`).\n\nDefaults: page=1, limit=20, sortBy=name, sortOrder=asc."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Lead Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead source', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('id');",
+                  "  pm.expect(json.data).to.have.property('name');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lead-sources/{{leadSourceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-sources", "{{leadSourceId}}"]
+            },
+            "description": "Get a single lead source. Run **List Lead Sources** first to set `leadSourceId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Lead Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('leadSourceId', json.data.id);",
+                  "  console.log(`Created lead source ${json.data.id} (${json.data.name})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Referral\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/lead-sources",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-sources"]
+            },
+            "description": "Create a lead source. Names must be unique per tenant (case-insensitive)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Lead Source",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Referral (Updated)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/lead-sources/{{leadSourceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-sources", "{{leadSourceId}}"]
+            },
+            "description": "Update a lead source name."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Lead Source",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lead-sources/{{leadSourceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-sources", "{{leadSourceId}}"]
+            },
+            "description": "Delete a lead source not referenced by any leads."
           },
           "response": []
         }

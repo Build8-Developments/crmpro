@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { toListResponseData } from '../../common/http/list-response';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -74,7 +75,7 @@ export class AuthController {
 
     return {
       success: true,
-      data: sessions,
+      data: toListResponseData(sessions),
     };
   }
 
