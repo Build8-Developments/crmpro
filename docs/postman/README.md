@@ -186,7 +186,7 @@ Upload flow: **request-upload** → **Upload to S3 (PUT)** → **complete-upload
 
 Flow: upload CSV via Files (`category: IMPORT_FILE`) → **Create Lead Import Job** with `fileAssetId` → poll **Get Import Job** until terminal status.
 
-Required CSV headers: `fullName`, `primaryPhone`. Optional: `secondaryPhone`, `email`, `sourceName`, `assignedUserEmail`. Processing runs asynchronously after create; job returns immediately with `PENDING`/`PROCESSING`.
+Required CSV headers: `fullName`, `primaryPhone`. Optional: `secondaryPhone`, `email`, `sourceName`, `assignedUserEmail`. Extra columns (e.g. `notes`) are ignored. Processing runs asynchronously after create; job returns immediately with `PENDING`/`PROCESSING`. Stale `PROCESSING` jobs (no progress for 15 minutes) are marked `FAILED` by a background watchdog.
 
 Example CSV:
 

@@ -22,10 +22,11 @@ import { LeadsService } from '../leads/leads.service';
 import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
 import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
 import {
-  ALLOWED_CSV_HEADERS,
   MAX_ERROR_SUMMARY_ENTRIES,
+  PROGRESS_UPDATE_BATCH_SIZE,
   REQUIRED_CSV_HEADERS,
 } from './import-jobs.constants';
+import { ImportJobWatchdogService } from './import-job-watchdog.service';
 import {
   ImportJobErrorEntry,
   ImportJobResponse,
@@ -77,6 +78,7 @@ export class ImportJobsService {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly leadsService: LeadsService,
+    private readonly importJobWatchdog: ImportJobWatchdogService,
   ) {}
 
   async createLeadImportJob(
@@ -112,6 +114,7 @@ export class ImportJobsService {
     id: string,
     tenantId: string,
   ): Promise<ImportJobResponse> {
+    await this.importJobWatchdog.failStaleProcessingJobs();
     const job = await this.getImportJobOrThrow(id, tenantId);
     return this.toImportJobResponse(job);
   }
@@ -120,6 +123,7 @@ export class ImportJobsService {
     tenantId: string,
     query: GetImportJobsQueryDto,
   ): Promise<PaginatedResponse<ImportJobResponse>> {
+    await this.importJobWatchdog.failStaleProcessingJobs();
     const { page, limit, skip, take } = getPaginationParams(query);
     const where = { tenantId };
 
@@ -171,6 +175,8 @@ export class ImportJobsService {
       const pipeline =
         await this.leadsService.getDefaultPipelinePlacement(tenantId);
 
+      let processedRows = 0;
+
       for (const row of rows) {
         const result = await this.processRow(
           tenantId,
@@ -187,17 +193,21 @@ export class ImportJobsService {
           failedRows += 1;
         }
 
-        await this.prisma.importJob.update({
-          where: { id: jobId },
-          data: {
-            processedRows: successfulRows + failedRows,
+        processedRows += 1;
+
+        const isLastRow = processedRows === totalRows;
+
+        if (
+          processedRows % PROGRESS_UPDATE_BATCH_SIZE === 0 ||
+          isLastRow
+        ) {
+          await this.persistProgress(jobId, {
+            processedRows,
             successfulRows,
             failedRows,
-            ...(errors.length > 0
-              ? { errorSummary: errors as unknown as Prisma.InputJsonValue }
-              : {}),
-          },
-        });
+            errors,
+          });
+        }
       }
 
       await this.finalizeJob(jobId, {
@@ -317,14 +327,31 @@ export class ImportJobsService {
         );
       }
     }
+  }
 
-    const allowed = new Set<string>(ALLOWED_CSV_HEADERS);
-
-    for (const header of normalized) {
-      if (!allowed.has(header)) {
-        throw new BadRequestException(`Unsupported CSV header: ${header}`);
-      }
-    }
+  private async persistProgress(
+    jobId: string,
+    params: {
+      processedRows: number;
+      successfulRows: number;
+      failedRows: number;
+      errors: ImportJobErrorEntry[];
+    },
+  ): Promise<void> {
+    await this.prisma.importJob.update({
+      where: { id: jobId },
+      data: {
+        processedRows: params.processedRows,
+        successfulRows: params.successfulRows,
+        failedRows: params.failedRows,
+        ...(params.errors.length > 0
+          ? {
+              errorSummary:
+                params.errors as unknown as Prisma.InputJsonValue,
+            }
+          : {}),
+      },
+    });
   }
 
   private isBlankRow(row: LeadCsvRow): boolean {

@@ -1826,7 +1826,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["import-jobs", "leads"]
             },
-            "description": "Creates a PENDING import job and starts processing asynchronously. Requires `import-job.create`. CSV headers: fullName, primaryPhone (required); secondaryPhone, email, sourceName, assignedUserEmail (optional)."
+            "description": "Creates a PENDING import job and starts processing asynchronously. Requires `import-job.create`. CSV headers: fullName, primaryPhone (required); secondaryPhone, email, sourceName, assignedUserEmail (optional). Extra columns are ignored."
           },
           "response": []
         },

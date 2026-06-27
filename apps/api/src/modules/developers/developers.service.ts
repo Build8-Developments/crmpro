@@ -9,11 +9,7 @@ import {
   getPaginationParams,
   PaginatedResponse,
 } from '../../common/pagination';
-import {
-  buildOrderBy,
-  normalizeSearch,
-  SortOrder,
-} from '../../common/query';
+import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   normalizeDisplayName,
@@ -65,10 +61,7 @@ export class DevelopersService {
     return buildPaginatedResponse(developers, page, limit, totalItems);
   }
 
-  async getDeveloper(
-    id: string,
-    tenantId: string,
-  ): Promise<DeveloperResponse> {
+  async getDeveloper(id: string, tenantId: string): Promise<DeveloperResponse> {
     const developer = await this.getDeveloperOrThrow(id, tenantId);
     return developer;
   }
@@ -110,10 +103,7 @@ export class DevelopersService {
     }
   }
 
-  async deleteDeveloper(
-    id: string,
-    tenantId: string,
-  ): Promise<{ id: string }> {
+  async deleteDeveloper(id: string, tenantId: string): Promise<{ id: string }> {
     const developer = await this.getDeveloperOrThrow(id, tenantId);
     await this.ensureCanDelete(developer.id);
 
@@ -146,11 +136,7 @@ export class DevelopersService {
   private buildOrderBy(
     query: GetDevelopersQueryDto,
   ): Prisma.DeveloperOrderByWithRelationInput {
-    return buildOrderBy(
-      query.sortBy,
-      query.sortOrder,
-      DEVELOPER_SORT_CONFIG,
-    );
+    return buildOrderBy(query.sortBy, query.sortOrder, DEVELOPER_SORT_CONFIG);
   }
 
   private async getDeveloperOrThrow(id: string, tenantId: string) {
