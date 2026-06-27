@@ -26,3 +26,8 @@ export interface SignedUrlResult {
   key: string;
   expiresInSeconds: number;
 }
+
+export interface HeadObjectResult {
+  contentLength: number;
+  contentType?: string;
+}

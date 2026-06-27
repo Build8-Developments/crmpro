@@ -9,6 +9,7 @@ import { LeadSourcesModule } from './modules/lead-sources/lead-sources.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { FilesModule } from './modules/files/files.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -28,6 +29,7 @@ import { envValidationSchema } from './config/env.validation';
     LeadsModule,
     DevelopersModule,
     ProjectsModule,
+    FilesModule,
   ],
   controllers: [],
   providers: [],

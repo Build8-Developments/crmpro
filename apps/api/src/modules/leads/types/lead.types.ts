@@ -1,4 +1,4 @@
-import { InterestLevel, LeadStatus } from '@prisma/client';
+import { InterestLevel, LeadStatus, PipelineCloseType } from '@prisma/client';
 
 export interface LeadSourceSummary {
   id: string;
@@ -13,6 +13,8 @@ export interface LeadPipelineSummary {
 export interface LeadStageSummary {
   id: string;
   name: string;
+  isClosed: boolean;
+  closeType: PipelineCloseType | null;
 }
 
 export interface LeadAssigneeSummary {
@@ -76,4 +78,30 @@ export interface LeadActivityResponse {
 export interface LeadWorkflowResult {
   lead: LeadResponse;
   activity: LeadActivityResponse;
+}
+
+export interface LeadNoteAuthorSummary {
+  id: string;
+  email: string;
+}
+
+export interface LeadNoteResponse {
+  id: string;
+  content: string;
+  author: LeadNoteAuthorSummary;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LeadActivityActorSummary {
+  id: string;
+  email: string;
+}
+
+export interface LeadTimelineActivityResponse {
+  id: string;
+  eventType: string;
+  metadata: unknown;
+  actor: LeadActivityActorSummary | null;
+  createdAt: Date;
 }

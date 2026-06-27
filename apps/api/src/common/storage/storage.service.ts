@@ -3,11 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
+  NotFound,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
+  HeadObjectResult,
   SignedDownloadUrlParams,
   SignedUploadUrlParams,
   SignedUrlResult,
@@ -62,6 +65,41 @@ export class StorageService {
         Key: objectKey,
       }),
     );
+  }
+
+  async headObject(objectKey: string): Promise<HeadObjectResult | null> {
+    try {
+      const response = await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        }),
+      );
+
+      return {
+        contentLength: response.ContentLength ?? 0,
+        contentType: response.ContentType,
+      };
+    } catch (error: unknown) {
+      if (this.isObjectNotFound(error)) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
+  private isObjectNotFound(error: unknown): boolean {
+    if (error instanceof NotFound) {
+      return true;
+    }
+
+    if (typeof error === 'object' && error !== null) {
+      const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      return err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404;
+    }
+
+    return false;
   }
 
   async getSignedUploadUrl(

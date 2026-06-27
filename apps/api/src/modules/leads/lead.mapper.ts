@@ -29,6 +29,8 @@ export const leadSelect = {
     select: {
       id: true,
       name: true,
+      isClosed: true,
+      closeType: true,
     },
   },
   assignedUser: {
@@ -66,7 +68,12 @@ export function toLeadResponse(lead: LeadRecord): LeadResponse {
     updatedAt: lead.updatedAt,
     source: lead.source,
     pipeline: lead.pipeline,
-    stage: lead.pipelineStage,
+    stage: {
+      id: lead.pipelineStage.id,
+      name: lead.pipelineStage.name,
+      isClosed: lead.pipelineStage.isClosed,
+      closeType: lead.pipelineStage.closeType,
+    },
     assignee: lead.assignedUser,
     projectInterests: lead.leadProjectInterests.map((interest) => ({
       projectId: interest.projectId,

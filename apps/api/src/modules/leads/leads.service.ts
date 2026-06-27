@@ -1,9 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { LeadStatus, Prisma } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { LeadActivityEventType, LeadStatus, Prisma } from '@prisma/client';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -18,6 +14,7 @@ import { GetLeadsQueryDto } from './dto/get-leads-query.dto';
 import { ProjectInterestDto } from './dto/project-interest.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { leadSelect, toLeadResponse } from './lead.mapper';
+import { LeadActivityService } from './services/lead-activity.service';
 import {
   DuplicateWarning,
   LeadMutationResult,
@@ -39,7 +36,10 @@ const LEAD_SORT_CONFIG = {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly leadActivityService: LeadActivityService,
+  ) {}
 
   async listLeads(
     tenantId: string,
@@ -75,6 +75,7 @@ export class LeadsService {
 
   async createLead(
     tenantId: string,
+    actorUserId: string,
     dto: CreateLeadDto,
   ): Promise<LeadMutationResult> {
     await this.validateSource(dto.sourceId, tenantId);
@@ -83,7 +84,7 @@ export class LeadsService {
       dto.pipelineStageId,
       tenantId,
     );
-    await this.validateAssignee(dto.assignedUserId, tenantId);
+    const assignee = await this.resolveAssignee(dto.assignedUserId, tenantId);
     await this.validateProjects(dto.projectInterests, tenantId);
 
     const fullName = normalizeDisplayName(dto.fullName);
@@ -109,7 +110,7 @@ export class LeadsService {
           sourceId: dto.sourceId ?? null,
           pipelineId: dto.pipelineId,
           pipelineStageId: dto.pipelineStageId,
-          assignedUserId: dto.assignedUserId ?? null,
+          assignedUserId: assignee?.id ?? null,
           status: LeadStatus.OPEN,
           fullName,
           primaryPhone,
@@ -129,6 +130,33 @@ export class LeadsService {
             interestLevel: interest.interestLevel ?? null,
           })),
         });
+      }
+
+      await this.leadActivityService.createActivity(
+        {
+          tenantId,
+          leadId: lead.id,
+          actorUserId,
+          eventType: LeadActivityEventType.LEAD_CREATED,
+          metadata: { source: 'manual' },
+        },
+        tx,
+      );
+
+      if (assignee) {
+        await this.leadActivityService.createActivity(
+          {
+            tenantId,
+            leadId: lead.id,
+            actorUserId,
+            eventType: LeadActivityEventType.ASSIGNED,
+            metadata: {
+              assignedUserId: assignee.id,
+              assignedUserName: assignee.name,
+            },
+          },
+          tx,
+        );
       }
 
       return lead.id;
@@ -372,12 +400,12 @@ export class LeadsService {
     }
   }
 
-  private async validateAssignee(
+  private async resolveAssignee(
     assignedUserId: string | null | undefined,
     tenantId: string,
-  ): Promise<void> {
+  ): Promise<{ id: string; name: string } | null> {
     if (assignedUserId === undefined || assignedUserId === null) {
-      return;
+      return null;
     }
 
     const user = await this.prisma.user.findFirst({
@@ -387,12 +415,14 @@ export class LeadsService {
         isActive: true,
         deletedAt: null,
       },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
     if (!user) {
       throw new BadRequestException('Assigned user not found');
     }
+
+    return user;
   }
 
   private async validateProjects(

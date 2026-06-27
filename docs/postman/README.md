@@ -36,6 +36,9 @@ Local API testing collection for auth, pipelines, lead sources, developers, proj
 | `leadId` | *(empty)* | Auto-filled by **List Leads** or **Create Lead** |
 | `userId` | `5555...5503` (Senior Agent) | Assign target user for **Assign Lead** |
 | `targetStageId` | *(empty)* | Destination stage for **Move Lead Stage** (must differ from current, same pipeline) |
+| `noteId` | *(empty)* | Auto-filled by **Create Lead Note** |
+| `fileId` | *(empty)* | Auto-filled by **Complete Upload** |
+| `objectKey` | *(empty)* | Auto-filled by **Request Upload** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -146,6 +149,31 @@ PATCH updates profile fields only (source, name, phones, email, status, project 
 | Unassign Lead | `POST /leads/:id/assign` (`userId: null`) | `lead.assign` |
 
 Workflow responses: `{ lead, activity }`.
+
+### Phase 3 — Notes and timeline
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Lead Notes | `GET /leads/:id/notes` | `lead-note.read` |
+| Create Lead Note | `POST /leads/:id/notes` | `lead-note.create` |
+| Update Lead Note | `PATCH /lead-notes/:noteId` | `lead-note.update` |
+| Delete Lead Note | `DELETE /lead-notes/:noteId` | `lead-note.delete` |
+| Get Lead Activities | `GET /leads/:id/activities` | `lead.read` |
+
+Notes list returns `{ items }` sorted **newest first** (non-paginated for MVP). Timeline returns paginated `{ items, pagination }` (newest first). Note create/update/delete append immutable timeline events; `NOTE_UPDATED` includes `previousPreview` and `newPreview` (120 chars max each).
+
+### Phase 3 — Files (signed upload)
+
+| Request | Method | Auth |
+| --- | --- | --- |
+| Request Upload | `POST /files/request-upload` | JWT |
+| Upload to S3 (PUT) | presigned `uploadUrl` from step 1 | none |
+| Complete Upload | `POST /files/complete-upload` | JWT |
+| Get Download URL | `GET /files/:id/download-url` | JWT |
+| Delete File | `DELETE /files/:id` | JWT |
+| List Lead Attachments | `GET /leads/:id/attachments` | `lead.read` |
+
+Upload flow: **request-upload** → **Upload to S3 (PUT)** → **complete-upload**. Step 1 declares a maximum `sizeBytes`; the S3 object must exist, be non-empty, and not exceed that size (it may be smaller). Content-Type on the PUT must match step 1. Quota is charged for the actual S3 object size. Returns `400 Upload not completed` if the PUT was skipped. Max declared size 25 MB. `LEAD_ATTACHMENT` requires `leadId` on complete.
 
 List query example:
 

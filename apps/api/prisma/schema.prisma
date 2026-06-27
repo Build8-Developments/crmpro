@@ -15,10 +15,11 @@ enum TenantStatus {
 
 enum FileAssetCategory {
   AVATAR
-  IMPORT
-  EXPORT
-  ATTACHMENT
-  BROCHURE
+  LEAD_ATTACHMENT
+  PROJECT_BROCHURE
+  IMPORT_FILE
+  EXPORT_FILE
+  OTHER
 }
 
 enum LeadStatus {
@@ -46,6 +47,8 @@ enum LeadActivityEventType {
   REASSIGNED
   UNASSIGNED
   NOTE_ADDED
+  NOTE_UPDATED
+  NOTE_DELETED
   PROJECT_LINKED
   PROJECT_UNLINKED
   CALL_LOGGED
@@ -53,6 +56,8 @@ enum LeadActivityEventType {
   WHATSAPP_LOGGED
   STATUS_ARCHIVED
   STATUS_RESTORED
+  FILE_ATTACHED
+  FILE_DELETED
 }
 
 enum AuditActorType {
@@ -409,6 +414,21 @@ model FileAsset {
   @@index([avatarForUserId])
   @@index([leadId])
   @@index([projectId])
+}
+
+model FileUploadIntent {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  userId           String   @db.Uuid
+  objectKey        String   @unique
+  originalFilename String
+  mimeType         String
+  sizeBytes        BigInt   @db.BigInt
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
 }
 
 model AuditLog {

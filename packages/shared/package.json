@@ -16,6 +16,10 @@
     "./auth/permissions": {
       "types": "./dist/auth/permissions.d.ts",
       "default": "./dist/auth/permissions.js"
+    },
+    "./leads": {
+      "types": "./dist/leads/index.d.ts",
+      "default": "./dist/leads/index.js"
     }
   },
   "scripts": {
@@ -28,7 +32,8 @@
   "typesVersions": {
     "*": {
       "auth": ["dist/auth/index.d.ts"],
-      "auth/permissions": ["dist/auth/permissions.d.ts"]
+      "auth/permissions": ["dist/auth/permissions.d.ts"],
+      "leads": ["dist/leads/index.d.ts"]
     }
   }
 }

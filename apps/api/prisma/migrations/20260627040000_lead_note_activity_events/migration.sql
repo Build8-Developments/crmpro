@@ -1,0 +1,2 @@
+ALTER TYPE "LeadActivityEventType" ADD VALUE 'NOTE_UPDATED';
+ALTER TYPE "LeadActivityEventType" ADD VALUE 'NOTE_DELETED';

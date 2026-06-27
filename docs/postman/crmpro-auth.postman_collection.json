@@ -1499,6 +1499,290 @@
             "description": "Remove assignee from lead. Requires `lead.assign`."
           },
           "response": []
+        },
+        {
+          "name": "List Lead Notes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/notes",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "notes"]
+            },
+            "description": "List notes for a lead (newest first). Requires `lead-note.read`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Lead Note",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('noteId', json.data.id);",
+                  "  console.log(`Saved noteId=${json.data.id}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Client requested installment details.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/notes",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "notes"]
+            },
+            "description": "Create a note and append NOTE_ADDED activity. Requires `lead-note.create`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Lead Note",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Client requested installment details (updated).\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/lead-notes/{{noteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-notes", "{{noteId}}"]
+            },
+            "description": "Update note content. Appends NOTE_UPDATED activity. Requires `lead-note.update`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Lead Note",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/lead-notes/{{noteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["lead-notes", "{{noteId}}"]
+            },
+            "description": "Soft-delete note. Appends NOTE_DELETED activity. Requires `lead-note.delete`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Lead Activities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/activities?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "activities"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Paginated activity timeline (newest first). Requires `lead.read`."
+          },
+          "response": []
+        },
+        {
+          "name": "List Lead Attachments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "attachments"]
+            },
+            "description": "List active lead attachments (newest first). Requires `lead.read`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "description": "Signed S3 upload flow (Phase 1). Run Auth → Login first.",
+      "item": [
+        {
+          "name": "Request Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.objectKey) {",
+                  "  pm.environment.set('objectKey', json.data.objectKey);",
+                  "  console.log(`Saved objectKey=${json.data.objectKey}`);",
+                  "}",
+                  "if (json.data?.uploadUrl) {",
+                  "  pm.environment.set('uploadUrl', json.data.uploadUrl);",
+                  "  console.log('Saved uploadUrl');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"test.txt\",\n  \"contentType\": \"text/plain\",\n  \"sizeBytes\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/request-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "request-upload"]
+            },
+            "description": "Step 1: get signed upload URL. Max 25 MB. Quota checked against tenant plan. `sizeBytes` is the declared maximum; the S3 object may be smaller but not larger."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload to S3 (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "text/plain" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "hello",
+              "options": { "raw": { "language": "text" } }
+            },
+            "url": "{{uploadUrl}}",
+            "description": "Step 2: PUT the file bytes to S3 using the presigned URL from step 1. Body must be ≤ declared `sizeBytes` and use the same Content-Type. No Bearer token."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('fileId', json.data.id);",
+                  "  console.log(`Saved fileId=${json.data.id}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objectKey\": \"{{objectKey}}\",\n  \"category\": \"LEAD_ATTACHMENT\",\n  \"leadId\": \"{{leadId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/files/complete-upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "complete-upload"]
+            },
+            "description": "Step 3: after client PUT to S3 (required — complete fails with 400 if object missing). Persist FileAsset."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Download URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/{{fileId}}/download-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "{{fileId}}", "download-url"]
+            },
+            "description": "Get signed download URL for a file."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/files/{{fileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["files", "{{fileId}}"]
+            },
+            "description": "Soft-delete FileAsset, remove from S3, decrement tenant storage."
+          },
+          "response": []
         }
       ]
     },
