@@ -152,7 +152,9 @@ const TENANT_ROLES = [
 
 const AGENT_PERMISSION_KEYS = [
   'lead.read',
+  'lead.create',
   'lead.update',
+  'lead.assign',
   'lead-source.read',
   'developer.read',
   'project.read',

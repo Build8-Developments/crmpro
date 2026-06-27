@@ -1,6 +1,6 @@
 # CRMPro Postman
 
-Local API testing collection for auth, pipelines, lead sources, developers, and projects.
+Local API testing collection for auth, pipelines, lead sources, developers, projects, and leads.
 
 ## Files
 
@@ -33,6 +33,7 @@ Local API testing collection for auth, pipelines, lead sources, developers, and 
 | `leadSourceId` | *(empty)* | Auto-filled by **List Lead Sources** or **Create Lead Source** |
 | `developerId` | `6666...6601` (Palm Hills) | Seeded developer; updated by **List Developers** or **Create Developer** |
 | `projectId` | `7777...7701` (Palm Hills New Cairo) | Seeded project; updated by **List Projects** or **Create Project** |
+| `leadId` | *(empty)* | Auto-filled by **List Leads** or **Create Lead** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -117,6 +118,25 @@ List query example:
 GET /projects?page=1&limit=20&search=palm&developerId=...&isActive=true&sortBy=name&sortOrder=asc
 ```
 
+## Lead endpoints (Phase 1)
+
+Run **Auth → Login**, then **Pipelines → List Pipelines** (sets `stageId`) before create.
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Leads | `GET /leads` | `lead.read` |
+| Get Lead | `GET /leads/:id` | `lead.read` |
+| Create Lead | `POST /leads` | `lead.create` |
+| Update Lead | `PATCH /leads/:id` | `lead.update` |
+
+Create/update responses wrap `{ lead, duplicateWarning }`. List/get return the lead object directly.
+
+List query example:
+
+```text
+GET /leads?page=1&limit=20&search=ahmed&pipelineId=...&stageId=...&status=OPEN&sortBy=createdAt&sortOrder=desc
+```
+
 ## Token auto-save
 
 **Login** includes a test script that:
@@ -157,6 +177,8 @@ Paginated list endpoints support:
 **Developers** — `search` matches developer `name`. Sort: `name`, `createdAt`, `updatedAt` (default `name` asc). Soft-deleted rows excluded.
 
 **Projects** — `search` matches project `name` and `location`. Filters: `developerId`, `isActive`. Sort: `name`, `createdAt`, `updatedAt`, `isActive` (default `name` asc). Soft-deleted rows excluded. List items include `developer` summary.
+
+**Leads** — `search` matches `fullName`, phones, `email`. Filters: `pipelineId`, `stageId`, `sourceId`, `assignedUserId`, `status`, `projectId`. Sort: `createdAt`, `updatedAt`, `fullName`, `lastContactedAt` (default `createdAt` desc). Soft-deleted rows excluded.
 
 ## List response shape
 

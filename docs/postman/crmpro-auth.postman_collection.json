@@ -1157,6 +1157,206 @@
       ]
     },
     {
+      "name": "Leads",
+      "description": "Core lead CRUD (Phase 1). Run Pipelines → List Pipelines and Lead Sources → List Lead Sources first for filter/create variables.",
+      "item": [
+        {
+          "name": "List Leads",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has leads', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('items');",
+                  "  pm.expect(json.data).to.have.property('pagination');",
+                  "  pm.expect(json.data.items).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (json.data?.items?.length) {",
+                  "  const lead = json.data.items[0];",
+                  "  pm.environment.set('leadId', lead.id);",
+                  "  console.log(`Saved leadId=${lead.id} (${lead.fullName})`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads?page=1&limit=20&search=ahmed&pipelineId={{pipelineId}}&stageId={{stageId}}&sourceId={{leadSourceId}}&status=OPEN&projectId={{projectId}}&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "ahmed", "description": "fullName, phones, email" },
+                { "key": "pipelineId", "value": "{{pipelineId}}", "description": "Optional pipeline filter" },
+                { "key": "stageId", "value": "{{stageId}}", "description": "Optional stage filter" },
+                { "key": "sourceId", "value": "{{leadSourceId}}", "description": "Optional source filter" },
+                { "key": "assignedUserId", "value": "", "disabled": true, "description": "Optional assignee filter" },
+                { "key": "status", "value": "OPEN", "description": "OPEN | ARCHIVED" },
+                { "key": "projectId", "value": "{{projectId}}", "description": "Optional project interest filter" },
+                { "key": "sortBy", "value": "createdAt", "description": "createdAt | updatedAt | fullName | lastContactedAt" },
+                { "key": "sortOrder", "value": "desc", "description": "asc | desc" }
+              ]
+            },
+            "description": "List leads (paginated, searchable, filterable). Excludes soft-deleted rows."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('id');",
+                  "  pm.expect(json.data).to.have.property('fullName');",
+                  "  pm.expect(json.data).to.have.property('pipeline');",
+                  "  pm.expect(json.data).to.have.property('projectInterests');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}"]
+            },
+            "description": "Get lead details. Run **List Leads** first to set `leadId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead and duplicateWarning', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('lead');",
+                  "  pm.expect(json.data).to.have.property('duplicateWarning');",
+                  "});",
+                  "",
+                  "if (json.data?.lead?.id) {",
+                  "  pm.environment.set('leadId', json.data.lead.id);",
+                  "  console.log(`Created lead ${json.data.lead.id} (${json.data.lead.fullName})`);",
+                  "}",
+                  "if (json.data?.duplicateWarning?.detected) {",
+                  "  console.log('Duplicate warning:', JSON.stringify(json.data.duplicateWarning.matches));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceId\": \"{{leadSourceId}}\",\n  \"pipelineId\": \"{{pipelineId}}\",\n  \"pipelineStageId\": \"{{stageId}}\",\n  \"assignedUserId\": \"55555555-5555-4555-8555-555555555503\",\n  \"fullName\": \"Test Lead\",\n  \"primaryPhone\": \"+20 10 9999 8888\",\n  \"secondaryPhone\": null,\n  \"email\": \"test.lead@example.com\",\n  \"projectInterests\": [\n    {\n      \"projectId\": \"{{projectId}}\",\n      \"interestLevel\": \"HIGH\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads"]
+            },
+            "description": "Create a lead. Requires `pipelineId`, `stageId` (from **List Pipelines**), optional `leadSourceId` and `projectId`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead and duplicateWarning', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('lead');",
+                  "  pm.expect(json.data).to.have.property('duplicateWarning');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Test Lead (Updated)\",\n  \"status\": \"OPEN\",\n  \"projectInterests\": [\n    {\n      \"projectId\": \"{{projectId}}\",\n      \"interestLevel\": \"MEDIUM\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}"]
+            },
+            "description": "Update lead fields. `projectInterests` replaces all existing interests when provided."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Debug",
       "description": "Optional helpers for local debugging.",
       "item": [

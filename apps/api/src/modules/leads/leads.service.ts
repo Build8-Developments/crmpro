@@ -1,0 +1,558 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { LeadStatus, Prisma } from '@prisma/client';
+import {
+  buildPaginatedResponse,
+  getPaginationParams,
+  PaginatedResponse,
+} from '../../common/pagination';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
+import { normalizeDisplayName } from '../../common/utils/name-normalization.util';
+import { normalizePhone } from '../../common/utils/phone-normalization.util';
+import { CreateLeadDto } from './dto/create-lead.dto';
+import { GetLeadsQueryDto } from './dto/get-leads-query.dto';
+import { ProjectInterestDto } from './dto/project-interest.dto';
+import { UpdateLeadDto } from './dto/update-lead.dto';
+import {
+  DuplicateWarning,
+  LeadMutationResult,
+  LeadResponse,
+} from './types/lead.types';
+
+const LEAD_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'fullName',
+  'lastContactedAt',
+] as const;
+
+const LEAD_SORT_CONFIG = {
+  allowedFields: LEAD_SORT_FIELDS,
+  defaultField: 'createdAt' as const,
+  defaultOrder: SortOrder.DESC,
+};
+
+const leadSelect = {
+  id: true,
+  status: true,
+  fullName: true,
+  primaryPhone: true,
+  primaryPhoneNormalized: true,
+  secondaryPhone: true,
+  secondaryPhoneNormalized: true,
+  email: true,
+  lastContactedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  source: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  pipeline: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  pipelineStage: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  assignedUser: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  leadProjectInterests: {
+    select: {
+      projectId: true,
+      interestLevel: true,
+      project: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.LeadSelect;
+
+type LeadRecord = Prisma.LeadGetPayload<{ select: typeof leadSelect }>;
+
+@Injectable()
+export class LeadsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async listLeads(
+    tenantId: string,
+    query: GetLeadsQueryDto,
+  ): Promise<PaginatedResponse<LeadResponse>> {
+    const { page, limit, skip, take } = getPaginationParams(query);
+    const where = this.buildWhereClause(tenantId, query);
+    const orderBy = this.buildOrderBy(query);
+
+    const [leads, totalItems] = await this.prisma.$transaction([
+      this.prisma.lead.findMany({
+        where,
+        orderBy,
+        select: leadSelect,
+        skip,
+        take,
+      }),
+      this.prisma.lead.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      leads.map((lead) => this.toLeadResponse(lead)),
+      page,
+      limit,
+      totalItems,
+    );
+  }
+
+  async getLead(id: string, tenantId: string): Promise<LeadResponse> {
+    const lead = await this.getLeadOrThrow(id, tenantId);
+    return this.toLeadResponse(lead);
+  }
+
+  async createLead(
+    tenantId: string,
+    dto: CreateLeadDto,
+  ): Promise<LeadMutationResult> {
+    await this.validateSource(dto.sourceId, tenantId);
+    await this.validatePipelineAndStage(
+      dto.pipelineId,
+      dto.pipelineStageId,
+      tenantId,
+    );
+    await this.validateAssignee(dto.assignedUserId, tenantId);
+    await this.validateProjects(dto.projectInterests, tenantId);
+
+    const fullName = normalizeDisplayName(dto.fullName);
+    const primaryPhone = dto.primaryPhone.trim();
+    const primaryPhoneNormalized = this.normalizePhone(primaryPhone);
+    const secondaryPhone = this.resolveSecondaryPhone(dto.secondaryPhone);
+    const secondaryPhoneNormalized = secondaryPhone
+      ? this.normalizePhone(secondaryPhone)
+      : null;
+
+    this.ensurePhonesDistinct(primaryPhoneNormalized, secondaryPhoneNormalized);
+
+    const duplicateWarning = await this.detectDuplicates(
+      tenantId,
+      primaryPhoneNormalized,
+      secondaryPhoneNormalized,
+    );
+
+    const leadId = await this.prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
+        data: {
+          tenantId,
+          sourceId: dto.sourceId ?? null,
+          pipelineId: dto.pipelineId,
+          pipelineStageId: dto.pipelineStageId,
+          assignedUserId: dto.assignedUserId ?? null,
+          status: LeadStatus.OPEN,
+          fullName,
+          primaryPhone,
+          primaryPhoneNormalized,
+          secondaryPhone,
+          secondaryPhoneNormalized,
+          email: dto.email ?? null,
+        },
+        select: { id: true },
+      });
+
+      if (dto.projectInterests?.length) {
+        await tx.leadProjectInterest.createMany({
+          data: dto.projectInterests.map((interest) => ({
+            leadId: lead.id,
+            projectId: interest.projectId,
+            interestLevel: interest.interestLevel ?? null,
+          })),
+        });
+      }
+
+      return lead.id;
+    });
+
+    const lead = await this.getLeadOrThrow(leadId, tenantId);
+
+    return {
+      lead: this.toLeadResponse(lead),
+      duplicateWarning,
+    };
+  }
+
+  async updateLead(
+    id: string,
+    tenantId: string,
+    dto: UpdateLeadDto,
+  ): Promise<LeadMutationResult> {
+    const existing = await this.getLeadOrThrow(id, tenantId);
+
+    const pipelineId = dto.pipelineId ?? existing.pipeline.id;
+    const pipelineStageId = dto.pipelineStageId ?? existing.pipelineStage.id;
+
+    if (dto.sourceId !== undefined) {
+      await this.validateSource(dto.sourceId, tenantId);
+    }
+
+    if (dto.pipelineId !== undefined || dto.pipelineStageId !== undefined) {
+      await this.validatePipelineAndStage(
+        pipelineId,
+        pipelineStageId,
+        tenantId,
+      );
+    }
+
+    if (dto.assignedUserId !== undefined) {
+      await this.validateAssignee(dto.assignedUserId, tenantId);
+    }
+
+    if (dto.projectInterests !== undefined) {
+      await this.validateProjects(dto.projectInterests, tenantId);
+    }
+
+    const fullName =
+      dto.fullName !== undefined
+        ? normalizeDisplayName(dto.fullName)
+        : existing.fullName;
+
+    const primaryPhone =
+      dto.primaryPhone !== undefined
+        ? dto.primaryPhone.trim()
+        : existing.primaryPhone;
+
+    const primaryPhoneNormalized =
+      dto.primaryPhone !== undefined
+        ? this.normalizePhone(primaryPhone)
+        : existing.primaryPhoneNormalized;
+
+    let secondaryPhone: string | null;
+    let secondaryPhoneNormalized: string | null;
+
+    if (dto.secondaryPhone !== undefined) {
+      secondaryPhone = this.resolveSecondaryPhone(dto.secondaryPhone);
+      secondaryPhoneNormalized = secondaryPhone
+        ? this.normalizePhone(secondaryPhone)
+        : null;
+    } else {
+      secondaryPhone = existing.secondaryPhone;
+      secondaryPhoneNormalized = existing.secondaryPhoneNormalized;
+    }
+
+    if (dto.primaryPhone !== undefined || dto.secondaryPhone !== undefined) {
+      this.ensurePhonesDistinct(
+        primaryPhoneNormalized,
+        secondaryPhoneNormalized,
+      );
+    }
+
+    const duplicateWarning = await this.detectDuplicates(
+      tenantId,
+      primaryPhoneNormalized,
+      secondaryPhoneNormalized,
+      existing.id,
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lead.update({
+        where: { id: existing.id },
+        data: {
+          ...(dto.sourceId !== undefined ? { sourceId: dto.sourceId } : {}),
+          ...(dto.pipelineId !== undefined ? { pipelineId } : {}),
+          ...(dto.pipelineStageId !== undefined ? { pipelineStageId } : {}),
+          ...(dto.assignedUserId !== undefined
+            ? { assignedUserId: dto.assignedUserId }
+            : {}),
+          ...(dto.status !== undefined ? { status: dto.status } : {}),
+          ...(dto.fullName !== undefined ? { fullName } : {}),
+          ...(dto.primaryPhone !== undefined
+            ? { primaryPhone, primaryPhoneNormalized }
+            : {}),
+          ...(dto.secondaryPhone !== undefined
+            ? { secondaryPhone, secondaryPhoneNormalized }
+            : {}),
+          ...(dto.email !== undefined ? { email: dto.email } : {}),
+        },
+      });
+
+      if (dto.projectInterests !== undefined) {
+        await tx.leadProjectInterest.deleteMany({
+          where: { leadId: existing.id },
+        });
+
+        if (dto.projectInterests.length > 0) {
+          await tx.leadProjectInterest.createMany({
+            data: dto.projectInterests.map((interest) => ({
+              leadId: existing.id,
+              projectId: interest.projectId,
+              interestLevel: interest.interestLevel ?? null,
+            })),
+          });
+        }
+      }
+    });
+
+    const lead = await this.getLeadOrThrow(existing.id, tenantId);
+
+    return {
+      lead: this.toLeadResponse(lead),
+      duplicateWarning,
+    };
+  }
+
+  private buildWhereClause(
+    tenantId: string,
+    query: GetLeadsQueryDto,
+  ): Prisma.LeadWhereInput {
+    const search = normalizeSearch(query.search);
+
+    return {
+      tenantId,
+      deletedAt: null,
+      ...(query.pipelineId ? { pipelineId: query.pipelineId } : {}),
+      ...(query.stageId ? { pipelineStageId: query.stageId } : {}),
+      ...(query.sourceId ? { sourceId: query.sourceId } : {}),
+      ...(query.assignedUserId
+        ? { assignedUserId: query.assignedUserId }
+        : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.projectId
+        ? {
+            leadProjectInterests: {
+              some: { projectId: query.projectId },
+            },
+          }
+        : {}),
+      ...(search && {
+        OR: [
+          { fullName: { contains: search, mode: 'insensitive' } },
+          { primaryPhone: { contains: search, mode: 'insensitive' } },
+          { secondaryPhone: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
+  }
+
+  private buildOrderBy(
+    query: GetLeadsQueryDto,
+  ): Prisma.LeadOrderByWithRelationInput {
+    return buildOrderBy(query.sortBy, query.sortOrder, LEAD_SORT_CONFIG);
+  }
+
+  private async getLeadOrThrow(
+    id: string,
+    tenantId: string,
+  ): Promise<LeadRecord> {
+    const lead = await this.prisma.lead.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      select: leadSelect,
+    });
+
+    if (!lead) {
+      throw new NotFoundException('Lead not found');
+    }
+
+    return lead;
+  }
+
+  private normalizePhone(phone: string): string {
+    return normalizePhone(phone);
+  }
+
+  private resolveSecondaryPhone(phone?: string | null): string | null {
+    if (phone === undefined || phone === null) {
+      return null;
+    }
+
+    const trimmed = phone.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private ensurePhonesDistinct(
+    primaryNormalized: string,
+    secondaryNormalized: string | null,
+  ): void {
+    if (
+      secondaryNormalized !== null &&
+      secondaryNormalized === primaryNormalized
+    ) {
+      throw new BadRequestException(
+        'Secondary phone must not match primary phone',
+      );
+    }
+  }
+
+  private async validatePipelineAndStage(
+    pipelineId: string,
+    pipelineStageId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const pipeline = await this.prisma.pipeline.findFirst({
+      where: { id: pipelineId, tenantId },
+      select: { id: true },
+    });
+
+    if (!pipeline) {
+      throw new BadRequestException('Pipeline not found');
+    }
+
+    const stage = await this.prisma.pipelineStage.findFirst({
+      where: {
+        id: pipelineStageId,
+        tenantId,
+        pipelineId,
+      },
+      select: { id: true },
+    });
+
+    if (!stage) {
+      throw new BadRequestException(
+        'Pipeline stage not found or does not belong to pipeline',
+      );
+    }
+  }
+
+  private async validateSource(
+    sourceId: string | null | undefined,
+    tenantId: string,
+  ): Promise<void> {
+    if (sourceId === undefined || sourceId === null) {
+      return;
+    }
+
+    const source = await this.prisma.leadSource.findFirst({
+      where: { id: sourceId, tenantId },
+      select: { id: true },
+    });
+
+    if (!source) {
+      throw new BadRequestException('Lead source not found');
+    }
+  }
+
+  private async validateAssignee(
+    assignedUserId: string | null | undefined,
+    tenantId: string,
+  ): Promise<void> {
+    if (assignedUserId === undefined || assignedUserId === null) {
+      return;
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: assignedUserId,
+        tenantId,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Assigned user not found');
+    }
+  }
+
+  private async validateProjects(
+    projectInterests: ProjectInterestDto[] | undefined,
+    tenantId: string,
+  ): Promise<void> {
+    if (!projectInterests?.length) {
+      return;
+    }
+
+    const projectIds = projectInterests.map((interest) => interest.projectId);
+
+    if (new Set(projectIds).size !== projectIds.length) {
+      throw new BadRequestException('Duplicate project interests are not allowed');
+    }
+
+    const projects = await this.prisma.project.findMany({
+      where: {
+        id: { in: projectIds },
+        tenantId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (projects.length !== projectIds.length) {
+      throw new BadRequestException('One or more projects not found');
+    }
+  }
+
+  private async detectDuplicates(
+    tenantId: string,
+    primaryPhoneNormalized: string,
+    secondaryPhoneNormalized: string | null,
+    excludeLeadId?: string,
+  ): Promise<DuplicateWarning | null> {
+    const phones = [primaryPhoneNormalized];
+
+    if (secondaryPhoneNormalized) {
+      phones.push(secondaryPhoneNormalized);
+    }
+
+    const matches = await this.prisma.lead.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        ...(excludeLeadId ? { id: { not: excludeLeadId } } : {}),
+        OR: phones.flatMap((phone) => [
+          { primaryPhoneNormalized: phone },
+          { secondaryPhoneNormalized: phone },
+        ]),
+      },
+      select: {
+        id: true,
+        fullName: true,
+      },
+      take: 10,
+    });
+
+    if (matches.length === 0) {
+      return null;
+    }
+
+    return {
+      detected: true,
+      matches,
+    };
+  }
+
+  private toLeadResponse(lead: LeadRecord): LeadResponse {
+    return {
+      id: lead.id,
+      status: lead.status,
+      fullName: lead.fullName,
+      primaryPhone: lead.primaryPhone,
+      secondaryPhone: lead.secondaryPhone,
+      email: lead.email,
+      lastContactedAt: lead.lastContactedAt,
+      createdAt: lead.createdAt,
+      updatedAt: lead.updatedAt,
+      source: lead.source,
+      pipeline: lead.pipeline,
+      stage: lead.pipelineStage,
+      assignee: lead.assignedUser,
+      projectInterests: lead.leadProjectInterests.map((interest) => ({
+        projectId: interest.projectId,
+        interestLevel: interest.interestLevel,
+        project: interest.project,
+      })),
+    };
+  }
+}
