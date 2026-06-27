@@ -17,6 +17,7 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { GetLeadsQueryDto } from './dto/get-leads-query.dto';
 import { ProjectInterestDto } from './dto/project-interest.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
+import { leadSelect, toLeadResponse } from './lead.mapper';
 import {
   DuplicateWarning,
   LeadMutationResult,
@@ -35,58 +36,6 @@ const LEAD_SORT_CONFIG = {
   defaultField: 'createdAt' as const,
   defaultOrder: SortOrder.DESC,
 };
-
-const leadSelect = {
-  id: true,
-  status: true,
-  fullName: true,
-  primaryPhone: true,
-  primaryPhoneNormalized: true,
-  secondaryPhone: true,
-  secondaryPhoneNormalized: true,
-  email: true,
-  lastContactedAt: true,
-  createdAt: true,
-  updatedAt: true,
-  source: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  pipeline: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  pipelineStage: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  assignedUser: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  leadProjectInterests: {
-    select: {
-      projectId: true,
-      interestLevel: true,
-      project: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  },
-} satisfies Prisma.LeadSelect;
-
-type LeadRecord = Prisma.LeadGetPayload<{ select: typeof leadSelect }>;
 
 @Injectable()
 export class LeadsService {
@@ -112,7 +61,7 @@ export class LeadsService {
     ]);
 
     return buildPaginatedResponse(
-      leads.map((lead) => this.toLeadResponse(lead)),
+      leads.map((lead) => toLeadResponse(lead)),
       page,
       limit,
       totalItems,
@@ -121,7 +70,7 @@ export class LeadsService {
 
   async getLead(id: string, tenantId: string): Promise<LeadResponse> {
     const lead = await this.getLeadOrThrow(id, tenantId);
-    return this.toLeadResponse(lead);
+    return toLeadResponse(lead);
   }
 
   async createLead(
@@ -188,7 +137,7 @@ export class LeadsService {
     const lead = await this.getLeadOrThrow(leadId, tenantId);
 
     return {
-      lead: this.toLeadResponse(lead),
+      lead: toLeadResponse(lead),
       duplicateWarning,
     };
   }
@@ -200,23 +149,8 @@ export class LeadsService {
   ): Promise<LeadMutationResult> {
     const existing = await this.getLeadOrThrow(id, tenantId);
 
-    const pipelineId = dto.pipelineId ?? existing.pipeline.id;
-    const pipelineStageId = dto.pipelineStageId ?? existing.pipelineStage.id;
-
     if (dto.sourceId !== undefined) {
       await this.validateSource(dto.sourceId, tenantId);
-    }
-
-    if (dto.pipelineId !== undefined || dto.pipelineStageId !== undefined) {
-      await this.validatePipelineAndStage(
-        pipelineId,
-        pipelineStageId,
-        tenantId,
-      );
-    }
-
-    if (dto.assignedUserId !== undefined) {
-      await this.validateAssignee(dto.assignedUserId, tenantId);
     }
 
     if (dto.projectInterests !== undefined) {
@@ -270,11 +204,6 @@ export class LeadsService {
         where: { id: existing.id },
         data: {
           ...(dto.sourceId !== undefined ? { sourceId: dto.sourceId } : {}),
-          ...(dto.pipelineId !== undefined ? { pipelineId } : {}),
-          ...(dto.pipelineStageId !== undefined ? { pipelineStageId } : {}),
-          ...(dto.assignedUserId !== undefined
-            ? { assignedUserId: dto.assignedUserId }
-            : {}),
           ...(dto.status !== undefined ? { status: dto.status } : {}),
           ...(dto.fullName !== undefined ? { fullName } : {}),
           ...(dto.primaryPhone !== undefined
@@ -307,7 +236,7 @@ export class LeadsService {
     const lead = await this.getLeadOrThrow(existing.id, tenantId);
 
     return {
-      lead: this.toLeadResponse(lead),
+      lead: toLeadResponse(lead),
       duplicateWarning,
     };
   }
@@ -355,7 +284,7 @@ export class LeadsService {
   private async getLeadOrThrow(
     id: string,
     tenantId: string,
-  ): Promise<LeadRecord> {
+  ): Promise<Prisma.LeadGetPayload<{ select: typeof leadSelect }>> {
     const lead = await this.prisma.lead.findFirst({
       where: { id, tenantId, deletedAt: null },
       select: leadSelect,
@@ -500,6 +429,8 @@ export class LeadsService {
     secondaryPhoneNormalized: string | null,
     excludeLeadId?: string,
   ): Promise<DuplicateWarning | null> {
+    // Soft detection only — never blocks create/update. Uses composite indexes:
+    // Lead_tenantId_primaryPhoneNormalized_idx, Lead_tenantId_secondaryPhoneNormalized_idx
     const phones = [primaryPhoneNormalized];
 
     if (secondaryPhoneNormalized) {
@@ -530,29 +461,6 @@ export class LeadsService {
     return {
       detected: true,
       matches,
-    };
-  }
-
-  private toLeadResponse(lead: LeadRecord): LeadResponse {
-    return {
-      id: lead.id,
-      status: lead.status,
-      fullName: lead.fullName,
-      primaryPhone: lead.primaryPhone,
-      secondaryPhone: lead.secondaryPhone,
-      email: lead.email,
-      lastContactedAt: lead.lastContactedAt,
-      createdAt: lead.createdAt,
-      updatedAt: lead.updatedAt,
-      source: lead.source,
-      pipeline: lead.pipeline,
-      stage: lead.pipelineStage,
-      assignee: lead.assignedUser,
-      projectInterests: lead.leadProjectInterests.map((interest) => ({
-        projectId: interest.projectId,
-        interestLevel: interest.interestLevel,
-        project: interest.project,
-      })),
     };
   }
 }

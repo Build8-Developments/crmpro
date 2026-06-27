@@ -34,6 +34,8 @@ Local API testing collection for auth, pipelines, lead sources, developers, proj
 | `developerId` | `6666...6601` (Palm Hills) | Seeded developer; updated by **List Developers** or **Create Developer** |
 | `projectId` | `7777...7701` (Palm Hills New Cairo) | Seeded project; updated by **List Projects** or **Create Project** |
 | `leadId` | *(empty)* | Auto-filled by **List Leads** or **Create Lead** |
+| `userId` | `5555...5503` (Senior Agent) | Assign target user for **Assign Lead** |
+| `targetStageId` | *(empty)* | Destination stage for **Move Lead Stage** (must differ from current, same pipeline) |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -118,9 +120,11 @@ List query example:
 GET /projects?page=1&limit=20&search=palm&developerId=...&isActive=true&sortBy=name&sortOrder=asc
 ```
 
-## Lead endpoints (Phase 1)
+## Lead endpoints
 
 Run **Auth → Login**, then **Pipelines → List Pipelines** (sets `stageId`) before create.
+
+### Phase 1 — CRUD
 
 | Request | Method | Permission |
 | --- | --- | --- |
@@ -130,6 +134,18 @@ Run **Auth → Login**, then **Pipelines → List Pipelines** (sets `stageId`) b
 | Update Lead | `PATCH /leads/:id` | `lead.update` |
 
 Create/update responses wrap `{ lead, duplicateWarning }`. List/get return the lead object directly.
+
+PATCH updates profile fields only (source, name, phones, email, status, project interests). Stage and assignment use workflow endpoints below.
+
+### Phase 2 — Workflow actions
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| Move Lead Stage | `POST /leads/:id/move-stage` | `lead.update` |
+| Assign Lead | `POST /leads/:id/assign` | `lead.assign` |
+| Unassign Lead | `POST /leads/:id/assign` (`userId: null`) | `lead.assign` |
+
+Workflow responses: `{ lead, activity }`.
 
 List query example:
 

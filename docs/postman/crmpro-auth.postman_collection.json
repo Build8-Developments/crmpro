@@ -1158,7 +1158,7 @@
     },
     {
       "name": "Leads",
-      "description": "Core lead CRUD (Phase 1). Run Pipelines → List Pipelines and Lead Sources → List Lead Sources first for filter/create variables.",
+      "description": "Lead CRUD (Phase 1) and workflow actions (Phase 2: move-stage, assign). Run Pipelines → List Pipelines first.",
       "item": [
         {
           "name": "List Leads",
@@ -1351,6 +1351,152 @@
               "path": ["leads", "{{leadId}}"]
             },
             "description": "Update lead fields. `projectInterests` replaces all existing interests when provided."
+          },
+          "response": []
+        },
+        {
+          "name": "Move Lead Stage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead and activity', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('lead');",
+                  "  pm.expect(json.data).to.have.property('activity');",
+                  "  pm.expect(json.data.activity.eventType).to.eql('STAGE_CHANGED');",
+                  "});",
+                  "",
+                  "if (json.data?.lead?.stage?.id) {",
+                  "  pm.environment.set('stageId', json.data.lead.stage.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pipelineStageId\": \"{{targetStageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/move-stage",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "move-stage"]
+            },
+            "description": "Move lead to another stage within the same pipeline. Set `targetStageId` to a stage in the lead's pipeline (different from current). Requires `lead.update`."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has lead and activity', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data.activity.eventType).to.be.oneOf(['ASSIGNED', 'REASSIGNED']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "assign"]
+            },
+            "description": "Assign lead to a user. Requires `lead.assign`. Default `userId` is seeded Senior Agent."
+          },
+          "response": []
+        },
+        {
+          "name": "Unassign Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Activity is UNASSIGNED', function () {",
+                  "  pm.expect(json.data.activity.eventType).to.eql('UNASSIGNED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/assign",
+              "host": ["{{baseUrl}}"],
+              "path": ["leads", "{{leadId}}", "assign"]
+            },
+            "description": "Remove assignee from lead. Requires `lead.assign`."
           },
           "response": []
         }

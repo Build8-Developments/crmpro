@@ -43,6 +43,7 @@ enum LeadActivityEventType {
   LEAD_UPDATED
   STAGE_CHANGED
   ASSIGNED
+  REASSIGNED
   UNASSIGNED
   NOTE_ADDED
   PROJECT_LINKED
@@ -321,6 +322,7 @@ model Lead {
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, status])
   @@index([tenantId, primaryPhoneNormalized])
+  @@index([tenantId, secondaryPhoneNormalized])
   @@index([pipelineId])
   @@index([pipelineStageId])
   @@index([sourceId])

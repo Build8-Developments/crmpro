@@ -22,19 +22,6 @@ export class UpdateLeadDto {
   sourceId?: string | null;
 
   @IsOptional()
-  @IsUUID()
-  pipelineId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  pipelineStageId?: string;
-
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
-  @IsUUID()
-  assignedUserId?: string | null;
-
-  @IsOptional()
   @IsEnum(LeadStatus)
   status?: LeadStatus;
 

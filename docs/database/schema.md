@@ -189,6 +189,7 @@ Typical filters: `tenantId`, `pipelineId`, `pipelineStageId`, `assignedUserId`, 
 @@index([tenantId, createdAt(sort: Desc)])
 @@index([tenantId, status])
 @@index([tenantId, primaryPhoneNormalized]) // dedupe / search
+@@index([tenantId, secondaryPhoneNormalized]) // dedupe (secondary match path)
 ```
 
 ### Lead activity timeline

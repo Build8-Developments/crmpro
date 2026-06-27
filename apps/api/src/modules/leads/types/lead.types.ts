@@ -62,3 +62,18 @@ export interface LeadMutationResult {
   lead: LeadResponse;
   duplicateWarning: DuplicateWarning | null;
 }
+
+export interface LeadActivityResponse {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  actorUserId: string | null;
+  eventType: string;
+  metadata: unknown;
+  createdAt: Date;
+}
+
+export interface LeadWorkflowResult {
+  lead: LeadResponse;
+  activity: LeadActivityResponse;
+}
