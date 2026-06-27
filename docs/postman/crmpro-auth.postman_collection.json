@@ -1787,6 +1787,84 @@
       ]
     },
     {
+      "name": "Import Jobs",
+      "description": "Lead CSV import jobs (Phase 1). Upload a CSV as IMPORT_FILE via Files flow first, or use a seeded fileAssetId after db seed.",
+      "item": [
+        {
+          "name": "Create Lead Import Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) {",
+                  "  pm.environment.set('importJobId', json.data.id);",
+                  "  console.log(`Saved importJobId=${json.data.id}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileAssetId\": \"{{fileId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/import-jobs/leads",
+              "host": ["{{baseUrl}}"],
+              "path": ["import-jobs", "leads"]
+            },
+            "description": "Creates a PENDING import job and starts processing asynchronously. Requires `import-job.create`. CSV headers: fullName, primaryPhone (required); secondaryPhone, email, sourceName, assignedUserEmail (optional)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Import Job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/import-jobs/{{importJobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["import-jobs", "{{importJobId}}"]
+            },
+            "description": "Poll job status until COMPLETED, PARTIAL_SUCCESS, or FAILED."
+          },
+          "response": []
+        },
+        {
+          "name": "List Import Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/import-jobs?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["import-jobs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Paginated list, newest first. Requires `import-job.read`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Debug",
       "description": "Optional helpers for local debugging.",
       "item": [

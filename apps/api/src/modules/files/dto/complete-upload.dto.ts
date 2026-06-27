@@ -4,6 +4,7 @@ import { PHASE1_UPLOAD_CATEGORIES } from '../files.constants';
 
 const Phase1Category = {
   LEAD_ATTACHMENT: FileAssetCategory.LEAD_ATTACHMENT,
+  IMPORT_FILE: FileAssetCategory.IMPORT_FILE,
   OTHER: FileAssetCategory.OTHER,
 } as const;
 

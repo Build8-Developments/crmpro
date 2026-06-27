@@ -23,6 +23,6 @@ import { LeadTimelineService } from './services/lead-timeline.service';
     LeadNotesService,
     LeadTimelineService,
   ],
-  exports: [LeadActivityService],
+  exports: [LeadActivityService, LeadsService],
 })
 export class LeadsModule {}

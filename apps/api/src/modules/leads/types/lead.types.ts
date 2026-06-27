@@ -105,3 +105,21 @@ export interface LeadTimelineActivityResponse {
   actor: LeadActivityActorSummary | null;
   createdAt: Date;
 }
+
+export interface ImportLeadRowInput {
+  fullName: string;
+  primaryPhone: string;
+  secondaryPhone?: string | null;
+  email?: string | null;
+  sourceId?: string | null;
+  assignedUserId?: string | null;
+}
+
+export interface DefaultPipelinePlacement {
+  pipelineId: string;
+  pipelineStageId: string;
+}
+
+export type ImportLeadRowResult =
+  | { success: true; leadId: string }
+  | { success: false; reason: string };

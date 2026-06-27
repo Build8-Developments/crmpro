@@ -1,0 +1,539 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  FileAssetCategory,
+  ImportJob,
+  JobStatus,
+  Prisma,
+} from '@prisma/client';
+import { parse } from 'csv-parse/sync';
+import {
+  buildPaginatedResponse,
+  getPaginationParams,
+  PaginatedResponse,
+} from '../../common/pagination';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
+import { LeadsService } from '../leads/leads.service';
+import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
+import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
+import {
+  ALLOWED_CSV_HEADERS,
+  MAX_ERROR_SUMMARY_ENTRIES,
+  REQUIRED_CSV_HEADERS,
+} from './import-jobs.constants';
+import {
+  ImportJobErrorEntry,
+  ImportJobResponse,
+  LeadCsvRow,
+  ParsedLeadCsvRow,
+} from './types/import-job.types';
+
+const importJobSelect = {
+  id: true,
+  status: true,
+  totalRows: true,
+  processedRows: true,
+  successfulRows: true,
+  failedRows: true,
+  errorSummary: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+  fileAsset: {
+    select: {
+      id: true,
+      originalFilename: true,
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ImportJobSelect;
+
+type ImportJobRecord = Prisma.ImportJobGetPayload<{
+  select: typeof importJobSelect;
+}>;
+
+type ValidatedImportFile = {
+  id: string;
+  objectKey: string;
+  mimeType: string;
+};
+
+@Injectable()
+export class ImportJobsService {
+  private readonly logger = new Logger(ImportJobsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+    private readonly leadsService: LeadsService,
+  ) {}
+
+  async createLeadImportJob(
+    tenantId: string,
+    userId: string,
+    dto: CreateLeadImportJobDto,
+  ): Promise<ImportJobResponse> {
+    const file = await this.validateImportFile(dto.fileAssetId, tenantId);
+
+    const job = await this.prisma.importJob.create({
+      data: {
+        tenantId,
+        createdByUserId: userId,
+        fileAssetId: file.id,
+        status: JobStatus.PENDING,
+      },
+      select: importJobSelect,
+    });
+
+    void this.processLeadImportJob(job.id, tenantId, userId, file).catch(
+      (error: unknown) => {
+        this.logger.error(
+          `Lead import job ${job.id} failed unexpectedly`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      },
+    );
+
+    return this.toImportJobResponse(job);
+  }
+
+  async getImportJob(
+    id: string,
+    tenantId: string,
+  ): Promise<ImportJobResponse> {
+    const job = await this.getImportJobOrThrow(id, tenantId);
+    return this.toImportJobResponse(job);
+  }
+
+  async listImportJobs(
+    tenantId: string,
+    query: GetImportJobsQueryDto,
+  ): Promise<PaginatedResponse<ImportJobResponse>> {
+    const { page, limit, skip, take } = getPaginationParams(query);
+    const where = { tenantId };
+
+    const [jobs, totalItems] = await this.prisma.$transaction([
+      this.prisma.importJob.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        select: importJobSelect,
+        skip,
+        take,
+      }),
+      this.prisma.importJob.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      jobs.map((job) => this.toImportJobResponse(job)),
+      page,
+      limit,
+      totalItems,
+    );
+  }
+
+  private async processLeadImportJob(
+    jobId: string,
+    tenantId: string,
+    userId: string,
+    file: ValidatedImportFile,
+  ): Promise<void> {
+    await this.prisma.importJob.update({
+      where: { id: jobId },
+      data: { status: JobStatus.PROCESSING },
+    });
+
+    const errors: ImportJobErrorEntry[] = [];
+    let successfulRows = 0;
+    let failedRows = 0;
+    let totalRows = 0;
+
+    try {
+      const csvBuffer = await this.downloadCsv(file.objectKey);
+      const rows = this.parseCsv(csvBuffer);
+      totalRows = rows.length;
+
+      await this.prisma.importJob.update({
+        where: { id: jobId },
+        data: { totalRows },
+      });
+
+      const pipeline =
+        await this.leadsService.getDefaultPipelinePlacement(tenantId);
+
+      for (const row of rows) {
+        const result = await this.processRow(
+          tenantId,
+          userId,
+          jobId,
+          row,
+          pipeline,
+          errors,
+        );
+
+        if (result === 'success') {
+          successfulRows += 1;
+        } else {
+          failedRows += 1;
+        }
+
+        await this.prisma.importJob.update({
+          where: { id: jobId },
+          data: {
+            processedRows: successfulRows + failedRows,
+            successfulRows,
+            failedRows,
+            ...(errors.length > 0
+              ? { errorSummary: errors as unknown as Prisma.InputJsonValue }
+              : {}),
+          },
+        });
+      }
+
+      await this.finalizeJob(jobId, {
+        totalRows,
+        successfulRows,
+        failedRows,
+        errors,
+      });
+    } catch (error: unknown) {
+      const reason =
+        error instanceof BadRequestException
+          ? (error.message as string)
+          : error instanceof Error
+            ? error.message
+            : 'Import failed';
+
+      if (errors.length < MAX_ERROR_SUMMARY_ENTRIES) {
+        errors.push({ row: 0, reason });
+      }
+
+      await this.finalizeJob(jobId, {
+        totalRows,
+        successfulRows,
+        failedRows,
+        errors,
+        catastrophic: true,
+      });
+    }
+  }
+
+  private async validateImportFile(
+    fileAssetId: string,
+    tenantId: string,
+  ): Promise<ValidatedImportFile> {
+    const file = await this.prisma.fileAsset.findFirst({
+      where: {
+        id: fileAssetId,
+        tenantId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        category: true,
+        objectKey: true,
+        mimeType: true,
+      },
+    });
+
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (file.category !== FileAssetCategory.IMPORT_FILE) {
+      throw new BadRequestException(
+        'File must have category IMPORT_FILE for lead import',
+      );
+    }
+
+    return file;
+  }
+
+  private async downloadCsv(objectKey: string): Promise<Buffer> {
+    return this.storageService.getObject(objectKey);
+  }
+
+  private parseCsv(buffer: Buffer): ParsedLeadCsvRow[] {
+    const content = buffer.toString('utf-8');
+
+    if (content.trim().length === 0) {
+      throw new BadRequestException('CSV file is empty');
+    }
+
+    let headersValidated = false;
+
+    const rows = parse(content, {
+      columns: (headers: string[]) => {
+        this.validateHeaders(headers.map((header) => header.trim()));
+        headersValidated = true;
+        return headers.map((header) => header.trim());
+      },
+      trim: true,
+      bom: true,
+      on_record: (record, context) => {
+        const row = record as LeadCsvRow;
+
+        if (this.isBlankRow(row)) {
+          return null;
+        }
+
+        return { ...row, __line: context.lines };
+      },
+    }) as ParsedLeadCsvRow[];
+
+    if (!headersValidated) {
+      throw new BadRequestException('CSV file is missing a header row');
+    }
+
+    return rows;
+  }
+
+  private validateHeaders(headers: string[]): void {
+    if (headers.length === 0) {
+      throw new BadRequestException('CSV file is missing a header row');
+    }
+
+    const normalized = headers.map((header) => header.trim());
+    const unique = new Set(normalized);
+
+    if (unique.size !== normalized.length) {
+      throw new BadRequestException('CSV headers must be unique');
+    }
+
+    for (const required of REQUIRED_CSV_HEADERS) {
+      if (!unique.has(required)) {
+        throw new BadRequestException(
+          `CSV is missing required header: ${required}`,
+        );
+      }
+    }
+
+    const allowed = new Set<string>(ALLOWED_CSV_HEADERS);
+
+    for (const header of normalized) {
+      if (!allowed.has(header)) {
+        throw new BadRequestException(`Unsupported CSV header: ${header}`);
+      }
+    }
+  }
+
+  private isBlankRow(row: LeadCsvRow): boolean {
+    return Object.values(row).every(
+      (value) => value === undefined || value.trim().length === 0,
+    );
+  }
+
+  private async processRow(
+    tenantId: string,
+    userId: string,
+    importJobId: string,
+    row: ParsedLeadCsvRow,
+    pipeline: { pipelineId: string; pipelineStageId: string },
+    errors: ImportJobErrorEntry[],
+  ): Promise<'success' | 'failure'> {
+    const fullName = row.fullName?.trim() ?? '';
+    const primaryPhone = row.primaryPhone?.trim() ?? '';
+
+    if (fullName.length === 0) {
+      this.pushError(errors, row.__line, 'Missing fullName');
+      return 'failure';
+    }
+
+    if (primaryPhone.length === 0) {
+      this.pushError(errors, row.__line, 'Missing primaryPhone');
+      return 'failure';
+    }
+
+    const sourceId = await this.resolveSourceId(
+      tenantId,
+      row.sourceName?.trim(),
+    );
+    const assignedUserId = await this.resolveAssigneeId(
+      tenantId,
+      row.assignedUserEmail?.trim(),
+    );
+
+    const result = await this.leadsService.createLeadFromImport(
+      tenantId,
+      userId,
+      importJobId,
+      {
+        fullName,
+        primaryPhone,
+        secondaryPhone: row.secondaryPhone?.trim() || null,
+        email: row.email?.trim() || null,
+        sourceId,
+        assignedUserId,
+      },
+      pipeline,
+    );
+
+    if (!result.success) {
+      this.pushError(errors, row.__line, result.reason);
+      return 'failure';
+    }
+
+    return 'success';
+  }
+
+  private async resolveSourceId(
+    tenantId: string,
+    sourceName?: string,
+  ): Promise<string | null> {
+    if (!sourceName) {
+      return null;
+    }
+
+    const source = await this.prisma.leadSource.findFirst({
+      where: {
+        tenantId,
+        name: { equals: sourceName, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+
+    return source?.id ?? null;
+  }
+
+  private async resolveAssigneeId(
+    tenantId: string,
+    assignedUserEmail?: string,
+  ): Promise<string | null> {
+    if (!assignedUserEmail) {
+      return null;
+    }
+
+    const email = assignedUserEmail.trim().toLowerCase();
+
+    if (email.length === 0) {
+      return null;
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        email,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    return user?.id ?? null;
+  }
+
+  private pushError(
+    errors: ImportJobErrorEntry[],
+    row: number,
+    reason: string,
+  ): void {
+    if (errors.length >= MAX_ERROR_SUMMARY_ENTRIES) {
+      return;
+    }
+
+    errors.push({ row, reason });
+  }
+
+  private async finalizeJob(
+    jobId: string,
+    params: {
+      totalRows: number;
+      successfulRows: number;
+      failedRows: number;
+      errors: ImportJobErrorEntry[];
+      catastrophic?: boolean;
+    },
+  ): Promise<void> {
+    const status = this.resolveFinalStatus(params);
+
+    await this.prisma.importJob.update({
+      where: { id: jobId },
+      data: {
+        status,
+        totalRows: params.totalRows,
+        processedRows: params.successfulRows + params.failedRows,
+        successfulRows: params.successfulRows,
+        failedRows: params.failedRows,
+        errorSummary:
+          params.errors.length > 0
+            ? (params.errors as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
+        completedAt: new Date(),
+      },
+    });
+  }
+
+  private resolveFinalStatus(params: {
+    totalRows: number;
+    successfulRows: number;
+    failedRows: number;
+    catastrophic?: boolean;
+  }): JobStatus {
+    if (params.catastrophic) {
+      return JobStatus.FAILED;
+    }
+
+    if (params.failedRows === 0) {
+      return JobStatus.COMPLETED;
+    }
+
+    if (params.successfulRows === 0) {
+      return JobStatus.FAILED;
+    }
+
+    return JobStatus.PARTIAL_SUCCESS;
+  }
+
+  private async getImportJobOrThrow(
+    id: string,
+    tenantId: string,
+  ): Promise<ImportJobRecord> {
+    const job = await this.prisma.importJob.findFirst({
+      where: { id, tenantId },
+      select: importJobSelect,
+    });
+
+    if (!job) {
+      throw new NotFoundException('Import job not found');
+    }
+
+    return job;
+  }
+
+  private toImportJobResponse(job: ImportJobRecord): ImportJobResponse {
+    return {
+      id: job.id,
+      status: job.status,
+      totalRows: job.totalRows,
+      processedRows: job.processedRows,
+      successfulRows: job.successfulRows,
+      failedRows: job.failedRows,
+      errorSummary: this.parseErrorSummary(job.errorSummary),
+      fileAsset: job.fileAsset,
+      createdBy: job.createdBy,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      completedAt: job.completedAt,
+    };
+  }
+
+  private parseErrorSummary(
+    value: ImportJob['errorSummary'],
+  ): ImportJobErrorEntry[] | null {
+    if (!value || !Array.isArray(value)) {
+      return null;
+    }
+
+    return value as unknown as ImportJobErrorEntry[];
+  }
+}

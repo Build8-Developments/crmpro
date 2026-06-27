@@ -146,4 +146,23 @@ export class StorageService {
       expiresInSeconds,
     };
   }
+
+  async getObject(objectKey: string): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+      }),
+    );
+
+    const body = response.Body;
+
+    if (!body) {
+      throw new Error(`Empty S3 object body for key: ${objectKey}`);
+    }
+
+    const bytes = await body.transformToByteArray();
+
+    return Buffer.from(bytes);
+  }
 }

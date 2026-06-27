@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { LeadActivityEventType, LeadStatus, Prisma } from '@prisma/client';
+import { isEmail } from 'class-validator';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -16,7 +17,10 @@ import { UpdateLeadDto } from './dto/update-lead.dto';
 import { leadSelect, toLeadResponse } from './lead.mapper';
 import { LeadActivityService } from './services/lead-activity.service';
 import {
+  DefaultPipelinePlacement,
   DuplicateWarning,
+  ImportLeadRowInput,
+  ImportLeadRowResult,
   LeadMutationResult,
   LeadResponse,
 } from './types/lead.types';
@@ -168,6 +172,146 @@ export class LeadsService {
       lead: toLeadResponse(lead),
       duplicateWarning,
     };
+  }
+
+  async getDefaultPipelinePlacement(
+    tenantId: string,
+  ): Promise<DefaultPipelinePlacement> {
+    const pipeline = await this.prisma.pipeline.findFirst({
+      where: { tenantId, isDefault: true },
+      select: {
+        id: true,
+        stages: {
+          select: { id: true },
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!pipeline || pipeline.stages.length === 0) {
+      throw new BadRequestException('Default pipeline is not configured');
+    }
+
+    return {
+      pipelineId: pipeline.id,
+      pipelineStageId: pipeline.stages[0].id,
+    };
+  }
+
+  async createLeadFromImport(
+    tenantId: string,
+    actorUserId: string,
+    importJobId: string,
+    row: ImportLeadRowInput,
+    pipeline: DefaultPipelinePlacement,
+  ): Promise<ImportLeadRowResult> {
+    if (row.sourceId) {
+      await this.validateSource(row.sourceId, tenantId);
+    }
+
+    const assignee = await this.resolveAssignee(row.assignedUserId, tenantId);
+
+    const fullName = normalizeDisplayName(row.fullName);
+
+    if (fullName.length < 2) {
+      return { success: false, reason: 'fullName must be at least 2 characters' };
+    }
+
+    const primaryPhone = row.primaryPhone.trim();
+
+    if (primaryPhone.length === 0) {
+      return { success: false, reason: 'Missing primaryPhone' };
+    }
+
+    let primaryPhoneNormalized: string;
+    primaryPhoneNormalized = this.normalizePhone(primaryPhone);
+
+    const secondaryPhone = this.resolveSecondaryPhone(row.secondaryPhone);
+    let secondaryPhoneNormalized: string | null = null;
+
+    if (secondaryPhone) {
+      secondaryPhoneNormalized = this.normalizePhone(secondaryPhone);
+    }
+
+    try {
+      this.ensurePhonesDistinct(primaryPhoneNormalized, secondaryPhoneNormalized);
+    } catch (error) {
+      return {
+        success: false,
+        reason:
+          error instanceof BadRequestException
+            ? (error.message as string)
+            : 'Secondary phone must not match primary phone',
+      };
+    }
+
+    const email = this.resolveImportEmail(row.email);
+
+    if (email === 'invalid') {
+      return { success: false, reason: 'Invalid email' };
+    }
+
+    const duplicateWarning = await this.detectDuplicates(
+      tenantId,
+      primaryPhoneNormalized,
+      secondaryPhoneNormalized,
+    );
+
+    if (duplicateWarning) {
+      return { success: false, reason: 'Duplicate lead detected' };
+    }
+
+    const leadId = await this.prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
+        data: {
+          tenantId,
+          sourceId: row.sourceId ?? null,
+          pipelineId: pipeline.pipelineId,
+          pipelineStageId: pipeline.pipelineStageId,
+          assignedUserId: assignee?.id ?? null,
+          status: LeadStatus.OPEN,
+          fullName,
+          primaryPhone,
+          primaryPhoneNormalized,
+          secondaryPhone,
+          secondaryPhoneNormalized,
+          email,
+        },
+        select: { id: true },
+      });
+
+      await this.leadActivityService.createActivity(
+        {
+          tenantId,
+          leadId: lead.id,
+          actorUserId,
+          eventType: LeadActivityEventType.LEAD_CREATED,
+          metadata: { source: 'import', importJobId },
+        },
+        tx,
+      );
+
+      if (assignee) {
+        await this.leadActivityService.createActivity(
+          {
+            tenantId,
+            leadId: lead.id,
+            actorUserId,
+            eventType: LeadActivityEventType.ASSIGNED,
+            metadata: {
+              assignedUserId: assignee.id,
+              assignedUserName: assignee.name,
+            },
+          },
+          tx,
+        );
+      }
+
+      return lead.id;
+    });
+
+    return { success: true, leadId };
   }
 
   async updateLead(
@@ -336,6 +480,22 @@ export class LeadsService {
 
     const trimmed = phone.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private resolveImportEmail(
+    email?: string | null,
+  ): string | null | 'invalid' {
+    if (email === undefined || email === null) {
+      return null;
+    }
+
+    const trimmed = email.trim().toLowerCase();
+
+    if (trimmed.length === 0) {
+      return null;
+    }
+
+    return isEmail(trimmed) ? trimmed : 'invalid';
   }
 
   private ensurePhonesDistinct(

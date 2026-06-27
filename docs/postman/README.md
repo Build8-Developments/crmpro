@@ -39,6 +39,7 @@ Local API testing collection for auth, pipelines, lead sources, developers, proj
 | `noteId` | *(empty)* | Auto-filled by **Create Lead Note** |
 | `fileId` | *(empty)* | Auto-filled by **Complete Upload** |
 | `objectKey` | *(empty)* | Auto-filled by **Request Upload** |
+| `importJobId` | *(empty)* | Auto-filled by **Create Lead Import Job** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -173,7 +174,27 @@ Notes list returns `{ items }` sorted **newest first** (non-paginated for MVP). 
 | Delete File | `DELETE /files/:id` | JWT |
 | List Lead Attachments | `GET /leads/:id/attachments` | `lead.read` |
 
-Upload flow: **request-upload** → **Upload to S3 (PUT)** → **complete-upload**. Step 1 declares a maximum `sizeBytes`; the S3 object must exist, be non-empty, and not exceed that size (it may be smaller). Content-Type on the PUT must match step 1. Quota is charged for the actual S3 object size. Returns `400 Upload not completed` if the PUT was skipped. Max declared size 25 MB. `LEAD_ATTACHMENT` requires `leadId` on complete.
+Upload flow: **request-upload** → **Upload to S3 (PUT)** → **complete-upload**. Step 1 declares a maximum `sizeBytes`; the S3 object must exist, be non-empty, and not exceed that size (it may be smaller). Content-Type on the PUT must match step 1. Quota is charged for the actual S3 object size. Returns `400 Upload not completed` if the PUT was skipped. Max declared size 25 MB. `LEAD_ATTACHMENT` requires `leadId` on complete. Use `category: IMPORT_FILE` (no `leadId`) for CSV lead imports.
+
+### Phase 4 — Import Jobs (lead CSV)
+
+| Request | Method | Auth |
+| --- | --- | --- |
+| Create Lead Import Job | `POST /import-jobs/leads` | `import-job.create` |
+| Get Import Job | `GET /import-jobs/:id` | `import-job.read` |
+| List Import Jobs | `GET /import-jobs` | `import-job.read` |
+
+Flow: upload CSV via Files (`category: IMPORT_FILE`) → **Create Lead Import Job** with `fileAssetId` → poll **Get Import Job** until terminal status.
+
+Required CSV headers: `fullName`, `primaryPhone`. Optional: `secondaryPhone`, `email`, `sourceName`, `assignedUserEmail`. Processing runs asynchronously after create; job returns immediately with `PENDING`/`PROCESSING`.
+
+Example CSV:
+
+```csv
+fullName,primaryPhone,email,sourceName
+Ahmed Hassan,+201012345678,ahmed@gmail.com,Meta Ads
+Sara Ali,+201122233344,sara@gmail.com,Referral
+```
 
 List query example:
 

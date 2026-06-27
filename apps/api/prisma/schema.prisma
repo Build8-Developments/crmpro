@@ -70,6 +70,7 @@ enum JobStatus {
   PROCESSING
   COMPLETED
   FAILED
+  PARTIAL_SUCCESS
 }
 
 model SubscriptionPlan {

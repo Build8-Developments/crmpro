@@ -132,6 +132,8 @@ const PERMISSIONS = [
   { key: 'file.upload', description: 'Upload files' },
   { key: 'file.read', description: 'View and download files' },
   { key: 'file.delete', description: 'Delete files' },
+  { key: 'import-job.create', description: 'Create import jobs' },
+  { key: 'import-job.read', description: 'View import jobs' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
 ] as const;
@@ -169,6 +171,7 @@ const AGENT_PERMISSION_KEYS = [
   'pipeline.read',
   'file.upload',
   'file.read',
+  'import-job.read',
 ] as const;
 
 const SAMPLE_USERS = [
