@@ -19,6 +19,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
+import { QueueService } from '../jobs/queues/queue.service';
 import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
 import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
 import {
@@ -79,6 +80,7 @@ export class ImportJobsService {
     private readonly storageService: StorageService,
     private readonly leadsService: LeadsService,
     private readonly importJobWatchdog: ImportJobWatchdogService,
+    private readonly queueService: QueueService,
   ) {}
 
   async createLeadImportJob(
@@ -98,16 +100,59 @@ export class ImportJobsService {
       select: importJobSelect,
     });
 
-    void this.processLeadImportJob(job.id, tenantId, userId, file).catch(
-      (error: unknown) => {
-        this.logger.error(
-          `Lead import job ${job.id} failed unexpectedly`,
-          error instanceof Error ? error.stack : String(error),
-        );
-      },
-    );
+    await this.queueService.enqueueImportJob(job.id);
 
     return this.toImportJobResponse(job);
+  }
+
+  async processImportJob(jobId: string): Promise<void> {
+    const job = await this.prisma.importJob.findUnique({
+      where: { id: jobId },
+      select: {
+        id: true,
+        status: true,
+        tenantId: true,
+        createdByUserId: true,
+        fileAssetId: true,
+      },
+    });
+
+    if (!job) {
+      throw new NotFoundException(`Import job ${jobId} not found`);
+    }
+
+    if (
+      job.status === JobStatus.COMPLETED ||
+      job.status === JobStatus.FAILED ||
+      job.status === JobStatus.PARTIAL_SUCCESS
+    ) {
+      return;
+    }
+
+    const file = await this.validateImportFile(job.fileAssetId, job.tenantId);
+    await this.processLeadImportJob(
+      job.id,
+      job.tenantId,
+      job.createdByUserId,
+      file,
+    );
+  }
+
+  async failImportJobIfActive(
+    jobId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    await this.prisma.importJob.updateMany({
+      where: {
+        id: jobId,
+        status: { in: [JobStatus.PENDING, JobStatus.PROCESSING] },
+      },
+      data: {
+        status: JobStatus.FAILED,
+        completedAt: new Date(),
+        errorSummary: [{ row: 0, reason: errorMessage }],
+      },
+    });
   }
 
   async getImportJob(

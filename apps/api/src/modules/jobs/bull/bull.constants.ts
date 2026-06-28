@@ -1,0 +1,31 @@
+export const IMPORT_QUEUE = 'import-jobs';
+export const EXPORT_QUEUE = 'export-jobs';
+export const CLEANUP_QUEUE = 'cleanup-jobs';
+
+export const QUEUE_NAMES = [
+  IMPORT_QUEUE,
+  EXPORT_QUEUE,
+  CLEANUP_QUEUE,
+] as const;
+
+export type QueueName = (typeof QUEUE_NAMES)[number];
+
+export const DEFAULT_BULL_PREFIX = 'crmpro';
+export const DEFAULT_IMPORT_CONCURRENCY = 3;
+export const DEFAULT_EXPORT_CONCURRENCY = 2;
+export const DEFAULT_JOB_ATTEMPTS = 3;
+export const DEFAULT_JOB_BACKOFF_DELAY_MS = 3000;
+
+export const BULL_CONFIG_KEYS = {
+  prefix: 'bull.prefix',
+  importConcurrency: 'bull.importConcurrency',
+  exportConcurrency: 'bull.exportConcurrency',
+  jobAttempts: 'bull.jobAttempts',
+  jobBackoffDelayMs: 'bull.jobBackoffDelayMs',
+} as const;
+
+export const REDIS_CONFIG_KEYS = {
+  host: 'redis.host',
+  port: 'redis.port',
+  password: 'redis.password',
+} as const;

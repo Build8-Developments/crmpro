@@ -1,4 +1,18 @@
-export default () => ({
+import {
+  BullConfig,
+  RedisConnectionConfig,
+  resolveRedisConnectionConfig,
+} from '../common/redis/redis.config';
+
+export default () => {
+  const redisConnection = resolveRedisConnectionConfig({
+    REDIS_URL: process.env.REDIS_URL,
+    REDIS_HOST: process.env.REDIS_HOST,
+    REDIS_PORT: process.env.REDIS_PORT,
+    REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+  });
+
+  return {
   app: {
     port: parseInt(process.env.PORT ?? '3000', 10),
     nodeEnv: process.env.NODE_ENV ?? 'development',
@@ -8,7 +22,15 @@ export default () => ({
   },
   redis: {
     url: process.env.REDIS_URL,
-  },
+    ...redisConnection,
+  } satisfies RedisConnectionConfig & { url?: string },
+  bull: {
+    prefix: process.env.BULL_PREFIX ?? 'crmpro',
+    importConcurrency: parseInt(process.env.BULL_IMPORT_CONCURRENCY ?? '3', 10),
+    exportConcurrency: parseInt(process.env.BULL_EXPORT_CONCURRENCY ?? '2', 10),
+    jobAttempts: parseInt(process.env.BULL_JOB_ATTEMPTS ?? '3', 10),
+    jobBackoffDelayMs: parseInt(process.env.BULL_JOB_BACKOFF_DELAY_MS ?? '3000', 10),
+  } satisfies BullConfig,
   auth: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
     accessExpiration: process.env.JWT_ACCESS_EXPIRATION ?? '15m',
@@ -30,4 +52,5 @@ export default () => ({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
-});
+  };
+};

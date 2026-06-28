@@ -21,6 +21,7 @@ import { buildOrderBy, SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { FilesService } from '../../files/files.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
+import { QueueService } from '../../jobs/queues/queue.service';
 import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
 import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
 import {
@@ -82,6 +83,7 @@ export class ExportJobsService {
     private readonly leadExportService: LeadExportService,
     private readonly csvExportService: CsvExportService,
     private readonly exportJobWatchdog: ExportJobWatchdogService,
+    private readonly queueService: QueueService,
   ) {}
 
   async createLeadExportJob(
@@ -121,16 +123,51 @@ export class ExportJobsService {
       select: { id: true, status: true },
     });
 
-    void this.processExportJob(job.id, tenantId, userId).catch(
-      (error: unknown) => {
-        this.logger.error(
-          `Lead export job ${job.id} failed unexpectedly`,
-          error instanceof Error ? error.stack : String(error),
-        );
-      },
-    );
+    await this.queueService.enqueueExportJob(job.id);
 
     return job;
+  }
+
+  async processExportJob(jobId: string): Promise<void> {
+    const job = await this.prisma.exportJob.findUnique({
+      where: { id: jobId },
+      select: {
+        id: true,
+        status: true,
+        tenantId: true,
+        createdByUserId: true,
+      },
+    });
+
+    if (!job) {
+      throw new NotFoundException(`Export job ${jobId} not found`);
+    }
+
+    if (
+      job.status === JobStatus.COMPLETED ||
+      job.status === JobStatus.FAILED
+    ) {
+      return;
+    }
+
+    await this.runExportJob(job.id, job.tenantId, job.createdByUserId);
+  }
+
+  async failExportJobIfActive(
+    jobId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    await this.prisma.exportJob.updateMany({
+      where: {
+        id: jobId,
+        status: { in: [JobStatus.PENDING, JobStatus.PROCESSING] },
+      },
+      data: {
+        status: JobStatus.FAILED,
+        errorMessage,
+        completedAt: new Date(),
+      },
+    });
   }
 
   async getExportJob(
@@ -177,7 +214,7 @@ export class ExportJobsService {
     return buildPaginatedResponse(items, page, limit, totalItems);
   }
 
-  private async processExportJob(
+  private async runExportJob(
     jobId: string,
     tenantId: string,
     userId: string,
