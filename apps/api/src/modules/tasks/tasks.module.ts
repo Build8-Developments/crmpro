@@ -16,7 +16,7 @@ import { TaskReminderProcessor } from './workers/task-reminder.processor';
 @Module({
   imports: [
     AuthRbacModule,
-    LeadsModule,
+    forwardRef(() => LeadsModule),
     NotificationsModule,
     forwardRef(() => AutomationModule),
   ],

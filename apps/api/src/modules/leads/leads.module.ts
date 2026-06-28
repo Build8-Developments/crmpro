@@ -15,7 +15,7 @@ import { LeadStageService } from './services/lead-stage.service';
 import { LeadTimelineService } from './services/lead-timeline.service';
 
 @Module({
-  imports: [AuthRbacModule, AnalyticsModule, NotificationsModule, AutomationModule, forwardRef(() => FilesModule)],
+  imports: [AuthRbacModule, AnalyticsModule, NotificationsModule, forwardRef(() => AutomationModule), forwardRef(() => FilesModule)],
   controllers: [LeadsController, LeadNotesController],
   providers: [
     LeadsService,

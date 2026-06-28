@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { StorageModule } from '../../common/storage/storage.module';
 import { AutomationModule } from '../automation/automation.module';
@@ -14,6 +15,7 @@ import { MonitoringService } from './monitoring.service';
 
 @Module({
   imports: [
+    AuthRbacModule,
     PrismaModule,
     StorageModule,
     JobsModule,

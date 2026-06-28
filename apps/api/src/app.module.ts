@@ -64,6 +64,6 @@ import { envValidationSchema } from './config/env.validation';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware).forRoutes('{*path}');
   }
 }

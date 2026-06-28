@@ -27,7 +27,7 @@ import { AutomationMetricsStore } from './metrics/automation-metrics.store';
 import { AutomationProcessor } from './workers/automation.processor';
 
 @Module({
-  imports: [AuthRbacModule, NotificationsModule, LeadsModule, forwardRef(() => TasksModule)],
+  imports: [AuthRbacModule, NotificationsModule, forwardRef(() => LeadsModule), forwardRef(() => TasksModule)],
   controllers: [AutomationController],
   providers: [
     AutomationService,
