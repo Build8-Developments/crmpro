@@ -123,3 +123,18 @@ export interface DefaultPipelinePlacement {
 export type ImportLeadRowResult =
   | { success: true; leadId: string }
   | { success: false; reason: string };
+
+export interface LeadListFilters {
+  pipelineId?: string;
+  stageId?: string;
+  sourceId?: string;
+  assignedUserId?: string;
+  status?: LeadStatus;
+  projectId?: string;
+  search?: string;
+}
+
+export interface LeadExportParams extends LeadListFilters {
+  sortBy?: string;
+  sortOrder?: string;
+}

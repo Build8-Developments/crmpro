@@ -47,6 +47,9 @@ export const PERMISSIONS = {
   IMPORT_JOB_CREATE: 'import-job.create',
   IMPORT_JOB_READ: 'import-job.read',
 
+  EXPORT_JOB_CREATE: 'export-job.create',
+  EXPORT_JOB_READ: 'export-job.read',
+
   TENANT_MANAGE: 'tenant.manage',
   BILLING_MANAGE: 'billing.manage',
 } as const;
@@ -113,6 +116,10 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.IMPORT_JOB_CREATE,
     PERMISSIONS.IMPORT_JOB_READ,
   ],
+  EXPORT_JOBS: [
+    PERMISSIONS.EXPORT_JOB_CREATE,
+    PERMISSIONS.EXPORT_JOB_READ,
+  ],
   TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
@@ -130,6 +137,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   ROLES: 'Roles',
   FILES: 'Files',
   IMPORT_JOBS: 'Import Jobs',
+  EXPORT_JOBS: 'Export Jobs',
   TENANT: 'Organization',
 };
 
@@ -145,5 +153,6 @@ export const PERMISSION_GROUP_ORDER = [
   'ROLES',
   'FILES',
   'IMPORT_JOBS',
+  'EXPORT_JOBS',
   'TENANT',
 ] as const satisfies readonly PermissionGroupKey[];

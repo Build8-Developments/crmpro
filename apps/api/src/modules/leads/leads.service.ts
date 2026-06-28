@@ -21,6 +21,7 @@ import {
   DuplicateWarning,
   ImportLeadRowInput,
   ImportLeadRowResult,
+  LeadListFilters,
   LeadMutationResult,
   LeadResponse,
 } from './types/lead.types';
@@ -413,26 +414,33 @@ export class LeadsService {
     };
   }
 
-  private buildWhereClause(
+  buildLeadsOrderBy(
+    sortBy?: string,
+    sortOrder?: SortOrder,
+  ): Prisma.LeadOrderByWithRelationInput {
+    return buildOrderBy(sortBy, sortOrder, LEAD_SORT_CONFIG);
+  }
+
+  buildLeadsWhereInput(
     tenantId: string,
-    query: GetLeadsQueryDto,
+    filters: LeadListFilters,
   ): Prisma.LeadWhereInput {
-    const search = normalizeSearch(query.search);
+    const search = normalizeSearch(filters.search);
 
     return {
       tenantId,
       deletedAt: null,
-      ...(query.pipelineId ? { pipelineId: query.pipelineId } : {}),
-      ...(query.stageId ? { pipelineStageId: query.stageId } : {}),
-      ...(query.sourceId ? { sourceId: query.sourceId } : {}),
-      ...(query.assignedUserId
-        ? { assignedUserId: query.assignedUserId }
+      ...(filters.pipelineId ? { pipelineId: filters.pipelineId } : {}),
+      ...(filters.stageId ? { pipelineStageId: filters.stageId } : {}),
+      ...(filters.sourceId ? { sourceId: filters.sourceId } : {}),
+      ...(filters.assignedUserId
+        ? { assignedUserId: filters.assignedUserId }
         : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.projectId
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.projectId
         ? {
             leadProjectInterests: {
-              some: { projectId: query.projectId },
+              some: { projectId: filters.projectId },
             },
           }
         : {}),
@@ -447,10 +455,25 @@ export class LeadsService {
     };
   }
 
+  private buildWhereClause(
+    tenantId: string,
+    query: GetLeadsQueryDto,
+  ): Prisma.LeadWhereInput {
+    return this.buildLeadsWhereInput(tenantId, {
+      pipelineId: query.pipelineId,
+      stageId: query.stageId,
+      sourceId: query.sourceId,
+      assignedUserId: query.assignedUserId,
+      status: query.status,
+      projectId: query.projectId,
+      search: query.search,
+    });
+  }
+
   private buildOrderBy(
     query: GetLeadsQueryDto,
   ): Prisma.LeadOrderByWithRelationInput {
-    return buildOrderBy(query.sortBy, query.sortOrder, LEAD_SORT_CONFIG);
+    return this.buildLeadsOrderBy(query.sortBy, query.sortOrder);
   }
 
   private async getLeadOrThrow(

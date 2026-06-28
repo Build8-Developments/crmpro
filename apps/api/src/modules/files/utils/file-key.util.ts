@@ -17,6 +17,14 @@ export function generateUploadObjectKey(
   return `tenant/${tenantId}/uploads/${randomUUID()}-${sanitized}`;
 }
 
+export function generateExportObjectKey(
+  tenantId: string,
+  fileName: string,
+): string {
+  const sanitized = sanitizeFileName(fileName);
+  return `tenant/${tenantId}/exports/${randomUUID()}-${sanitized}`;
+}
+
 export function isObjectKeyForTenant(
   objectKey: string,
   tenantId: string,

@@ -73,6 +73,19 @@ enum JobStatus {
   PARTIAL_SUCCESS
 }
 
+enum ExportFormat {
+  CSV
+  XLSX
+  PDF
+}
+
+enum ExportType {
+  LEADS
+  PROJECTS
+  DEVELOPERS
+  ACTIVITIES
+}
+
 model SubscriptionPlan {
   id              String   @id @default(uuid()) @db.Uuid
   name            String
@@ -476,22 +489,28 @@ model ImportJob {
 }
 
 model ExportJob {
-  id              String    @id @default(uuid()) @db.Uuid
-  tenantId        String    @db.Uuid
-  createdByUserId String    @db.Uuid
-  fileAssetId     String    @db.Uuid
-  status          JobStatus @default(PENDING)
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @db.Uuid
+  createdByUserId String       @db.Uuid
+  fileAssetId     String?      @db.Uuid
+  exportType      ExportType
+  format          ExportFormat @default(CSV)
+  filters         Json         @default("{}")
+  status          JobStatus    @default(PENDING)
+  progress        Int          @default(0)
   rowCount        Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  errorMessage    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   completedAt     DateTime?
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  createdBy User      @relation(fields: [createdByUserId], references: [id])
-  fileAsset FileAsset @relation(fields: [fileAssetId], references: [id])
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  createdBy User       @relation(fields: [createdByUserId], references: [id])
+  fileAsset FileAsset? @relation(fields: [fileAssetId], references: [id])
 
   @@index([tenantId])
   @@index([status])
   @@index([createdByUserId])
   @@index([fileAssetId])
+  @@index([exportType])
 }

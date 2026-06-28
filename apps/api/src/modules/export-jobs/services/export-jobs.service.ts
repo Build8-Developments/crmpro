@@ -1,0 +1,423 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ExportFormat,
+  ExportType,
+  FileAssetCategory,
+  JobStatus,
+  Prisma,
+} from '@prisma/client';
+import {
+  buildPaginatedResponse,
+  getPaginationParams,
+  PaginatedResponse,
+} from '../../../common/pagination';
+import { buildOrderBy, SortOrder } from '../../../common/query';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { FilesService } from '../../files/files.service';
+import { LeadExportParams } from '../../leads/types/lead.types';
+import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
+import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
+import {
+  CreateExportJobResponse,
+  ExportJobResponse,
+} from '../entities/export-job.types';
+import { EXPORT_CSV_MIME_TYPE, EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS } from '../export-jobs.constants';
+import { ExportJobWatchdogService } from '../export-job-watchdog.service';
+import { CsvExportService } from './csv-export.service';
+import { LeadExportService } from './lead-export.service';
+
+const EXPORT_JOB_SORT_FIELDS = ['createdAt', 'updatedAt', 'status'] as const;
+
+const EXPORT_JOB_SORT_CONFIG = {
+  allowedFields: EXPORT_JOB_SORT_FIELDS,
+  defaultField: 'createdAt' as const,
+  defaultOrder: SortOrder.DESC,
+};
+
+const exportJobSelect = {
+  id: true,
+  exportType: true,
+  format: true,
+  status: true,
+  progress: true,
+  rowCount: true,
+  filters: true,
+  errorMessage: true,
+  fileAssetId: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+  fileAsset: {
+    select: {
+      id: true,
+      originalFilename: true,
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+} satisfies Prisma.ExportJobSelect;
+
+type ExportJobRecord = Prisma.ExportJobGetPayload<{
+  select: typeof exportJobSelect;
+}>;
+
+@Injectable()
+export class ExportJobsService {
+  private readonly logger = new Logger(ExportJobsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly filesService: FilesService,
+    private readonly leadExportService: LeadExportService,
+    private readonly csvExportService: CsvExportService,
+    private readonly exportJobWatchdog: ExportJobWatchdogService,
+  ) {}
+
+  async createLeadExportJob(
+    tenantId: string,
+    userId: string,
+    dto: CreateLeadExportDto,
+  ): Promise<CreateExportJobResponse> {
+    this.leadExportService.assertSupportedFormat(dto.format);
+
+    const activeJob = await this.prisma.exportJob.findFirst({
+      where: {
+        tenantId,
+        createdByUserId: userId,
+        status: { in: [JobStatus.PENDING, JobStatus.PROCESSING] },
+      },
+      select: { id: true, status: true },
+    });
+
+    if (activeJob) {
+      throw new ConflictException(
+        'An export is already in progress. Wait for it to finish or cancel it before starting a new one.',
+      );
+    }
+
+    const exportParams = this.normalizeExportParams(dto);
+
+    const job = await this.prisma.exportJob.create({
+      data: {
+        tenantId,
+        createdByUserId: userId,
+        exportType: ExportType.LEADS,
+        format: dto.format,
+        filters: exportParams as unknown as Prisma.InputJsonValue,
+        status: JobStatus.PENDING,
+        progress: 0,
+      },
+      select: { id: true, status: true },
+    });
+
+    void this.processExportJob(job.id, tenantId, userId).catch(
+      (error: unknown) => {
+        this.logger.error(
+          `Lead export job ${job.id} failed unexpectedly`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      },
+    );
+
+    return job;
+  }
+
+  async getExportJob(
+    id: string,
+    tenantId: string,
+  ): Promise<ExportJobResponse> {
+    await this.exportJobWatchdog.failStaleProcessingJobs();
+    const job = await this.getExportJobOrThrow(id, tenantId);
+    return this.toExportJobResponse(job, tenantId);
+  }
+
+  async listExportJobs(
+    tenantId: string,
+    query: GetExportJobsQueryDto,
+  ): Promise<PaginatedResponse<ExportJobResponse>> {
+    await this.exportJobWatchdog.failStaleProcessingJobs();
+    const { page, limit, skip, take } = getPaginationParams(query);
+    const orderBy = buildOrderBy(
+      query.sortBy,
+      query.sortOrder,
+      EXPORT_JOB_SORT_CONFIG,
+    );
+    const where: Prisma.ExportJobWhereInput = {
+      tenantId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.exportType ? { exportType: query.exportType } : {}),
+    };
+
+    const [jobs, totalItems] = await this.prisma.$transaction([
+      this.prisma.exportJob.findMany({
+        where,
+        orderBy,
+        select: exportJobSelect,
+        skip,
+        take,
+      }),
+      this.prisma.exportJob.count({ where }),
+    ]);
+
+    const items = await Promise.all(
+      jobs.map((job) => this.toExportJobResponse(job, tenantId)),
+    );
+
+    return buildPaginatedResponse(items, page, limit, totalItems);
+  }
+
+  private async processExportJob(
+    jobId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<void> {
+    const job = await this.prisma.exportJob.findFirst({
+      where: { id: jobId, tenantId },
+      select: {
+        id: true,
+        format: true,
+        filters: true,
+      },
+    });
+
+    if (!job) {
+      return;
+    }
+
+    this.logger.log(`Export job ${jobId} started`);
+
+    await this.prisma.exportJob.update({
+      where: { id: jobId },
+      data: {
+        status: JobStatus.PROCESSING,
+        progress: 5,
+        errorMessage: null,
+      },
+    });
+
+    try {
+      const exportParams = this.parseExportParams(job.filters);
+
+      const rows = await this.leadExportService.fetchAllForExport(
+        tenantId,
+        exportParams,
+        async (processedRows, totalRows) => {
+          const progress =
+            totalRows === 0
+              ? 50
+              : Math.min(
+                  70,
+                  10 + Math.floor((processedRows / totalRows) * 60),
+                );
+
+          await this.prisma.exportJob.update({
+            where: { id: jobId },
+            data: { progress },
+          });
+        },
+      );
+
+      this.logger.log(
+        `Export job ${jobId}: loaded ${rows.length} lead(s) for CSV generation`,
+      );
+
+      const csvBuffer = this.generateExportBuffer(job.format, rows);
+
+      this.logger.log(`Export job ${jobId}: CSV generated`);
+
+      await this.prisma.exportJob.update({
+        where: { id: jobId },
+        data: { progress: 80 },
+      });
+
+      const fileName = this.buildExportFileName(jobId, job.format);
+      const file = await this.filesService.createServerGeneratedFile({
+        tenantId,
+        userId,
+        category: FileAssetCategory.EXPORT_FILE,
+        buffer: csvBuffer,
+        fileName,
+        mimeType: EXPORT_CSV_MIME_TYPE,
+      });
+
+      this.logger.log(
+        `Export job ${jobId}: uploaded to S3 and FileAsset ${file.id} created`,
+      );
+
+      await this.prisma.exportJob.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          progress: 100,
+          rowCount: rows.length,
+          fileAssetId: file.id,
+          completedAt: new Date(),
+          errorMessage: null,
+        },
+      });
+
+      this.logger.log(`Export job ${jobId} completed`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof BadRequestException
+          ? (error.message as string)
+          : error instanceof Error
+            ? error.message
+            : 'Export failed';
+
+      this.logger.error(`Export job ${jobId} failed: ${message}`);
+
+      await this.prisma.exportJob.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.FAILED,
+          errorMessage: message,
+          completedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  private generateExportBuffer(
+    format: ExportFormat,
+    rows: Parameters<CsvExportService['generateCsv']>[0],
+  ): Buffer {
+    if (format === ExportFormat.CSV) {
+      return this.csvExportService.generateCsv(rows);
+    }
+
+    throw new BadRequestException(
+      `Export format ${format} is not supported in Phase 1`,
+    );
+  }
+
+  private buildExportFileName(jobId: string, format: ExportFormat): string {
+    const extension = format.toLowerCase();
+    return `leads-export-${jobId}.${extension}`;
+  }
+
+  private normalizeExportParams(dto: CreateLeadExportDto): LeadExportParams {
+    const filters = this.normalizeFilters(dto.filters);
+
+    return {
+      ...filters,
+      sortBy: dto.sortBy,
+      sortOrder: dto.sortOrder ?? SortOrder.DESC,
+    };
+  }
+
+  private normalizeFilters(
+    filters?: LeadExportParams,
+  ): LeadExportParams {
+    if (!filters) {
+      return {};
+    }
+
+    return {
+      ...(filters.pipelineId ? { pipelineId: filters.pipelineId } : {}),
+      ...(filters.stageId ? { stageId: filters.stageId } : {}),
+      ...(filters.assignedUserId
+        ? { assignedUserId: filters.assignedUserId }
+        : {}),
+      ...(filters.sourceId ? { sourceId: filters.sourceId } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.search ? { search: filters.search } : {}),
+    };
+  }
+
+  private parseExportParams(value: Prisma.JsonValue): LeadExportParams {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return { sortOrder: SortOrder.DESC };
+    }
+
+    const record = value as Record<string, unknown>;
+
+    return {
+      ...this.normalizeFilters({
+        pipelineId:
+          typeof record.pipelineId === 'string' ? record.pipelineId : undefined,
+        stageId:
+          typeof record.stageId === 'string' ? record.stageId : undefined,
+        assignedUserId:
+          typeof record.assignedUserId === 'string'
+            ? record.assignedUserId
+            : undefined,
+        sourceId:
+          typeof record.sourceId === 'string' ? record.sourceId : undefined,
+        status:
+          typeof record.status === 'string'
+            ? (record.status as LeadExportParams['status'])
+            : undefined,
+        search: typeof record.search === 'string' ? record.search : undefined,
+      }),
+      sortBy: typeof record.sortBy === 'string' ? record.sortBy : undefined,
+      sortOrder:
+        record.sortOrder === SortOrder.ASC ||
+        record.sortOrder === SortOrder.DESC
+          ? record.sortOrder
+          : SortOrder.DESC,
+    };
+  }
+
+  private async getExportJobOrThrow(
+    id: string,
+    tenantId: string,
+  ): Promise<ExportJobRecord> {
+    const job = await this.prisma.exportJob.findFirst({
+      where: { id, tenantId },
+      select: exportJobSelect,
+    });
+
+    if (!job) {
+      throw new NotFoundException('Export job not found');
+    }
+
+    return job;
+  }
+
+  private async toExportJobResponse(
+    job: ExportJobRecord,
+    tenantId: string,
+  ): Promise<ExportJobResponse> {
+    const download =
+      job.status === JobStatus.COMPLETED && job.fileAssetId
+        ? await this.filesService.getDownloadUrl(job.fileAssetId, tenantId, {
+            expiresInSeconds: EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS,
+          })
+        : null;
+
+    return {
+      id: job.id,
+      exportType: job.exportType,
+      format: job.format,
+      status: job.status,
+      progress: job.progress,
+      rowCount: job.rowCount,
+      filters: this.parseExportParams(job.filters),
+      errorMessage: job.errorMessage,
+      fileAssetId: job.fileAssetId,
+      fileAsset: job.fileAsset,
+      download: download
+        ? {
+            downloadUrl: download.downloadUrl,
+            expiresInSeconds: download.expiresInSeconds,
+          }
+        : null,
+      createdBy: job.createdBy,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      completedAt: job.completedAt,
+    };
+  }
+}

@@ -134,6 +134,8 @@ const PERMISSIONS = [
   { key: 'file.delete', description: 'Delete files' },
   { key: 'import-job.create', description: 'Create import jobs' },
   { key: 'import-job.read', description: 'View import jobs' },
+  { key: 'export-job.create', description: 'Create export jobs' },
+  { key: 'export-job.read', description: 'View export jobs' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
 ] as const;
@@ -172,6 +174,7 @@ const AGENT_PERMISSION_KEYS = [
   'file.upload',
   'file.read',
   'import-job.read',
+  'export-job.read',
 ] as const;
 
 const SAMPLE_USERS = [
@@ -1009,21 +1012,12 @@ async function seedFileAssets(params: {
       tenantId,
       createdByUserId: uploaderId,
       fileAssetId: importFileId,
-      status: JobStatus.PENDING,
-      totalRows: 0,
-      processedRows: 0,
+      status: JobStatus.FAILED,
+      totalRows: 45,
+      processedRows: 45,
       successfulRows: 0,
-      failedRows: 0,
-    },
-  });
-
-  await prisma.exportJob.create({
-    data: {
-      tenantId,
-      createdByUserId: uploaderId,
-      fileAssetId: exportFileId,
-      status: JobStatus.COMPLETED,
-      rowCount: leadIds.length,
+      failedRows: 45,
+      errorSummary: [{ row: 1, reason: 'Sample failed import for UI preview' }],
       completedAt: faker.date.recent({ days: 1 }),
     },
   });
@@ -1033,7 +1027,27 @@ async function seedFileAssets(params: {
       tenantId,
       createdByUserId: uploaderId,
       fileAssetId: exportFileId,
-      status: JobStatus.PROCESSING,
+      exportType: 'LEADS',
+      format: 'CSV',
+      filters: {},
+      status: JobStatus.COMPLETED,
+      progress: 100,
+      rowCount: leadIds.length,
+      completedAt: faker.date.recent({ days: 1 }),
+    },
+  });
+
+  await prisma.exportJob.create({
+    data: {
+      tenantId,
+      createdByUserId: uploaderId,
+      exportType: 'LEADS',
+      format: 'CSV',
+      filters: { status: 'OPEN' },
+      status: JobStatus.FAILED,
+      progress: 45,
+      errorMessage: 'Sample failed export for UI preview',
+      completedAt: faker.date.recent({ days: 1 }),
     },
   });
 

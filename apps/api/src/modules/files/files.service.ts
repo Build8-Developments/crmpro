@@ -25,6 +25,7 @@ import {
   RequestUploadResponse,
 } from './types/file.types';
 import {
+  generateExportObjectKey,
   generateUploadObjectKey,
   isObjectKeyForTenant,
 } from './utils/file-key.util';
@@ -188,18 +189,77 @@ export class FilesService {
   async getDownloadUrl(
     fileId: string,
     tenantId: string,
+    options?: { expiresInSeconds?: number },
   ): Promise<DownloadUrlResponse> {
     const file = await this.getFileOrThrow(fileId, tenantId);
 
     const signed = await this.storageService.getSignedDownloadUrl({
       objectKey: file.objectKey,
-      expiresInSeconds: DOWNLOAD_URL_EXPIRY_SECONDS,
+      expiresInSeconds:
+        options?.expiresInSeconds ?? DOWNLOAD_URL_EXPIRY_SECONDS,
     });
 
     return {
       downloadUrl: signed.url,
       expiresInSeconds: signed.expiresInSeconds,
     };
+  }
+
+  async createServerGeneratedFile(params: {
+    tenantId: string;
+    userId: string;
+    category: FileAssetCategory;
+    buffer: Buffer;
+    fileName: string;
+    mimeType: string;
+  }): Promise<{ id: string; objectKey: string; originalFilename: string }> {
+    const sizeBytes = params.buffer.byteLength;
+
+    if (sizeBytes <= 0) {
+      throw new BadRequestException('File content is empty');
+    }
+
+    await this.validateTenantQuota(params.tenantId, sizeBytes);
+
+    const objectKey = generateExportObjectKey(params.tenantId, params.fileName);
+    const originalFilename = params.fileName.trim();
+
+    await this.storageService.uploadFile({
+      key: objectKey,
+      buffer: params.buffer,
+      contentType: params.mimeType,
+    });
+
+    const file = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.fileAsset.create({
+        data: {
+          tenantId: params.tenantId,
+          uploadedByUserId: params.userId,
+          category: params.category,
+          objectKey,
+          originalFilename,
+          mimeType: params.mimeType,
+          sizeBytes: BigInt(sizeBytes),
+          leadId: null,
+        },
+        select: {
+          id: true,
+          objectKey: true,
+          originalFilename: true,
+        },
+      });
+
+      await tx.tenant.update({
+        where: { id: params.tenantId },
+        data: {
+          storageUsedBytes: { increment: BigInt(sizeBytes) },
+        },
+      });
+
+      return created;
+    });
+
+    return file;
   }
 
   async deleteFile(

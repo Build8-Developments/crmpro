@@ -11,6 +11,7 @@ import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { FilesModule } from './modules/files/files.module';
 import { ImportJobsModule } from './modules/import-jobs/import-jobs.module';
+import { ExportJobsModule } from './modules/export-jobs/export-jobs.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -32,6 +33,7 @@ import { envValidationSchema } from './config/env.validation';
     ProjectsModule,
     FilesModule,
     ImportJobsModule,
+    ExportJobsModule,
   ],
   controllers: [],
   providers: [],
