@@ -21,12 +21,3 @@ export interface DownloadUrlResponse {
   downloadUrl: string;
   expiresInSeconds: number;
 }
-
-export interface LeadAttachmentSummary {
-  id: string;
-  category: FileAssetCategory;
-  originalFilename: string;
-  mimeType: string;
-  sizeBytes: string;
-  createdAt: Date;
-}

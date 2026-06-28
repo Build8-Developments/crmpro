@@ -5,13 +5,12 @@ import {
 } from '@nestjs/common';
 import {
   FileAssetCategory,
-  LeadActivityEventType,
   Prisma,
 } from '@prisma/client';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
-import { LeadActivityService } from '../leads/services/lead-activity.service';
+import { LeadAttachmentService } from '../lead-attachments/lead-attachment.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
@@ -23,7 +22,6 @@ import {
 import {
   CompleteUploadResponse,
   DownloadUrlResponse,
-  LeadAttachmentSummary,
   RequestUploadResponse,
 } from './types/file.types';
 import {
@@ -52,7 +50,7 @@ export class FilesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
-    private readonly leadActivityService: LeadActivityService,
+    private readonly leadAttachmentService: LeadAttachmentService,
     private readonly storageLoggingService: StorageLoggingService,
     private readonly notificationTrigger: NotificationTriggerService,
   ) {}
@@ -149,7 +147,10 @@ export class FilesService {
     await this.validateTenantQuota(tenantId, verified.sizeBytes);
 
     if (dto.category === FileAssetCategory.LEAD_ATTACHMENT && dto.leadId) {
-      await this.validateLeadForAttachment(dto.leadId, tenantId);
+      await this.leadAttachmentService.validateAttachmentTarget(
+        dto.leadId,
+        tenantId,
+      );
     }
 
     if (
@@ -191,16 +192,13 @@ export class FilesService {
       await tx.fileUploadIntent.delete({ where: { id: intent.id } });
 
       if (leadId) {
-        await this.leadActivityService.createActivity(
+        await this.leadAttachmentService.recordFileAttached(
           {
             tenantId,
             leadId,
             actorUserId: userId,
-            eventType: LeadActivityEventType.FILE_ATTACHED,
-            metadata: {
-              fileId: created.id,
-              category: dto.category,
-            },
+            fileId: created.id,
+            category: dto.category,
           },
           tx,
         );
@@ -334,13 +332,12 @@ export class FilesService {
       });
 
       if (file.leadId) {
-        await this.leadActivityService.createActivity(
+        await this.leadAttachmentService.recordFileDeleted(
           {
             tenantId,
             leadId: file.leadId,
             actorUserId: userId,
-            eventType: LeadActivityEventType.FILE_DELETED,
-            metadata: { fileId: file.id },
+            fileId: file.id,
           },
           tx,
         );
@@ -361,15 +358,15 @@ export class FilesService {
     });
 
     if (file.leadId) {
-      const lead = await this.prisma.lead.findFirst({
-        where: { id: file.leadId, tenantId, deletedAt: null },
-        select: { assignedUserId: true },
-      });
+      const assigneeUserId = await this.leadAttachmentService.getLeadAssigneeId(
+        file.leadId,
+        tenantId,
+      );
 
-      if (lead?.assignedUserId && lead.assignedUserId !== userId) {
+      if (assigneeUserId && assigneeUserId !== userId) {
         void this.notificationTrigger.notifyFileDeleted({
           tenantId,
-          recipientUserId: lead.assignedUserId,
+          recipientUserId: assigneeUserId,
           fileId: file.id,
           fileName: file.originalFilename,
           actorUserId: userId,
@@ -378,28 +375,6 @@ export class FilesService {
     }
 
     return { id: file.id };
-  }
-
-  async listLeadAttachments(
-    leadId: string,
-    tenantId: string,
-  ): Promise<{ items: LeadAttachmentSummary[] }> {
-    await this.validateLeadForAttachment(leadId, tenantId);
-
-    const files = await this.prisma.fileAsset.findMany({
-      where: {
-        tenantId,
-        leadId,
-        deletedAt: null,
-        category: FileAssetCategory.LEAD_ATTACHMENT,
-      },
-      orderBy: { createdAt: 'desc' },
-      select: fileAssetSelect,
-    });
-
-    return {
-      items: files.map((file) => this.toAttachmentSummary(file)),
-    };
   }
 
   private async validateTenantQuota(
@@ -461,20 +436,6 @@ export class FilesService {
     return { sizeBytes: actualSize };
   }
 
-  private async validateLeadForAttachment(
-    leadId: string,
-    tenantId: string,
-  ): Promise<void> {
-    const lead = await this.prisma.lead.findFirst({
-      where: { id: leadId, tenantId, deletedAt: null },
-      select: { id: true },
-    });
-
-    if (!lead) {
-      throw new BadRequestException('Lead not found');
-    }
-  }
-
   private async getFileOrThrow(
     fileId: string,
     tenantId: string,
@@ -502,17 +463,6 @@ export class FilesService {
       mimeType: file.mimeType,
       sizeBytes: file.sizeBytes.toString(),
       leadId: file.leadId,
-      createdAt: file.createdAt,
-    };
-  }
-
-  private toAttachmentSummary(file: FileAssetRecord): LeadAttachmentSummary {
-    return {
-      id: file.id,
-      category: file.category,
-      originalFilename: file.originalFilename,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes.toString(),
       createdAt: file.createdAt,
     };
   }

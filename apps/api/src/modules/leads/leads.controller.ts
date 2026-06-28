@@ -22,7 +22,7 @@ import { GetLeadsQueryDto } from './dto/get-leads-query.dto';
 import { MoveStageDto } from './dto/move-stage.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { LeadsService } from './leads.service';
-import { FilesService } from '../files/files.service';
+import { LeadAttachmentService } from '../lead-attachments/lead-attachment.service';
 import { LeadAssignmentService } from './services/lead-assignment.service';
 import { LeadNotesService } from './services/lead-notes.service';
 import { LeadStageService } from './services/lead-stage.service';
@@ -37,7 +37,7 @@ export class LeadsController {
     private readonly leadAssignmentService: LeadAssignmentService,
     private readonly leadNotesService: LeadNotesService,
     private readonly leadTimelineService: LeadTimelineService,
-    private readonly filesService: FilesService,
+    private readonly leadAttachmentService: LeadAttachmentService,
   ) {}
 
   @Get()
@@ -99,7 +99,7 @@ export class LeadsController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const data = await this.filesService.listLeadAttachments(
+    const data = await this.leadAttachmentService.listAttachments(
       id,
       user.tenantId,
     );
