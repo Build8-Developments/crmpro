@@ -31,3 +31,14 @@ export interface HeadObjectResult {
   contentLength: number;
   contentType?: string;
 }
+
+export interface ListObjectKeysParams {
+  prefix?: string;
+  continuationToken?: string;
+  maxKeys?: number;
+}
+
+export interface ListObjectKeysResult {
+  keys: string[];
+  nextContinuationToken?: string;
+}

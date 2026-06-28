@@ -1,0 +1,355 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JobStatus, Prisma } from '@prisma/client';
+import { StorageLoggingService } from '../../common/logging/storage-logging.service';
+import { LoggingService } from '../../common/logging/logging.service';
+import { RequestContextService } from '../../common/logging/request-context.service';
+import { StorageService } from '../../common/storage/storage.service';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import {
+  CLEANUP_CONFIG_KEYS,
+  CleanupJobName,
+  DEFAULT_CLEANUP_BATCH_SIZE,
+  DEFAULT_EXPORT_JOB_TIMEOUT_MINUTES,
+  DEFAULT_IMPORT_JOB_TIMEOUT_MINUTES,
+  DEFAULT_SESSION_RETENTION_DAYS,
+  DEFAULT_UPLOAD_INTENT_TTL_MINUTES,
+  S3_TENANT_PREFIX,
+  STALE_EXPORT_JOB_ERROR,
+  STALE_IMPORT_JOB_ERROR,
+} from './cleanup.constants';
+import { CleanupTaskResult } from './cleanup.types';
+import { CleanupHealthService } from './cleanup-health.service';
+
+@Injectable()
+export class CleanupService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+    private readonly configService: ConfigService,
+    private readonly cleanupHealthService: CleanupHealthService,
+    private readonly loggingService: LoggingService,
+    private readonly requestContext: RequestContextService,
+    private readonly storageLoggingService: StorageLoggingService,
+  ) {}
+
+  async runCleanup(jobName: CleanupJobName): Promise<CleanupTaskResult> {
+    const startedAt = Date.now();
+    const requestId = this.requestContext.getRequestId();
+
+    this.loggingService.info({
+      module: 'Cleanup',
+      operation: jobName,
+      requestId,
+      status: 'started',
+    });
+
+    try {
+      const result = await this.executeCleanup(jobName);
+      const durationMs = Date.now() - startedAt;
+
+      this.cleanupHealthService.recordSuccess(jobName);
+
+      this.loggingService.info({
+        module: 'Cleanup',
+        operation: jobName,
+        requestId,
+        durationMs,
+        status: 'completed',
+        metadata: {
+          deleted: result.deleted,
+          updated: result.updated,
+        },
+      });
+
+      return {
+        jobName,
+        deleted: result.deleted,
+        updated: result.updated,
+        durationMs,
+      };
+    } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      const message = error instanceof Error ? error.message : String(error);
+
+      this.cleanupHealthService.recordFailure(jobName);
+
+      this.loggingService.error({
+        module: 'Cleanup',
+        operation: jobName,
+        requestId,
+        durationMs,
+        status: 'failed',
+        metadata: { error: message },
+      });
+
+      throw error;
+    }
+  }
+
+  private async executeCleanup(
+    jobName: CleanupJobName,
+  ): Promise<{ deleted: number; updated: number }> {
+    switch (jobName) {
+      case CleanupJobName.FILE_UPLOAD_INTENTS:
+        return this.cleanupExpiredUploadIntents();
+      case CleanupJobName.STALE_IMPORT_JOBS:
+        return this.cleanupStaleImportJobs();
+      case CleanupJobName.STALE_EXPORT_JOBS:
+        return this.cleanupStaleExportJobs();
+      case CleanupJobName.EXPIRED_SESSIONS:
+        return this.cleanupExpiredSessions();
+      case CleanupJobName.ORPHAN_S3_OBJECTS:
+        return this.cleanupOrphanS3Objects();
+      default:
+        throw new Error(`Unsupported cleanup job: ${jobName}`);
+    }
+  }
+
+  async cleanupExpiredUploadIntents(): Promise<{ deleted: number; updated: number }> {
+    const batchSize = this.getBatchSize();
+    const ttlMinutes = this.getUploadIntentTtlMinutes();
+    const now = new Date();
+    const createdAtCutoff = new Date(now.getTime() - ttlMinutes * 60 * 1000);
+    let deleted = 0;
+
+    while (true) {
+      const batch = await this.prisma.fileUploadIntent.findMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: now } },
+            { createdAt: { lt: createdAtCutoff } },
+          ],
+        },
+        select: { id: true },
+        take: batchSize,
+      });
+
+      if (batch.length === 0) {
+        break;
+      }
+
+      const result = await this.prisma.fileUploadIntent.deleteMany({
+        where: {
+          id: { in: batch.map((intent) => intent.id) },
+        },
+      });
+
+      deleted += result.count;
+
+      if (batch.length < batchSize) {
+        break;
+      }
+    }
+
+    return { deleted, updated: 0 };
+  }
+
+  async cleanupStaleImportJobs(): Promise<{ deleted: number; updated: number }> {
+    const batchSize = this.getBatchSize();
+    const timeoutMinutes = this.getImportJobTimeoutMinutes();
+    const cutoff = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+    let updated = 0;
+
+    while (true) {
+      const batch = await this.prisma.importJob.findMany({
+        where: {
+          status: JobStatus.PROCESSING,
+          updatedAt: { lt: cutoff },
+        },
+        select: { id: true },
+        take: batchSize,
+      });
+
+      if (batch.length === 0) {
+        break;
+      }
+
+      const result = await this.prisma.importJob.updateMany({
+        where: {
+          id: { in: batch.map((job) => job.id) },
+          status: JobStatus.PROCESSING,
+        },
+        data: {
+          status: JobStatus.FAILED,
+          completedAt: new Date(),
+          errorSummary: [
+            { row: 0, reason: STALE_IMPORT_JOB_ERROR },
+          ] as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      updated += result.count;
+
+      if (batch.length < batchSize) {
+        break;
+      }
+    }
+
+    return { deleted: 0, updated };
+  }
+
+  async cleanupStaleExportJobs(): Promise<{ deleted: number; updated: number }> {
+    const batchSize = this.getBatchSize();
+    const timeoutMinutes = this.getExportJobTimeoutMinutes();
+    const cutoff = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+    let updated = 0;
+
+    while (true) {
+      const batch = await this.prisma.exportJob.findMany({
+        where: {
+          status: JobStatus.PROCESSING,
+          updatedAt: { lt: cutoff },
+        },
+        select: { id: true },
+        take: batchSize,
+      });
+
+      if (batch.length === 0) {
+        break;
+      }
+
+      const result = await this.prisma.exportJob.updateMany({
+        where: {
+          id: { in: batch.map((job) => job.id) },
+          status: JobStatus.PROCESSING,
+        },
+        data: {
+          status: JobStatus.FAILED,
+          completedAt: new Date(),
+          errorMessage: STALE_EXPORT_JOB_ERROR,
+        },
+      });
+
+      updated += result.count;
+
+      if (batch.length < batchSize) {
+        break;
+      }
+    }
+
+    return { deleted: 0, updated };
+  }
+
+  async cleanupExpiredSessions(): Promise<{ deleted: number; updated: number }> {
+    const batchSize = this.getBatchSize();
+    const retentionDays = this.getSessionRetentionDays();
+    const purgeBefore = new Date(
+      Date.now() - retentionDays * 24 * 60 * 60 * 1000,
+    );
+    let deleted = 0;
+
+    while (true) {
+      const batch = await this.prisma.userSession.findMany({
+        where: {
+          expiresAt: { lt: purgeBefore },
+        },
+        select: { id: true },
+        take: batchSize,
+      });
+
+      if (batch.length === 0) {
+        break;
+      }
+
+      const result = await this.prisma.userSession.deleteMany({
+        where: {
+          id: { in: batch.map((session) => session.id) },
+        },
+      });
+
+      deleted += result.count;
+
+      if (batch.length < batchSize) {
+        break;
+      }
+    }
+
+    return { deleted, updated: 0 };
+  }
+
+  async cleanupOrphanS3Objects(): Promise<{ deleted: number; updated: number }> {
+    const batchSize = this.getBatchSize();
+    let deleted = 0;
+    let continuationToken: string | undefined;
+
+    do {
+      const listing = await this.storageService.listObjectKeys({
+        prefix: S3_TENANT_PREFIX,
+        continuationToken,
+        maxKeys: batchSize,
+      });
+
+      if (listing.keys.length > 0) {
+        const [assets, intents] = await Promise.all([
+          this.prisma.fileAsset.findMany({
+            where: { objectKey: { in: listing.keys } },
+            select: { objectKey: true },
+          }),
+          this.prisma.fileUploadIntent.findMany({
+            where: { objectKey: { in: listing.keys } },
+            select: { objectKey: true },
+          }),
+        ]);
+
+        const knownKeys = new Set([
+          ...assets.map((asset) => asset.objectKey),
+          ...intents.map((intent) => intent.objectKey),
+        ]);
+
+        for (const objectKey of listing.keys) {
+          if (knownKeys.has(objectKey)) {
+            continue;
+          }
+
+          await this.storageService.deleteFile(objectKey);
+          this.storageLoggingService.orphanCleanup({ objectKey });
+          deleted += 1;
+        }
+      }
+
+      continuationToken = listing.nextContinuationToken;
+    } while (continuationToken);
+
+    return { deleted, updated: 0 };
+  }
+
+  private getBatchSize(): number {
+    return (
+      this.configService.get<number>(CLEANUP_CONFIG_KEYS.batchSize) ??
+      DEFAULT_CLEANUP_BATCH_SIZE
+    );
+  }
+
+  private getUploadIntentTtlMinutes(): number {
+    return (
+      this.configService.get<number>(
+        CLEANUP_CONFIG_KEYS.uploadIntentTtlMinutes,
+      ) ?? DEFAULT_UPLOAD_INTENT_TTL_MINUTES
+    );
+  }
+
+  private getImportJobTimeoutMinutes(): number {
+    return (
+      this.configService.get<number>(
+        CLEANUP_CONFIG_KEYS.importJobTimeoutMinutes,
+      ) ?? DEFAULT_IMPORT_JOB_TIMEOUT_MINUTES
+    );
+  }
+
+  private getExportJobTimeoutMinutes(): number {
+    return (
+      this.configService.get<number>(
+        CLEANUP_CONFIG_KEYS.exportJobTimeoutMinutes,
+      ) ?? DEFAULT_EXPORT_JOB_TIMEOUT_MINUTES
+    );
+  }
+
+  private getSessionRetentionDays(): number {
+    return (
+      this.configService.get<number>(
+        CLEANUP_CONFIG_KEYS.sessionRetentionDays,
+      ) ?? DEFAULT_SESSION_RETENTION_DAYS
+    );
+  }
+}

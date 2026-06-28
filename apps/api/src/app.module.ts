@@ -1,5 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { HttpLoggingInterceptor } from './common/logging/interceptors/http-logging.interceptor';
+import { LoggingModule } from './common/logging/logging.module';
+import { RequestIdMiddleware } from './common/logging/middleware/request-id.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { SecurityModule } from './common/security/security.module';
 import { StorageModule } from './common/storage/storage.module';
@@ -13,6 +17,7 @@ import { FilesModule } from './modules/files/files.module';
 import { ImportJobsModule } from './modules/import-jobs/import-jobs.module';
 import { ExportJobsModule } from './modules/export-jobs/export-jobs.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -23,6 +28,7 @@ import { envValidationSchema } from './config/env.validation';
       load: [configuration],
       validationSchema: envValidationSchema,
     }),
+    LoggingModule,
     PrismaModule,
     SecurityModule,
     StorageModule,
@@ -36,8 +42,18 @@ import { envValidationSchema } from './config/env.validation';
     JobsModule,
     ImportJobsModule,
     ExportJobsModule,
+    MonitoringModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: HttpLoggingInterceptor,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

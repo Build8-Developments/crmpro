@@ -13,6 +13,7 @@ export type QueueName = (typeof QUEUE_NAMES)[number];
 export const DEFAULT_BULL_PREFIX = 'crmpro';
 export const DEFAULT_IMPORT_CONCURRENCY = 3;
 export const DEFAULT_EXPORT_CONCURRENCY = 2;
+export const DEFAULT_CLEANUP_CONCURRENCY = 1;
 export const DEFAULT_JOB_ATTEMPTS = 3;
 export const DEFAULT_JOB_BACKOFF_DELAY_MS = 3000;
 
@@ -20,6 +21,7 @@ export const BULL_CONFIG_KEYS = {
   prefix: 'bull.prefix',
   importConcurrency: 'bull.importConcurrency',
   exportConcurrency: 'bull.exportConcurrency',
+  cleanupConcurrency: 'bull.cleanupConcurrency',
   jobAttempts: 'bull.jobAttempts',
   jobBackoffDelayMs: 'bull.jobBackoffDelayMs',
 } as const;

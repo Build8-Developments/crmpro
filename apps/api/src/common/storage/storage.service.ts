@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  HeadBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   NotFound,
   PutObjectCommand,
   S3Client,
@@ -11,6 +13,8 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
   HeadObjectResult,
+  ListObjectKeysParams,
+  ListObjectKeysResult,
   SignedDownloadUrlParams,
   SignedUploadUrlParams,
   SignedUrlResult,
@@ -42,6 +46,19 @@ export class StorageService {
       credentials: { accessKeyId, secretAccessKey },
       ...(endpoint && { endpoint, forcePathStyle: true }),
     });
+  }
+
+  async checkConnectivity(): Promise<boolean> {
+    try {
+      await this.client.send(
+        new HeadBucketCommand({
+          Bucket: this.bucket,
+        }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async uploadFile(params: UploadFileParams): Promise<UploadFileResult> {
@@ -100,6 +117,29 @@ export class StorageService {
     }
 
     return false;
+  }
+
+  async listObjectKeys(
+    params: ListObjectKeysParams = {},
+  ): Promise<ListObjectKeysResult> {
+    const response = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: params.prefix,
+        ContinuationToken: params.continuationToken,
+        MaxKeys: params.maxKeys,
+      }),
+    );
+
+    const keys =
+      response.Contents?.map((object) => object.Key).filter(
+        (key): key is string => typeof key === 'string' && key.length > 0,
+      ) ?? [];
+
+    return {
+      keys,
+      nextContinuationToken: response.NextContinuationToken,
+    };
   }
 
   async getSignedUploadUrl(

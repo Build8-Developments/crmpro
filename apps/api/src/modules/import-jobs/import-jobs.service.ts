@@ -27,7 +27,6 @@ import {
   PROGRESS_UPDATE_BATCH_SIZE,
   REQUIRED_CSV_HEADERS,
 } from './import-jobs.constants';
-import { ImportJobWatchdogService } from './import-job-watchdog.service';
 import {
   ImportJobErrorEntry,
   ImportJobResponse,
@@ -79,7 +78,6 @@ export class ImportJobsService {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly leadsService: LeadsService,
-    private readonly importJobWatchdog: ImportJobWatchdogService,
     private readonly queueService: QueueService,
   ) {}
 
@@ -159,7 +157,6 @@ export class ImportJobsService {
     id: string,
     tenantId: string,
   ): Promise<ImportJobResponse> {
-    await this.importJobWatchdog.failStaleProcessingJobs();
     const job = await this.getImportJobOrThrow(id, tenantId);
     return this.toImportJobResponse(job);
   }
@@ -168,7 +165,6 @@ export class ImportJobsService {
     tenantId: string,
     query: GetImportJobsQueryDto,
   ): Promise<PaginatedResponse<ImportJobResponse>> {
-    await this.importJobWatchdog.failStaleProcessingJobs();
     const { page, limit, skip, take } = getPaginationParams(query);
     const where = { tenantId };
 

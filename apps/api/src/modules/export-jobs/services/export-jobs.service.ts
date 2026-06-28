@@ -29,7 +29,6 @@ import {
   ExportJobResponse,
 } from '../entities/export-job.types';
 import { EXPORT_CSV_MIME_TYPE, EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS } from '../export-jobs.constants';
-import { ExportJobWatchdogService } from '../export-job-watchdog.service';
 import { CsvExportService } from './csv-export.service';
 import { LeadExportService } from './lead-export.service';
 
@@ -82,7 +81,6 @@ export class ExportJobsService {
     private readonly filesService: FilesService,
     private readonly leadExportService: LeadExportService,
     private readonly csvExportService: CsvExportService,
-    private readonly exportJobWatchdog: ExportJobWatchdogService,
     private readonly queueService: QueueService,
   ) {}
 
@@ -174,7 +172,6 @@ export class ExportJobsService {
     id: string,
     tenantId: string,
   ): Promise<ExportJobResponse> {
-    await this.exportJobWatchdog.failStaleProcessingJobs();
     const job = await this.getExportJobOrThrow(id, tenantId);
     return this.toExportJobResponse(job, tenantId);
   }
@@ -183,7 +180,6 @@ export class ExportJobsService {
     tenantId: string,
     query: GetExportJobsQueryDto,
   ): Promise<PaginatedResponse<ExportJobResponse>> {
-    await this.exportJobWatchdog.failStaleProcessingJobs();
     const { page, limit, skip, take } = getPaginationParams(query);
     const orderBy = buildOrderBy(
       query.sortBy,

@@ -8,6 +8,7 @@ import {
   LeadActivityEventType,
   Prisma,
 } from '@prisma/client';
+import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
@@ -51,6 +52,7 @@ export class FilesService {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly leadActivityService: LeadActivityService,
+    private readonly storageLoggingService: StorageLoggingService,
   ) {}
 
   async requestUpload(
@@ -58,38 +60,57 @@ export class FilesService {
     userId: string,
     dto: RequestUploadDto,
   ): Promise<RequestUploadResponse> {
-    if (dto.sizeBytes > MAX_UPLOAD_FILE_SIZE_BYTES) {
-      throw new BadRequestException('File exceeds maximum size of 25 MB');
-    }
+    const startedAt = Date.now();
 
-    await this.validateTenantQuota(tenantId, dto.sizeBytes);
+    try {
+      if (dto.sizeBytes > MAX_UPLOAD_FILE_SIZE_BYTES) {
+        throw new BadRequestException('File exceeds maximum size of 25 MB');
+      }
 
-    const objectKey = generateUploadObjectKey(tenantId, dto.fileName);
-    const expiresAt = new Date(Date.now() + UPLOAD_INTENT_TTL_SECONDS * 1000);
+      await this.validateTenantQuota(tenantId, dto.sizeBytes);
 
-    await this.prisma.fileUploadIntent.create({
-      data: {
+      const objectKey = generateUploadObjectKey(tenantId, dto.fileName);
+      const expiresAt = new Date(Date.now() + UPLOAD_INTENT_TTL_SECONDS * 1000);
+
+      await this.prisma.fileUploadIntent.create({
+        data: {
+          tenantId,
+          userId,
+          objectKey,
+          originalFilename: dto.fileName.trim(),
+          mimeType: dto.contentType,
+          sizeBytes: BigInt(dto.sizeBytes),
+          expiresAt,
+        },
+      });
+
+      const signed = await this.storageService.getSignedUploadUrl({
+        key: objectKey,
+        contentType: dto.contentType,
+        expiresInSeconds: UPLOAD_INTENT_TTL_SECONDS,
+      });
+
+      this.storageLoggingService.uploadRequested({
         tenantId,
         userId,
-        objectKey,
-        originalFilename: dto.fileName.trim(),
-        mimeType: dto.contentType,
-        sizeBytes: BigInt(dto.sizeBytes),
-        expiresAt,
-      },
-    });
+        sizeBytes: dto.sizeBytes,
+        durationMs: Date.now() - startedAt,
+      });
 
-    const signed = await this.storageService.getSignedUploadUrl({
-      key: objectKey,
-      contentType: dto.contentType,
-      expiresInSeconds: UPLOAD_INTENT_TTL_SECONDS,
-    });
-
-    return {
-      uploadUrl: signed.url,
-      objectKey: signed.key,
-      expiresInSeconds: signed.expiresInSeconds,
-    };
+      return {
+        uploadUrl: signed.url,
+        objectKey: signed.key,
+        expiresInSeconds: signed.expiresInSeconds,
+      };
+    } catch (error) {
+      this.storageLoggingService.uploadFailed({
+        tenantId,
+        userId,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async completeUpload(
@@ -97,9 +118,12 @@ export class FilesService {
     userId: string,
     dto: CompleteUploadDto,
   ): Promise<CompleteUploadResponse> {
-    if (!isObjectKeyForTenant(dto.objectKey, tenantId)) {
-      throw new BadRequestException('Invalid object key for tenant');
-    }
+    const startedAt = Date.now();
+
+    try {
+      if (!isObjectKeyForTenant(dto.objectKey, tenantId)) {
+        throw new BadRequestException('Invalid object key for tenant');
+      }
 
     const intent = await this.prisma.fileUploadIntent.findFirst({
       where: {
@@ -183,7 +207,24 @@ export class FilesService {
       return created;
     });
 
+    this.storageLoggingService.uploadCompleted({
+      tenantId,
+      userId,
+      fileId: file.id,
+      sizeBytes: Number(file.sizeBytes),
+      durationMs: Date.now() - startedAt,
+    });
+
     return this.toCompleteUploadResponse(file);
+    } catch (error) {
+      this.storageLoggingService.uploadFailed({
+        tenantId,
+        userId,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   async getDownloadUrl(
@@ -191,12 +232,19 @@ export class FilesService {
     tenantId: string,
     options?: { expiresInSeconds?: number },
   ): Promise<DownloadUrlResponse> {
+    const startedAt = Date.now();
     const file = await this.getFileOrThrow(fileId, tenantId);
 
     const signed = await this.storageService.getSignedDownloadUrl({
       objectKey: file.objectKey,
       expiresInSeconds:
         options?.expiresInSeconds ?? DOWNLOAD_URL_EXPIRY_SECONDS,
+    });
+
+    this.storageLoggingService.downloadUrlGenerated({
+      tenantId,
+      fileId,
+      durationMs: Date.now() - startedAt,
     });
 
     return {
@@ -267,6 +315,7 @@ export class FilesService {
     tenantId: string,
     userId: string,
   ): Promise<{ id: string }> {
+    const startedAt = Date.now();
     const file = await this.getFileOrThrow(fileId, tenantId);
 
     await this.prisma.$transaction(async (tx) => {
@@ -301,6 +350,13 @@ export class FilesService {
     } catch {
       // DB is source of truth; orphaned S3 objects can be garbage-collected later.
     }
+
+    this.storageLoggingService.fileDeleted({
+      tenantId,
+      userId,
+      fileId: file.id,
+      durationMs: Date.now() - startedAt,
+    });
 
     return { id: file.id };
   }

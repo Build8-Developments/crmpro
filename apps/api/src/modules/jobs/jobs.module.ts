@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CleanupModule } from '../cleanup/cleanup.module';
 import { ExportJobsModule } from '../export-jobs/export-jobs.module';
 import { ImportJobsModule } from '../import-jobs/import-jobs.module';
 import { BullModule } from './bull/bull.module';
@@ -8,7 +9,13 @@ import { ImportProcessor } from './processors/import.processor';
 import { QueueModule } from './queues/queue.module';
 
 @Module({
-  imports: [BullModule, QueueModule, ImportJobsModule, ExportJobsModule],
+  imports: [
+    BullModule,
+    QueueModule,
+    ImportJobsModule,
+    ExportJobsModule,
+    CleanupModule,
+  ],
   providers: [
     ImportProcessor,
     ExportProcessor,

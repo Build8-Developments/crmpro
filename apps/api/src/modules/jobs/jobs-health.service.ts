@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { CleanupHealthService } from '../cleanup/cleanup-health.service';
+import { CleanupProcessor } from '../cleanup/workers/cleanup.processor';
 import { BullService } from './bull/bull.service';
 import { JobsHealthStatus } from './bull/bull.types';
 import { ExportProcessor } from './processors/export.processor';
@@ -10,18 +12,23 @@ export class JobsHealthService {
     private readonly bullService: BullService,
     private readonly importProcessor: ImportProcessor,
     private readonly exportProcessor: ExportProcessor,
+    private readonly cleanupProcessor: CleanupProcessor,
+    private readonly cleanupHealthService: CleanupHealthService,
   ) {}
 
   async getHealth(): Promise<JobsHealthStatus> {
     const redisUp = await this.bullService.pingRedis();
     const queuesHealthy = this.bullService.areQueuesRegistered();
-    const workersRunning =
-      this.importProcessor.isRunning() && this.exportProcessor.isRunning();
 
     return {
       redis: redisUp ? 'up' : 'down',
       queues: queuesHealthy ? 'healthy' : 'unhealthy',
-      workers: workersRunning ? 'running' : 'stopped',
+      workers: {
+        import: this.importProcessor.isRunning() ? 'running' : 'stopped',
+        export: this.exportProcessor.isRunning() ? 'running' : 'stopped',
+        cleanup: this.cleanupProcessor.isRunning() ? 'running' : 'stopped',
+      },
+      cleanup: this.cleanupHealthService.getHealthSummary(),
     };
   }
 }

@@ -1,10 +1,10 @@
 import {
   Injectable,
-  Logger,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { Job, Worker } from 'bullmq';
+import { WorkerLoggingService } from '../../../common/logging/worker-logging.service';
 import { ExportJobsService } from '../../export-jobs/services/export-jobs.service';
 import { BullService } from '../bull/bull.service';
 import { EXPORT_QUEUE } from '../bull/bull.constants';
@@ -12,12 +12,13 @@ import { BackgroundJobPayload } from '../bull/bull.types';
 
 @Injectable()
 export class ExportProcessor implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(ExportProcessor.name);
   private worker?: Worker<BackgroundJobPayload>;
+  private readonly jobStartTimes = new Map<string, number>();
 
   constructor(
     private readonly bullService: BullService,
     private readonly exportJobsService: ExportJobsService,
+    private readonly workerLoggingService: WorkerLoggingService,
   ) {}
 
   onModuleInit(): void {
@@ -32,35 +33,50 @@ export class ExportProcessor implements OnModuleInit, OnModuleDestroy {
     );
 
     this.worker.on('active', (job) => {
-      this.logger.log(`Export started: jobId=${job.data.jobId}`);
+      this.jobStartTimes.set(job.id!, Date.now());
+      const context = this.buildContext(job);
+
+      if (job.attemptsMade > 0) {
+        this.workerLoggingService.retry(context);
+        return;
+      }
+
+      this.workerLoggingService.started(context);
     });
 
     this.worker.on('completed', (job) => {
-      this.logger.log(`Export completed: jobId=${job.data.jobId}`);
+      this.workerLoggingService.completed({
+        ...this.buildContext(job),
+        durationMs: this.getDurationMs(job.id!),
+      });
+      this.jobStartTimes.delete(job.id!);
     });
 
     this.worker.on('failed', (job, error) => {
-      const jobId = job?.data.jobId ?? 'unknown';
-      this.logger.error(
-        `Export failed: jobId=${jobId} error=${error.message}`,
-      );
+      if (!job) {
+        return;
+      }
 
-      if (job && this.hasExhaustedRetries(job)) {
+      this.workerLoggingService.failed({
+        ...this.buildContext(job),
+        durationMs: this.getDurationMs(job.id!),
+        metadata: { error: error.message },
+      });
+      this.jobStartTimes.delete(job.id!);
+
+      if (this.hasExhaustedRetries(job)) {
         void this.exportJobsService.failExportJobIfActive(
           job.data.jobId,
           error.message,
         );
       }
     });
-
-    this.logger.log('Export worker started');
   }
 
   async onModuleDestroy(): Promise<void> {
     if (this.worker) {
       await this.worker.close();
       this.worker = undefined;
-      this.logger.log('Export worker stopped');
     }
   }
 
@@ -72,8 +88,25 @@ export class ExportProcessor implements OnModuleInit, OnModuleDestroy {
     await this.exportJobsService.processExportJob(job.data.jobId);
   }
 
+  private buildContext(job: Job<BackgroundJobPayload>) {
+    return {
+      queue: EXPORT_QUEUE,
+      jobId: job.data.jobId,
+      requestId: job.data.requestId,
+      attempts: job.attemptsMade + 1,
+    };
+  }
+
+  private getDurationMs(workerJobId: string): number | undefined {
+    const startedAt = this.jobStartTimes.get(workerJobId);
+    return startedAt ? Date.now() - startedAt : undefined;
+  }
+
   private hasExhaustedRetries(job: Job<BackgroundJobPayload>): boolean {
-    const maxAttempts = job.opts.attempts ?? this.bullService.getDefaultJobOptions()?.attempts ?? 3;
+    const maxAttempts =
+      job.opts.attempts ??
+      this.bullService.getDefaultJobOptions()?.attempts ??
+      3;
     return job.attemptsMade >= maxAttempts;
   }
 }

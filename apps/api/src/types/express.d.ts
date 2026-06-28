@@ -6,6 +6,8 @@ declare global {
     interface Request {
       user?: AuthenticatedUser;
       permissionKeys?: Set<PermissionKey>;
+      requestId?: string;
+      requestStartedAt?: number;
     }
   }
 }

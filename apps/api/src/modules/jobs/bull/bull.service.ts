@@ -14,6 +14,7 @@ import {
   BULL_CONFIG_KEYS,
   CLEANUP_QUEUE,
   DEFAULT_BULL_PREFIX,
+  DEFAULT_CLEANUP_CONCURRENCY,
   DEFAULT_EXPORT_CONCURRENCY,
   DEFAULT_IMPORT_CONCURRENCY,
   DEFAULT_JOB_ATTEMPTS,
@@ -94,6 +95,13 @@ export class BullService implements OnModuleInit, OnModuleDestroy {
     return (
       this.configService.get<number>(BULL_CONFIG_KEYS.exportConcurrency) ??
       DEFAULT_EXPORT_CONCURRENCY
+    );
+  }
+
+  getCleanupConcurrency(): number {
+    return (
+      this.configService.get<number>(BULL_CONFIG_KEYS.cleanupConcurrency) ??
+      DEFAULT_CLEANUP_CONCURRENCY
     );
   }
 

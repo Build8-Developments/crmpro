@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -16,6 +17,15 @@ async function bootstrap() {
   );
 
   const configService = app.get(ConfigService);
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('CRMPro API')
+    .setDescription('CRMPro backend API documentation')
+    .setVersion(configService.get<string>('app.version') ?? '1.0.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
+
   const port = configService.getOrThrow<number>('app.port');
 
   await app.listen(port);

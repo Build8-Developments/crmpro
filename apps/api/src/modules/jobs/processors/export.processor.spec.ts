@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { WorkerLoggingService } from '../../../common/logging/worker-logging.service';
 import { ExportJobsService } from '../../export-jobs/services/export-jobs.service';
 import { BullService } from '../bull/bull.service';
 import { ExportProcessor } from './export.processor';
@@ -20,11 +21,19 @@ describe('ExportProcessor', () => {
       getDefaultJobOptions: jest.fn().mockReturnValue({ attempts: 3 }),
     };
 
+    const workerLoggingService = {
+      started: jest.fn(),
+      completed: jest.fn(),
+      failed: jest.fn(),
+      retry: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExportProcessor,
         { provide: BullService, useValue: bullService },
         { provide: ExportJobsService, useValue: exportJobsService },
+        { provide: WorkerLoggingService, useValue: workerLoggingService },
       ],
     }).compile();
 

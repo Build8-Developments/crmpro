@@ -1,10 +1,10 @@
 import {
   ForbiddenException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { TenantStatus, UserSession } from '@prisma/client';
+import { AuthLoggingService } from '../../common/logging/auth-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from '../../common/security/password.service';
 import { UsersService, UserWithRoleAndTenant } from '../users/users.service';
@@ -19,20 +19,19 @@ import { SessionListItem } from './types/session-list-item.type';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     private readonly usersService: UsersService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly prisma: PrismaService,
+    private readonly authLoggingService: AuthLoggingService,
   ) {}
 
   async login(
     loginDto: LoginDto,
     sessionMetadata: LoginSessionMetadata,
   ): Promise<LoginResult> {
-    const user = await this.validateCredentials(loginDto);
+    const user = await this.validateCredentials(loginDto, sessionMetadata);
     const rawRefreshSecret = this.tokenService.generateRawRefreshSecret();
     const hashedRefreshToken =
       await this.tokenService.hashRefreshToken(rawRefreshSecret);
@@ -62,7 +61,12 @@ export class AuthService {
       rawRefreshSecret,
     );
 
-    this.logger.log(`Login success for ${user.id}@${loginDto.tenantSlug}`);
+    this.authLoggingService.loginSuccess({
+      userId: user.id,
+      tenantId: user.tenantId,
+      ip: sessionMetadata.ipAddress ?? undefined,
+      device: sessionMetadata.deviceName ?? undefined,
+    });
 
     return {
       accessToken,
@@ -74,7 +78,7 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<RefreshResult> {
     const parsed = this.tokenService.parseRefreshToken(refreshToken);
     if (!parsed) {
-      this.logger.warn('Refresh rejected: malformed token');
+      this.authLoggingService.refreshFailure({ reason: 'malformed_token' });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -83,7 +87,10 @@ export class AuthService {
     });
 
     if (!session) {
-      this.logger.warn('Refresh rejected: session not found');
+      this.authLoggingService.refreshFailure({
+        reason: 'session_not_found',
+        sessionId: parsed.sessionId,
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -94,7 +101,10 @@ export class AuthService {
       session.hashedRefreshToken,
     );
     if (!tokenValid) {
-      this.logger.warn(`Refresh rejected: invalid token for session ${session.id}`);
+      this.authLoggingService.refreshFailure({
+        reason: 'invalid_token',
+        sessionId: session.id,
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -127,7 +137,11 @@ export class AuthService {
       session.id,
     );
 
-    this.logger.log(`Refresh success for user ${user.id}, session ${session.id}`);
+    this.authLoggingService.refreshSuccess({
+      userId: user.id,
+      tenantId: user.tenantId,
+      sessionId: session.id,
+    });
 
     return {
       accessToken,
@@ -145,7 +159,11 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    this.logger.log(`Logout for user ${authUser.id}, session ${authUser.sessionId}`);
+    this.authLoggingService.logout({
+      userId: authUser.id,
+      tenantId: authUser.tenantId,
+      sessionId: authUser.sessionId,
+    });
   }
 
   async logoutAll(authUser: AuthenticatedUser): Promise<number> {
@@ -157,9 +175,11 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    this.logger.log(
-      `Logout all for user ${authUser.id}, revoked ${result.count} sessions`,
-    );
+    this.authLoggingService.logoutAll({
+      userId: authUser.id,
+      tenantId: authUser.tenantId,
+      revokedSessions: result.count,
+    });
 
     return result.count;
   }
@@ -201,12 +221,18 @@ export class AuthService {
 
   private assertSessionActive(session: UserSession): void {
     if (session.revokedAt !== null) {
-      this.logger.warn(`Revoked session rejected: ${session.id}`);
+      this.authLoggingService.sessionRevoked({
+        sessionId: session.id,
+        reason: 'revoked',
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     if (session.expiresAt <= new Date()) {
-      this.logger.warn(`Expired session rejected: ${session.id}`);
+      this.authLoggingService.sessionRevoked({
+        sessionId: session.id,
+        reason: 'expired',
+      });
       throw new UnauthorizedException('Session expired');
     }
   }
@@ -232,30 +258,49 @@ export class AuthService {
 
   private async validateCredentials(
     loginDto: LoginDto,
+    sessionMetadata: LoginSessionMetadata,
   ): Promise<UserWithRoleAndTenant> {
     const { tenantSlug, email, password } = loginDto;
 
-    this.logger.log(`Login attempt for ${email}@${tenantSlug}`);
-
     const tenant = await this.usersService.findTenantBySlug(tenantSlug);
     if (!tenant) {
-      this.logger.warn(`Failed login for ${email}@${tenantSlug}`);
+      this.authLoggingService.loginFailure({
+        email,
+        tenantSlug,
+        ip: sessionMetadata.ipAddress ?? undefined,
+        device: sessionMetadata.deviceName ?? undefined,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     if (tenant.status === TenantStatus.SUSPENDED) {
-      this.logger.warn(`Login blocked for suspended tenant: ${tenantSlug}`);
+      this.authLoggingService.loginFailure({
+        email,
+        tenantSlug,
+        ip: sessionMetadata.ipAddress ?? undefined,
+        device: sessionMetadata.deviceName ?? undefined,
+      });
       throw new ForbiddenException('Tenant access suspended');
     }
 
     if (tenant.status === TenantStatus.CANCELLED) {
-      this.logger.warn(`Login blocked for cancelled tenant: ${tenantSlug}`);
+      this.authLoggingService.loginFailure({
+        email,
+        tenantSlug,
+        ip: sessionMetadata.ipAddress ?? undefined,
+        device: sessionMetadata.deviceName ?? undefined,
+      });
       throw new ForbiddenException('Tenant subscription cancelled');
     }
 
     const user = await this.usersService.findByTenantAndEmail(tenantSlug, email);
     if (!user || user.deletedAt !== null || !user.isActive) {
-      this.logger.warn(`Failed login for ${email}@${tenantSlug}`);
+      this.authLoggingService.loginFailure({
+        email,
+        tenantSlug,
+        ip: sessionMetadata.ipAddress ?? undefined,
+        device: sessionMetadata.deviceName ?? undefined,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -264,7 +309,12 @@ export class AuthService {
       password,
     );
     if (!passwordValid) {
-      this.logger.warn(`Failed login for ${email}@${tenantSlug}`);
+      this.authLoggingService.loginFailure({
+        email,
+        tenantSlug,
+        ip: sessionMetadata.ipAddress ?? undefined,
+        device: sessionMetadata.deviceName ?? undefined,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 

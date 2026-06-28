@@ -8,6 +8,7 @@ export interface BullConfig {
   prefix: string;
   importConcurrency: number;
   exportConcurrency: number;
+  cleanupConcurrency: number;
   jobAttempts: number;
   jobBackoffDelayMs: number;
 }

@@ -1,6 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Queue } from 'bullmq';
+import { RequestContextService } from '../../../common/logging/request-context.service';
+import { WorkerLoggingService } from '../../../common/logging/worker-logging.service';
+import { CleanupJobName } from '../../cleanup/cleanup.constants';
 import { BullService } from '../bull/bull.service';
 import {
   CLEANUP_QUEUE,
@@ -45,10 +48,20 @@ describe('QueueService', () => {
       }),
     };
 
+    const requestContext = {
+      getRequestId: jest.fn().mockReturnValue('req-123'),
+    };
+
+    const workerLoggingService = {
+      queued: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QueueService,
         { provide: BullService, useValue: bullService },
+        { provide: RequestContextService, useValue: requestContext },
+        { provide: WorkerLoggingService, useValue: workerLoggingService },
       ],
     }).compile();
 
@@ -60,7 +73,7 @@ describe('QueueService', () => {
 
     expect(importQueue.add).toHaveBeenCalledWith(
       'process-import',
-      { jobId: 'job-123' },
+      { jobId: 'job-123', requestId: 'req-123' },
       { jobId: 'import:job-123' },
     );
   });
@@ -70,17 +83,40 @@ describe('QueueService', () => {
 
     expect(exportQueue.add).toHaveBeenCalledWith(
       'process-export',
-      { jobId: 'job-456' },
+      { jobId: 'job-456', requestId: 'req-123' },
       { jobId: 'export:job-456' },
     );
   });
 
-  it('enqueues cleanup jobs by type', async () => {
-    await queueService.enqueueCleanupJob('expired-upload-intents');
+  it('enqueues cleanup jobs by jobName', async () => {
+    await queueService.enqueueCleanupJob(CleanupJobName.FILE_UPLOAD_INTENTS);
 
-    expect(cleanupQueue.add).toHaveBeenCalledWith('cleanup', {
-      type: 'expired-upload-intents',
-    });
+    expect(cleanupQueue.add).toHaveBeenCalledWith(
+      'cleanup',
+      {
+        jobName: CleanupJobName.FILE_UPLOAD_INTENTS,
+        requestId: 'req-123',
+      },
+      expect.objectContaining({
+        jobId: expect.stringMatching(/^cleanup:FILE_UPLOAD_INTENTS:\d+$/),
+      }),
+    );
+  });
+
+  it('registers repeatable cleanup jobs', async () => {
+    await queueService.registerCleanupRepeatableJob(
+      CleanupJobName.STALE_IMPORT_JOBS,
+      { every: 900_000 },
+    );
+
+    expect(cleanupQueue.add).toHaveBeenCalledWith(
+      'cleanup',
+      { jobName: CleanupJobName.STALE_IMPORT_JOBS },
+      {
+        jobId: 'repeat:cleanup:STALE_IMPORT_JOBS',
+        repeat: { every: 900_000 },
+      },
+    );
   });
 });
 

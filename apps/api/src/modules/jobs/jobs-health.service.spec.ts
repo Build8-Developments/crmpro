@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { CleanupHealthService } from '../cleanup/cleanup-health.service';
+import { CleanupProcessor } from '../cleanup/workers/cleanup.processor';
 import { BullService } from './bull/bull.service';
 import { JobsHealthService } from './jobs-health.service';
 import { ExportProcessor } from './processors/export.processor';
@@ -9,6 +11,7 @@ describe('JobsHealthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobsHealthService,
+        CleanupHealthService,
         {
           provide: BullService,
           useValue: {
@@ -24,6 +27,10 @@ describe('JobsHealthService', () => {
           provide: ExportProcessor,
           useValue: { isRunning: jest.fn().mockReturnValue(true) },
         },
+        {
+          provide: CleanupProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
       ],
     }).compile();
 
@@ -31,7 +38,15 @@ describe('JobsHealthService', () => {
     await expect(healthService.getHealth()).resolves.toEqual({
       redis: 'up',
       queues: 'healthy',
-      workers: 'running',
+      workers: {
+        import: 'running',
+        export: 'running',
+        cleanup: 'running',
+      },
+      cleanup: {
+        lastRun: null,
+        status: 'healthy',
+      },
     });
   });
 
@@ -39,6 +54,7 @@ describe('JobsHealthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JobsHealthService,
+        CleanupHealthService,
         {
           provide: BullService,
           useValue: {
@@ -54,6 +70,10 @@ describe('JobsHealthService', () => {
           provide: ExportProcessor,
           useValue: { isRunning: jest.fn().mockReturnValue(true) },
         },
+        {
+          provide: CleanupProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
       ],
     }).compile();
 
@@ -61,7 +81,15 @@ describe('JobsHealthService', () => {
     await expect(healthService.getHealth()).resolves.toEqual({
       redis: 'down',
       queues: 'healthy',
-      workers: 'running',
+      workers: {
+        import: 'running',
+        export: 'running',
+        cleanup: 'running',
+      },
+      cleanup: {
+        lastRun: null,
+        status: 'healthy',
+      },
     });
   });
 });
