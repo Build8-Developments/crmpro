@@ -152,7 +152,7 @@ describe('BullService queue registration', () => {
     const bullService = module.get(BullService);
     bullService.onModuleInit();
 
-    expect(Queue).toHaveBeenCalledTimes(3);
+    expect(Queue).toHaveBeenCalledTimes(6);
     expect(bullService.getDefaultJobOptions()).toEqual({
       attempts: 3,
       backoff: { type: 'exponential', delay: 3000 },

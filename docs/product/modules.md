@@ -480,7 +480,78 @@ User
 
 ---
 
-# 8. Imports / Exports Module
+Large imports should run asynchronously using jobs.
+
+---
+
+# 8. Task Management & Calendar Module
+
+## Purpose
+
+Manages daily sales team workflow — calls, meetings, follow-ups, and deadlines.
+
+Calendar is **not** a separate module; it is a visualization layer over the Task table.
+
+---
+
+## Responsibilities
+
+- manual task creation
+- automatic task creation from workflow automation (`CREATE_TASK` action)
+- due dates, priorities, status tracking
+- assignment and reassignment
+- calendar views (day / week / month)
+- dashboard metrics
+- reminder and overdue detection (BullMQ worker)
+- notifications on assign, due, overdue, complete
+- lead timeline integration when linked to a lead
+
+---
+
+## Task Fields
+
+Required:
+
+- title
+- tenantId
+
+Optional:
+
+- description
+- type, priority, status
+- leadId, projectId, developerId
+- assignedUserId
+- dueAt, reminderAt, completedAt
+- metadata (JSON)
+
+---
+
+## API Responsibilities
+
+Examples:
+
+- GET /tasks
+- POST /tasks
+- PATCH /tasks/:id/complete
+- GET /calendar/week
+- GET /tasks/dashboard
+- GET /analytics/tasks
+
+---
+
+## Dependencies
+
+Depends on:
+
+- Users (assignment)
+- Leads (optional link + timeline)
+- Notifications (delivery)
+- Automation (auto-create)
+- BullMQ (reminders)
+
+---
+
+# 9. Imports / Exports Module
 
 ## Purpose
 
@@ -530,7 +601,7 @@ Large imports should run asynchronously using jobs.
 
 ---
 
-# 9. Audit Logs Module
+# 10. Audit Logs Module
 
 ## Purpose
 
@@ -573,7 +644,7 @@ To: Qualified
 
 ---
 
-# 10. Settings Module
+# 11. Settings Module
 
 ## Purpose
 
@@ -612,7 +683,7 @@ Lead stages
 
 ---
 
-# 11. Billing Overview Module
+# 12. Billing Overview Module
 
 ## Purpose
 
@@ -646,7 +717,7 @@ Leads:
 
 ---
 
-# 12. Admin Dashboard Module
+# 13. Admin Dashboard Module
 
 ## Purpose
 
@@ -697,6 +768,7 @@ Planned modules:
 - WhatsApp Integration
 - Meta Ads Integration
 - Google Ads Integration
-- Automations
-- Notifications
-- Advanced Analytics
+- Google Calendar / Outlook Sync
+- Recurring Tasks & Dependencies
+- Kanban / Gantt Task Views
+- Advanced Analytics (predictive)

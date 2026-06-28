@@ -18,6 +18,9 @@ export interface WorkerHealthMap {
   import: WorkerStatus;
   export: WorkerStatus;
   cleanup: WorkerStatus;
+  notification: WorkerStatus;
+  automation: WorkerStatus;
+  taskReminder: WorkerStatus;
 }
 
 export interface JobsHealthStatus {

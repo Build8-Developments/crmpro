@@ -19,6 +19,9 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
+import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
+import { NotificationTriggerService } from '../notifications/notification-trigger.service';
+import { AutomationTriggerService } from '../automation/automation-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
 import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
 import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
@@ -79,6 +82,9 @@ export class ImportJobsService {
     private readonly storageService: StorageService,
     private readonly leadsService: LeadsService,
     private readonly queueService: QueueService,
+    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly notificationTrigger: NotificationTriggerService,
+    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async createLeadImportJob(
@@ -251,7 +257,7 @@ export class ImportJobsService {
         }
       }
 
-      await this.finalizeJob(jobId, {
+      await this.finalizeJob(jobId, tenantId, userId, {
         totalRows,
         successfulRows,
         failedRows,
@@ -269,7 +275,7 @@ export class ImportJobsService {
         errors.push({ row: 0, reason });
       }
 
-      await this.finalizeJob(jobId, {
+      await this.finalizeJob(jobId, tenantId, userId, {
         totalRows,
         successfulRows,
         failedRows,
@@ -514,6 +520,8 @@ export class ImportJobsService {
 
   private async finalizeJob(
     jobId: string,
+    tenantId: string,
+    createdByUserId: string,
     params: {
       totalRows: number;
       successfulRows: number;
@@ -539,6 +547,26 @@ export class ImportJobsService {
         completedAt: new Date(),
       },
     });
+
+    void this.analyticsInvalidation.invalidateTenant(tenantId);
+
+    if (
+      status === JobStatus.COMPLETED ||
+      status === JobStatus.PARTIAL_SUCCESS
+    ) {
+      void this.notificationTrigger.notifyImportCompleted({
+        tenantId,
+        recipientUserId: createdByUserId,
+        importJobId: jobId,
+        successfulRows: params.successfulRows,
+        failedRows: params.failedRows,
+      });
+
+      void this.automationTrigger.onImportCompleted({
+        tenantId,
+        importJobId: jobId,
+      });
+    }
   }
 
   private resolveFinalStatus(params: {

@@ -612,6 +612,9 @@ lead.created
 lead.assigned
 project.created
 user.deactivated
+task.created
+task.completed
+task.assigned
 ```
 
 Event names should be centralized in shared package.

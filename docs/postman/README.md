@@ -1,6 +1,6 @@
 # CRMPro Postman
 
-Local API testing collection for auth, pipelines, lead sources, developers, projects, and leads.
+Local API testing collection for auth, CRM modules, tasks, calendar, analytics, notifications, automations, and monitoring.
 
 ## Files
 
@@ -40,6 +40,9 @@ Local API testing collection for auth, pipelines, lead sources, developers, proj
 | `fileId` | *(empty)* | Auto-filled by **Complete Upload** |
 | `objectKey` | *(empty)* | Auto-filled by **Request Upload** |
 | `importJobId` | *(empty)* | Auto-filled by **Create Lead Import Job** |
+| `taskId` | *(empty)* | Auto-filled by **List Tasks** or **Create Task** |
+| `notificationId` | *(empty)* | Auto-filled by **List Notifications** |
+| `automationId` | *(empty)* | Auto-filled by **List Automations** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -202,6 +205,108 @@ List query example:
 GET /leads?page=1&limit=20&search=ahmed&pipelineId=...&stageId=...&status=OPEN&sortBy=createdAt&sortOrder=desc
 ```
 
+## Task endpoints
+
+Run **Auth → Login** first. Optional: **Leads → List Leads** (sets `leadId`) and **Leads → Assign Lead** context for `userId`.
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Tasks | `GET /tasks` | `task.read` |
+| Task Dashboard | `GET /tasks/dashboard` | `task.read` |
+| Create Task | `POST /tasks` | `task.create` |
+| Get Task | `GET /tasks/:id` | `task.read` |
+| Update Task | `PATCH /tasks/:id` | `task.update` |
+| Start Task | `PATCH /tasks/:id/start` | `task.update` |
+| Complete Task | `PATCH /tasks/:id/complete` | `task.update` |
+| Cancel Task | `PATCH /tasks/:id/cancel` | `task.update` |
+| Assign Task | `PATCH /tasks/:id/assign` | `task.assign` |
+| Delete Task | `DELETE /tasks/:id` | `task.delete` |
+
+List query example:
+
+```text
+GET /tasks?page=1&limit=20&assignedUserId=...&leadId=...&priority=HIGH&status=PENDING&type=CALL&overdueOnly=true&from=2026-06-01&to=2026-12-31&sortBy=dueAt&sortOrder=asc
+```
+
+Task types: `CALL`, `MEETING`, `SITE_VISIT`, `EMAIL`, `FOLLOW_UP`, `DOCUMENT_COLLECTION`, `PAYMENT`, `REMINDER`, `CUSTOM`.
+
+Priorities: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`. Statuses: `PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `OVERDUE`.
+
+When linked to a lead, task create/complete/assign/cancel append **LeadActivity** timeline events.
+
+## Calendar endpoints
+
+Calendar reads the **Task** table only — no separate calendar entity.
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| Day View | `GET /calendar/day` | `task.read` |
+| Week View | `GET /calendar/week` | `task.read` |
+| Month View | `GET /calendar/month` | `task.read` |
+
+Query params: `date` (ISO date), optional `assignedUserId`, `leadId`, `projectId`, `priority`.
+
+Response shape: `[{ "date": "2026-07-01", "tasks": [] }]`.
+
+## Analytics endpoints
+
+Requires `analytics.read`.
+
+| Request | Method |
+| --- | --- |
+| Overview | `GET /analytics/overview` |
+| Pipeline Funnel | `GET /analytics/pipeline` |
+| Lead Sources | `GET /analytics/sources` |
+| Agent Performance | `GET /analytics/agents` |
+| Project Performance | `GET /analytics/projects` |
+| Developer Performance | `GET /analytics/developers` |
+| Lead Trends | `GET /analytics/trends` |
+| Status Distribution | `GET /analytics/status` |
+| Recent Activity | `GET /analytics/recent-activity` |
+| Task Analytics | `GET /analytics/tasks` |
+| Export Dashboard | `GET /analytics/export?format=csv` |
+
+Optional date range: `?from=2026-01-01&to=2026-12-31`.
+
+## Notification endpoints
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Notifications | `GET /notifications` | `notification.read` |
+| Unread Count | `GET /notifications/unread-count` | `notification.read` |
+| Get Notification | `GET /notifications/:id` | `notification.read` |
+| Mark Read | `PATCH /notifications/:id/read` | `notification.update` |
+| Mark All Read | `PATCH /notifications/read-all` | `notification.update` |
+| Delete Notification | `DELETE /notifications/:id` | `notification.delete` |
+
+Task notification types: `TASK_ASSIGNED`, `TASK_DUE`, `TASK_OVERDUE`, `TASK_COMPLETED`.
+
+## Automation endpoints
+
+| Request | Method | Permission |
+| --- | --- | --- |
+| List Automations | `GET /automations` | `automation.read` |
+| Create Automation | `POST /automations` | `automation.create` |
+| Get Automation | `GET /automations/:id` | `automation.read` |
+| Update Automation | `PATCH /automations/:id` | `automation.update` |
+| Delete Automation | `DELETE /automations/:id` | `automation.delete` |
+| Test Automation | `POST /automations/:id/test` | `automation.execute` |
+| List Executions | `GET /automations/:id/executions` | `automation.read` |
+
+Supported action types include `CREATE_TASK` (auto-create follow-up tasks from lead events).
+
+## Monitoring endpoints
+
+No `/api/v1` prefix — root-level routes:
+
+| Request | Method |
+| --- | --- |
+| Global Health | `GET /health` |
+| Jobs Health | `GET /jobs/health` |
+| Metrics | `GET /metrics` |
+
+Jobs health includes `taskReminder` worker. Metrics include `tasks` snapshot and `task` queue counts.
+
 ## Token auto-save
 
 **Login** includes a test script that:
@@ -244,6 +349,8 @@ Paginated list endpoints support:
 **Projects** — `search` matches project `name` and `location`. Filters: `developerId`, `isActive`. Sort: `name`, `createdAt`, `updatedAt`, `isActive` (default `name` asc). Soft-deleted rows excluded. List items include `developer` summary.
 
 **Leads** — `search` matches `fullName`, phones, `email`. Filters: `pipelineId`, `stageId`, `sourceId`, `assignedUserId`, `status`, `projectId`. Sort: `createdAt`, `updatedAt`, `fullName`, `lastContactedAt` (default `createdAt` desc). Soft-deleted rows excluded.
+
+**Tasks** — `search` matches `title`, `description`. Filters: `assignedUserId`, `leadId`, `projectId`, `priority`, `status`, `type`, `overdueOnly`, `from`, `to` (due date range). Sort: `dueAt`, `createdAt`, `updatedAt`, `priority`, `title` (default `dueAt` asc). Soft-deleted rows excluded.
 
 ## List response shape
 

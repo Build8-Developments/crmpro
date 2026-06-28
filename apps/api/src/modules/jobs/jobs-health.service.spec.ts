@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CleanupHealthService } from '../cleanup/cleanup-health.service';
 import { CleanupProcessor } from '../cleanup/workers/cleanup.processor';
+import { NotificationProcessor } from '../notifications/workers/notification.processor';
+import { AutomationProcessor } from '../automation/workers/automation.processor';
+import { TaskReminderProcessor } from '../tasks/workers/task-reminder.processor';
 import { BullService } from './bull/bull.service';
 import { JobsHealthService } from './jobs-health.service';
 import { ExportProcessor } from './processors/export.processor';
@@ -31,6 +34,18 @@ describe('JobsHealthService', () => {
           provide: CleanupProcessor,
           useValue: { isRunning: jest.fn().mockReturnValue(true) },
         },
+        {
+          provide: NotificationProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: AutomationProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: TaskReminderProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
       ],
     }).compile();
 
@@ -42,6 +57,9 @@ describe('JobsHealthService', () => {
         import: 'running',
         export: 'running',
         cleanup: 'running',
+        notification: 'running',
+        automation: 'running',
+        taskReminder: 'running',
       },
       cleanup: {
         lastRun: null,
@@ -74,6 +92,18 @@ describe('JobsHealthService', () => {
           provide: CleanupProcessor,
           useValue: { isRunning: jest.fn().mockReturnValue(true) },
         },
+        {
+          provide: NotificationProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: AutomationProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: TaskReminderProcessor,
+          useValue: { isRunning: jest.fn().mockReturnValue(true) },
+        },
       ],
     }).compile();
 
@@ -85,6 +115,9 @@ describe('JobsHealthService', () => {
         import: 'running',
         export: 'running',
         cleanup: 'running',
+        notification: 'running',
+        automation: 'running',
+        taskReminder: 'running',
       },
       cleanup: {
         lastRun: null,

@@ -9,6 +9,9 @@ import { MoveStageDto } from '../dto/move-stage.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';
 import { LeadWorkflowResult } from '../types/lead.types';
 import { LeadActivityService } from './lead-activity.service';
+import { AnalyticsInvalidationService } from '../../analytics/analytics-invalidation.service';
+import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
+import { AutomationTriggerService } from '../../automation/automation-trigger.service';
 
 const workflowLeadSelect = {
   id: true,
@@ -33,6 +36,9 @@ export class LeadStageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
+    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly notificationTrigger: NotificationTriggerService,
+    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async moveStage(
@@ -104,6 +110,27 @@ export class LeadStageService {
     if (!updatedLead) {
       throw new NotFoundException('Lead not found');
     }
+
+    void this.analyticsInvalidation.invalidateTenant(tenantId);
+
+    if (updatedLead.assignedUser) {
+      void this.notificationTrigger.notifyLeadStageChanged({
+        tenantId,
+        recipientUserId: updatedLead.assignedUser.id,
+        leadId: updatedLead.id,
+        leadName: updatedLead.fullName,
+        fromStageName: fromStage.name,
+        toStageName: targetStage.name,
+        closeType: targetStage.closeType,
+        actorUserId,
+      });
+    }
+
+    void this.automationTrigger.onLeadStageChanged({
+      tenantId,
+      leadId: updatedLead.id,
+      closeType: targetStage.closeType,
+    });
 
     return {
       lead: toLeadResponse(updatedLead),

@@ -9,6 +9,9 @@ export interface BullConfig {
   importConcurrency: number;
   exportConcurrency: number;
   cleanupConcurrency: number;
+  notificationConcurrency: number;
+  automationConcurrency: number;
+  taskConcurrency: number;
   jobAttempts: number;
   jobBackoffDelayMs: number;
 }

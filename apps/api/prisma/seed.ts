@@ -12,6 +12,14 @@ import {
   Prisma,
   PrismaClient,
   TenantStatus,
+  NotificationType,
+  NotificationPriority,
+  NotificationStatus,
+  NotificationPreferenceCategory,
+  AutomationTriggerType,
+  AutomationConditionOperator,
+  AutomationActionType,
+  AutomationExecutionStatus,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
 
@@ -31,6 +39,13 @@ const ROLE_IDS = {
   owner: '33333333-3333-4333-8333-333333333301',
   manager: '33333333-3333-4333-8333-333333333302',
   agent: '33333333-3333-4333-8333-333333333303',
+} as const;
+
+const AUTOMATION_WORKFLOW_IDS = {
+  facebookHotLeads: '88888888-8888-4888-8888-888888888801',
+  leadAssignedAlert: '88888888-8888-4888-8888-888888888802',
+  importCompletedNotify: '88888888-8888-4888-8888-888888888803',
+  stageChangeActivity: '88888888-8888-4888-8888-888888888804',
 } as const;
 
 const DEFAULT_PIPELINE_ID = '44444444-4444-4444-8444-444444444401';
@@ -136,6 +151,20 @@ const PERMISSIONS = [
   { key: 'import-job.read', description: 'View import jobs' },
   { key: 'export-job.create', description: 'Create export jobs' },
   { key: 'export-job.read', description: 'View export jobs' },
+  { key: 'analytics.read', description: 'View analytics dashboard' },
+  { key: 'notification.read', description: 'View notifications' },
+  { key: 'notification.update', description: 'Mark notifications as read' },
+  { key: 'notification.delete', description: 'Delete notifications' },
+  { key: 'automation.read', description: 'View automation workflows' },
+  { key: 'automation.create', description: 'Create automation workflows' },
+  { key: 'automation.update', description: 'Update automation workflows' },
+  { key: 'automation.delete', description: 'Delete automation workflows' },
+  { key: 'automation.execute', description: 'Execute and test automation workflows' },
+  { key: 'task.read', description: 'View tasks' },
+  { key: 'task.create', description: 'Create tasks' },
+  { key: 'task.update', description: 'Update tasks' },
+  { key: 'task.delete', description: 'Delete tasks' },
+  { key: 'task.assign', description: 'Assign tasks to users' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
 ] as const;
@@ -175,6 +204,13 @@ const AGENT_PERMISSION_KEYS = [
   'file.read',
   'import-job.read',
   'export-job.read',
+  'analytics.read',
+  'notification.read',
+  'notification.update',
+  'automation.read',
+  'task.read',
+  'task.create',
+  'task.update',
 ] as const;
 
 const SAMPLE_USERS = [
@@ -489,7 +525,10 @@ async function seedRolePermissions(
 ): Promise<void> {
   const allPermissionKeys = PERMISSIONS.map((permission) => permission.key);
   const managerPermissionKeys = allPermissionKeys.filter(
-    (key) => key !== 'billing.manage',
+    (key) =>
+      key !== 'billing.manage' &&
+      key !== 'notification.delete' &&
+      key !== 'automation.delete',
   );
 
   await syncRolePermissions(ROLE_IDS.owner, allPermissionKeys, permissionIds);
@@ -552,6 +591,11 @@ async function clearTenantSampleData(tenantId: string): Promise<void> {
   await prisma.fileAsset.deleteMany({ where: { tenantId } });
   await prisma.auditLog.deleteMany({ where: { tenantId } });
   await prisma.lead.deleteMany({ where: { tenantId } });
+  await prisma.task.deleteMany({ where: { tenantId } });
+  await prisma.notification.deleteMany({ where: { tenantId } });
+  await prisma.automationExecution.deleteMany({ where: { tenantId } });
+  await prisma.automationWorkflow.deleteMany({ where: { tenantId } });
+  await prisma.notificationPreference.deleteMany({ where: { tenantId } });
   await prisma.pipeline.deleteMany({ where: { tenantId } });
   await prisma.leadSource.deleteMany({ where: { tenantId } });
   await prisma.project.deleteMany({ where: { tenantId } });
@@ -1082,6 +1126,397 @@ async function seedAuditLogs(params: {
   }
 }
 
+async function seedNotificationPreferences(
+  tenantId: string,
+  userIds: string[],
+): Promise<void> {
+  const categories = Object.values(NotificationPreferenceCategory);
+
+  for (const userId of userIds) {
+    for (const category of categories) {
+      await prisma.notificationPreference.upsert({
+        where: {
+          userId_category: { userId, category },
+        },
+        create: {
+          tenantId,
+          userId,
+          category,
+          enabled: true,
+        },
+        update: {
+          tenantId,
+          enabled: true,
+        },
+      });
+    }
+  }
+}
+
+async function seedNotifications(params: {
+  tenantId: string;
+  userIds: string[];
+  leadIds: string[];
+}): Promise<void> {
+  const { tenantId, userIds, leadIds } = params;
+  const ownerId = userIds[0];
+  const managerId = userIds[1] ?? userIds[0];
+  const agentId = userIds[2] ?? userIds[0];
+  const sampleLeadId = leadIds[0];
+
+  const samples = [
+    {
+      recipientUserId: agentId,
+      type: NotificationType.LEAD_ASSIGNED,
+      title: 'New Lead Assigned',
+      message: 'A new lead has been assigned to you: Ahmed Hassan.',
+      priority: NotificationPriority.HIGH,
+      status: NotificationStatus.UNREAD,
+      metadata: { leadId: sampleLeadId, leadName: 'Ahmed Hassan' },
+      createdByUserId: managerId,
+    },
+    {
+      recipientUserId: agentId,
+      type: NotificationType.LEAD_STAGE_CHANGED,
+      title: 'Lead Stage Changed',
+      message: 'Ahmed Hassan moved from New to Qualified.',
+      priority: NotificationPriority.NORMAL,
+      status: NotificationStatus.UNREAD,
+      metadata: {
+        leadId: sampleLeadId,
+        leadName: 'Ahmed Hassan',
+        fromStageName: 'New',
+        toStageName: 'Qualified',
+      },
+      createdByUserId: managerId,
+    },
+    {
+      recipientUserId: ownerId,
+      type: NotificationType.IMPORT_COMPLETED,
+      title: 'Import Completed',
+      message: 'Your import job completed with 108 successful row(s).',
+      priority: NotificationPriority.NORMAL,
+      status: NotificationStatus.READ,
+      metadata: {
+        importJobId: faker.string.uuid(),
+        successfulRows: 108,
+        failedRows: 12,
+      },
+      createdByUserId: ownerId,
+      readAt: faker.date.recent({ days: 2 }),
+    },
+    {
+      recipientUserId: managerId,
+      type: NotificationType.EXPORT_COMPLETED,
+      title: 'Export Completed',
+      message: 'Your export job completed with 50 row(s).',
+      priority: NotificationPriority.NORMAL,
+      status: NotificationStatus.UNREAD,
+      metadata: {
+        exportJobId: faker.string.uuid(),
+        rowCount: 50,
+        exportType: 'LEADS',
+      },
+      createdByUserId: managerId,
+    },
+    {
+      recipientUserId: agentId,
+      type: NotificationType.LEAD_WON,
+      title: 'Lead Won',
+      message: 'Sara Mohamed has been marked as won.',
+      priority: NotificationPriority.HIGH,
+      status: NotificationStatus.UNREAD,
+      metadata: { leadId: leadIds[1] ?? sampleLeadId, leadName: 'Sara Mohamed' },
+      createdByUserId: managerId,
+    },
+    {
+      recipientUserId: agentId,
+      type: NotificationType.SYSTEM,
+      title: 'Automation Engine Ready',
+      message: 'Workflow automations are now active for your tenant.',
+      priority: NotificationPriority.NORMAL,
+      status: NotificationStatus.UNREAD,
+      metadata: { source: 'seed' },
+      createdByUserId: ownerId,
+    },
+    {
+      recipientUserId: ownerId,
+      type: NotificationType.SECURITY,
+      title: 'New Login Detected',
+      message: 'A new login was detected from Chrome on Windows.',
+      priority: NotificationPriority.CRITICAL,
+      status: NotificationStatus.READ,
+      metadata: { deviceName: 'Chrome on Windows' },
+      createdByUserId: ownerId,
+      readAt: faker.date.recent({ days: 1 }),
+    },
+    {
+      recipientUserId: managerId,
+      type: NotificationType.REMINDER,
+      title: 'Follow-up Reminder',
+      message: 'You have 3 leads waiting for follow-up today.',
+      priority: NotificationPriority.NORMAL,
+      status: NotificationStatus.UNREAD,
+      metadata: { title: 'Follow-up Reminder', message: '3 leads pending' },
+      createdByUserId: ownerId,
+    },
+  ];
+
+  for (const sample of samples) {
+    await prisma.notification.create({
+      data: {
+        tenantId,
+        recipientUserId: sample.recipientUserId,
+        type: sample.type,
+        title: sample.title,
+        message: sample.message,
+        priority: sample.priority,
+        status: sample.status,
+        metadata: sample.metadata,
+        createdByUserId: sample.createdByUserId,
+        readAt: 'readAt' in sample ? sample.readAt : null,
+        expiresAt: faker.datatype.boolean({ probability: 0.2 })
+          ? faker.date.soon({ days: 7 })
+          : null,
+      },
+    });
+  }
+}
+
+async function seedAutomationWorkflows(params: {
+  tenantId: string;
+  ownerId: string;
+  agentUserIds: string[];
+}): Promise<void> {
+  const { tenantId, ownerId, agentUserIds } = params;
+  const agentId = agentUserIds[0] ?? ownerId;
+
+  const facebookSource = await prisma.leadSource.findFirst({
+    where: { tenantId, name: 'Facebook Ads' },
+    select: { id: true },
+  });
+
+  const qualifiedStage = await prisma.pipelineStage.findFirst({
+    where: { tenantId, name: 'Qualified' },
+    select: { id: true },
+  });
+
+  await prisma.automationWorkflow.create({
+    data: {
+      id: AUTOMATION_WORKFLOW_IDS.facebookHotLeads,
+      tenantId,
+      name: 'Facebook Hot Leads',
+      description:
+        'When a high-budget lead arrives from Facebook Ads, notify the team and add a note.',
+      enabled: true,
+      trigger: AutomationTriggerType.LEAD_CREATED,
+      createdByUserId: ownerId,
+      conditions: {
+        create: [
+          ...(facebookSource
+            ? [
+                {
+                  field: 'sourceId',
+                  operator: AutomationConditionOperator.EQUALS,
+                  value: facebookSource.id,
+                },
+              ]
+            : []),
+          {
+            field: 'budgetMax',
+            operator: AutomationConditionOperator.GREATER_THAN,
+            value: '5000000',
+          },
+        ],
+      },
+      actions: {
+        create: [
+          {
+            actionType: AutomationActionType.CREATE_NOTIFICATION,
+            executionOrder: 0,
+            configuration: {
+              recipientUserId: agentId,
+              title: 'Hot Facebook Lead',
+              message: 'A high-budget lead from Facebook Ads was created.',
+              type: NotificationType.SYSTEM,
+              priority: NotificationPriority.HIGH,
+            },
+          },
+          {
+            actionType: AutomationActionType.CREATE_NOTE,
+            executionOrder: 1,
+            configuration: {
+              authorId: ownerId,
+              content:
+                'Auto-generated: High-budget Facebook lead — prioritize follow-up.',
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.automationWorkflow.create({
+    data: {
+      id: AUTOMATION_WORKFLOW_IDS.leadAssignedAlert,
+      tenantId,
+      name: 'Lead Assignment Alert',
+      description: 'Notify the assigned agent when a lead is assigned to them.',
+      enabled: true,
+      trigger: AutomationTriggerType.LEAD_ASSIGNED,
+      createdByUserId: ownerId,
+      conditions: {
+        create: [
+          {
+            field: 'assignedUserId',
+            operator: AutomationConditionOperator.IS_NOT_EMPTY,
+            value: null,
+          },
+        ],
+      },
+      actions: {
+        create: [
+          {
+            actionType: AutomationActionType.CREATE_NOTIFICATION,
+            executionOrder: 0,
+            configuration: {
+              recipientUserId: agentId,
+              title: 'Lead Assigned',
+              message: 'A lead has been assigned to you via automation.',
+              type: NotificationType.LEAD_ASSIGNED,
+              priority: NotificationPriority.HIGH,
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.automationWorkflow.create({
+    data: {
+      id: AUTOMATION_WORKFLOW_IDS.importCompletedNotify,
+      tenantId,
+      name: 'Import Completed Notification',
+      description: 'Notify the owner when an import job completes successfully.',
+      enabled: true,
+      trigger: AutomationTriggerType.IMPORT_COMPLETED,
+      createdByUserId: ownerId,
+      conditions: {
+        create: [
+          {
+            field: 'successfulRows',
+            operator: AutomationConditionOperator.GREATER_THAN,
+            value: '0',
+          },
+        ],
+      },
+      actions: {
+        create: [
+          {
+            actionType: AutomationActionType.CREATE_NOTIFICATION,
+            executionOrder: 0,
+            configuration: {
+              recipientUserId: ownerId,
+              title: 'Import Completed',
+              message: 'Your import job finished successfully.',
+              type: NotificationType.IMPORT_COMPLETED,
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.automationWorkflow.create({
+    data: {
+      id: AUTOMATION_WORKFLOW_IDS.stageChangeActivity,
+      tenantId,
+      name: 'Stage Change Logger',
+      description: 'Log an activity when a lead moves to Qualified stage.',
+      enabled: false,
+      trigger: AutomationTriggerType.LEAD_STAGE_CHANGED,
+      createdByUserId: ownerId,
+      conditions: {
+        create: [
+          ...(qualifiedStage
+            ? [
+                {
+                  field: 'pipelineStageId',
+                  operator: AutomationConditionOperator.EQUALS,
+                  value: qualifiedStage.id,
+                },
+              ]
+            : []),
+        ],
+      },
+      actions: {
+        create: [
+          {
+            actionType: AutomationActionType.CREATE_ACTIVITY,
+            executionOrder: 0,
+            configuration: {
+              eventType: LeadActivityEventType.STAGE_CHANGED,
+              metadata: { source: 'automation', note: 'Moved to Qualified' },
+            },
+          },
+          {
+            actionType: AutomationActionType.DELAY,
+            executionOrder: 1,
+            configuration: { delayMs: 1000 },
+          },
+        ],
+      },
+    },
+  });
+
+  const sampleLead = await prisma.lead.findFirst({
+    where: { tenantId },
+    select: { id: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (sampleLead) {
+    await prisma.automationExecution.createMany({
+      data: [
+        {
+          workflowId: AUTOMATION_WORKFLOW_IDS.facebookHotLeads,
+          tenantId,
+          triggerType: AutomationTriggerType.LEAD_CREATED,
+          entityType: 'lead',
+          entityId: sampleLead.id,
+          status: AutomationExecutionStatus.COMPLETED,
+          startedAt: faker.date.recent({ days: 2 }),
+          finishedAt: faker.date.recent({ days: 2 }),
+          durationMs: 84,
+        },
+        {
+          workflowId: AUTOMATION_WORKFLOW_IDS.leadAssignedAlert,
+          tenantId,
+          triggerType: AutomationTriggerType.LEAD_ASSIGNED,
+          entityType: 'lead',
+          entityId: sampleLead.id,
+          status: AutomationExecutionStatus.SKIPPED,
+          startedAt: faker.date.recent({ days: 1 }),
+          finishedAt: faker.date.recent({ days: 1 }),
+          durationMs: 12,
+        },
+        {
+          workflowId: AUTOMATION_WORKFLOW_IDS.importCompletedNotify,
+          tenantId,
+          triggerType: AutomationTriggerType.IMPORT_COMPLETED,
+          entityType: 'import_job',
+          entityId: faker.string.uuid(),
+          status: AutomationExecutionStatus.PARTIAL,
+          startedAt: faker.date.recent({ days: 1 }),
+          finishedAt: faker.date.recent({ days: 1 }),
+          durationMs: 156,
+          errorMessage: 'CREATE_NOTIFICATION: simulated partial failure',
+        },
+      ],
+    });
+  }
+}
+
 async function seedTenantCrmData(
   tenantId: string,
   userIds: string[],
@@ -1093,6 +1528,7 @@ async function seedTenantCrmData(
   const { defaultPipelineId, stages } = await seedPipelines(tenantId);
 
   const agentUserIds = userIds;
+  const ownerId = userIds[0];
   const leadIds = await seedLeadsAndRelated({
     tenantId,
     pipelineId: defaultPipelineId,
@@ -1103,7 +1539,6 @@ async function seedTenantCrmData(
     leadCount,
   });
 
-  const ownerId = userIds[0];
   const { totalBytes } = await seedFileAssets({
     tenantId,
     uploaderId: ownerId,
@@ -1113,6 +1548,10 @@ async function seedTenantCrmData(
   });
 
   await seedAuditLogs({ tenantId, userIds, leadIds });
+
+  await seedNotificationPreferences(tenantId, userIds);
+  await seedNotifications({ tenantId, userIds, leadIds });
+  await seedAutomationWorkflows({ tenantId, ownerId, agentUserIds });
 
   await prisma.tenant.update({
     where: { id: tenantId },
@@ -1155,6 +1594,8 @@ async function main(): Promise<void> {
   console.log('✓ Leads, activities, notes, project interests');
   console.log('✓ File assets, import/export jobs');
   console.log('✓ Audit logs');
+  console.log('✓ Notification preferences & sample notifications');
+  console.log('✓ Automation workflows & execution history');
 
   console.log('\nSeed complete.');
   console.log('\nLogin (prime-estates):');

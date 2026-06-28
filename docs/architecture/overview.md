@@ -379,7 +379,9 @@ Examples:
 - imports
 - exports
 - notifications
+- task reminders
 - analytics processing
+- workflow automation
 - future AI tasks
 - external integrations
 

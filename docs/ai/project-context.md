@@ -293,10 +293,18 @@ Current MVP includes:
 - roles & permissions
 - projects
 - leads
+- lead notes & timeline
+- pipelines
+- files (signed upload)
+- import / export jobs
+- analytics dashboard
+- notification center
+- workflow automation
+- task management & calendar
 - settings
-- imports / exports
 - audit logs
 - billing overview (display only)
+- monitoring (health, jobs, metrics)
 
 ---
 
@@ -309,10 +317,11 @@ Excluded from MVP:
 - AI features
 - WhatsApp integration
 - Meta Ads integration
+- Google Calendar / Outlook sync
 - Google Ads integration
-- workflow automation
 - payment gateway billing
 - mobile applications
+- recurring tasks, task dependencies, kanban/gantt views
 
 These are future modules.
 

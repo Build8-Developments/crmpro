@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PipelineCloseType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -84,7 +85,10 @@ const pipelineInclude = {
 
 @Injectable()
 export class PipelinesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+  ) {}
 
   async listPipelines(
     tenantId: string,
@@ -165,6 +169,8 @@ export class PipelinesService {
         });
       });
 
+      void this.analyticsInvalidation.invalidateTenant(tenantId);
+
       return this.toPipelineResponse(pipeline);
     } catch (error) {
       this.handlePrismaError(error);
@@ -200,6 +206,8 @@ export class PipelinesService {
         });
       });
 
+      void this.analyticsInvalidation.invalidateTenant(tenantId);
+
       return this.toPipelineResponse(updated);
     } catch (error) {
       this.handlePrismaError(error);
@@ -216,6 +224,8 @@ export class PipelinesService {
     await this.prisma.pipeline.delete({
       where: { id: pipeline.id },
     });
+
+    void this.analyticsInvalidation.invalidateTenant(tenantId);
 
     return { id: pipeline.id };
   }
@@ -260,6 +270,8 @@ export class PipelinesService {
           },
         });
       }, STAGE_TRANSACTION_OPTIONS);
+
+      void this.analyticsInvalidation.invalidateTenant(tenantId);
 
       return this.toStageResponse(stage);
     } catch (error) {
@@ -338,6 +350,8 @@ export class PipelinesService {
         });
       }, STAGE_TRANSACTION_OPTIONS);
 
+      void this.analyticsInvalidation.invalidateTenant(tenantId);
+
       return this.toStageResponse(updated);
     } catch (error) {
       this.handlePrismaError(error);
@@ -384,6 +398,8 @@ export class PipelinesService {
         stage.sortOrder,
       );
     }, STAGE_TRANSACTION_OPTIONS);
+
+    void this.analyticsInvalidation.invalidateTenant(tenantId);
 
     return { id: stage.id };
   }

@@ -20,6 +20,9 @@ import {
 import { buildOrderBy, SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { FilesService } from '../../files/files.service';
+import { AnalyticsInvalidationService } from '../../analytics/analytics-invalidation.service';
+import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
+import { AutomationTriggerService } from '../../automation/automation-trigger.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
 import { QueueService } from '../../jobs/queues/queue.service';
 import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
@@ -82,6 +85,9 @@ export class ExportJobsService {
     private readonly leadExportService: LeadExportService,
     private readonly csvExportService: CsvExportService,
     private readonly queueService: QueueService,
+    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly notificationTrigger: NotificationTriggerService,
+    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async createLeadExportJob(
@@ -221,6 +227,7 @@ export class ExportJobsService {
         id: true,
         format: true,
         filters: true,
+        exportType: true,
       },
     });
 
@@ -301,6 +308,18 @@ export class ExportJobsService {
       });
 
       this.logger.log(`Export job ${jobId} completed`);
+      void this.analyticsInvalidation.invalidateTenant(tenantId);
+      void this.notificationTrigger.notifyExportCompleted({
+        tenantId,
+        recipientUserId: userId,
+        exportJobId: jobId,
+        rowCount: rows.length,
+        exportType: job.exportType,
+      });
+      void this.automationTrigger.onExportCompleted({
+        tenantId,
+        exportJobId: jobId,
+      });
     } catch (error: unknown) {
       const message =
         error instanceof BadRequestException

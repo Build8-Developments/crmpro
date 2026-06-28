@@ -12,6 +12,8 @@ import { StorageLoggingService } from '../../common/logging/storage-logging.serv
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
+import { NotificationTriggerService } from '../notifications/notification-trigger.service';
+import { AutomationTriggerService } from '../automation/automation-trigger.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
 import {
@@ -53,6 +55,8 @@ export class FilesService {
     private readonly storageService: StorageService,
     private readonly leadActivityService: LeadActivityService,
     private readonly storageLoggingService: StorageLoggingService,
+    private readonly notificationTrigger: NotificationTriggerService,
+    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async requestUpload(
@@ -215,6 +219,11 @@ export class FilesService {
       durationMs: Date.now() - startedAt,
     });
 
+    void this.automationTrigger.onFileUploaded({
+      tenantId,
+      fileId: file.id,
+    });
+
     return this.toCompleteUploadResponse(file);
     } catch (error) {
       this.storageLoggingService.uploadFailed({
@@ -357,6 +366,23 @@ export class FilesService {
       fileId: file.id,
       durationMs: Date.now() - startedAt,
     });
+
+    if (file.leadId) {
+      const lead = await this.prisma.lead.findFirst({
+        where: { id: file.leadId, tenantId, deletedAt: null },
+        select: { assignedUserId: true },
+      });
+
+      if (lead?.assignedUserId && lead.assignedUserId !== userId) {
+        void this.notificationTrigger.notifyFileDeleted({
+          tenantId,
+          recipientUserId: lead.assignedUserId,
+          fileId: file.id,
+          fileName: file.originalFilename,
+          actorUserId: userId,
+        });
+      }
+    }
 
     return { id: file.id };
   }

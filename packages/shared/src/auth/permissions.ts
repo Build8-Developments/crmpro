@@ -50,6 +50,24 @@ export const PERMISSIONS = {
   EXPORT_JOB_CREATE: 'export-job.create',
   EXPORT_JOB_READ: 'export-job.read',
 
+  ANALYTICS_READ: 'analytics.read',
+
+  NOTIFICATION_READ: 'notification.read',
+  NOTIFICATION_UPDATE: 'notification.update',
+  NOTIFICATION_DELETE: 'notification.delete',
+
+  AUTOMATION_READ: 'automation.read',
+  AUTOMATION_CREATE: 'automation.create',
+  AUTOMATION_UPDATE: 'automation.update',
+  AUTOMATION_DELETE: 'automation.delete',
+  AUTOMATION_EXECUTE: 'automation.execute',
+
+  TASK_READ: 'task.read',
+  TASK_CREATE: 'task.create',
+  TASK_UPDATE: 'task.update',
+  TASK_DELETE: 'task.delete',
+  TASK_ASSIGN: 'task.assign',
+
   TENANT_MANAGE: 'tenant.manage',
   BILLING_MANAGE: 'billing.manage',
 } as const;
@@ -120,6 +138,26 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.EXPORT_JOB_CREATE,
     PERMISSIONS.EXPORT_JOB_READ,
   ],
+  ANALYTICS: [PERMISSIONS.ANALYTICS_READ],
+  NOTIFICATIONS: [
+    PERMISSIONS.NOTIFICATION_READ,
+    PERMISSIONS.NOTIFICATION_UPDATE,
+    PERMISSIONS.NOTIFICATION_DELETE,
+  ],
+  AUTOMATION: [
+    PERMISSIONS.AUTOMATION_READ,
+    PERMISSIONS.AUTOMATION_CREATE,
+    PERMISSIONS.AUTOMATION_UPDATE,
+    PERMISSIONS.AUTOMATION_DELETE,
+    PERMISSIONS.AUTOMATION_EXECUTE,
+  ],
+  TASKS: [
+    PERMISSIONS.TASK_READ,
+    PERMISSIONS.TASK_CREATE,
+    PERMISSIONS.TASK_UPDATE,
+    PERMISSIONS.TASK_DELETE,
+    PERMISSIONS.TASK_ASSIGN,
+  ],
   TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
@@ -138,6 +176,10 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   FILES: 'Files',
   IMPORT_JOBS: 'Import Jobs',
   EXPORT_JOBS: 'Export Jobs',
+  ANALYTICS: 'Analytics',
+  NOTIFICATIONS: 'Notifications',
+  AUTOMATION: 'Automation',
+  TASKS: 'Tasks',
   TENANT: 'Organization',
 };
 
@@ -154,5 +196,9 @@ export const PERMISSION_GROUP_ORDER = [
   'FILES',
   'IMPORT_JOBS',
   'EXPORT_JOBS',
+  'ANALYTICS',
+  'NOTIFICATIONS',
+  'AUTOMATION',
+  'TASKS',
   'TENANT',
 ] as const satisfies readonly PermissionGroupKey[];

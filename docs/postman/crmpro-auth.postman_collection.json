@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "crmpro-auth-collection",
-    "name": "CRMPro Local",
-    "description": "CRMPro API — local development collection.\n\nImport with `crmpro-local.postman_environment.json`.\n\n**Base URL** includes the `/api/v1` prefix (`http://localhost:3000/api/v1`).\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Debug.",
+    "name": "CRMPro API — Complete",
+    "description": "CRMPro API — complete local development collection.\n\nImport with crmpro-local.postman_environment.json.\n\nBase URL: {{baseUrl}} = http://localhost:3000/api/v1\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Projects, Leads, Files, Import/Export Jobs, Tasks, Calendar, Analytics, Notifications, Automations, Monitoring, Debug.\n\nStart: Auth → Login, then run module folders.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -89,8 +89,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Login and receive access + refresh tokens. Tokens auto-save to environment."
           },
@@ -146,8 +151,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/refresh",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "description": "Rotate refresh token and issue new access token. No Bearer auth required."
           },
@@ -177,8 +187,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
             },
             "description": "Revoke current session. Requires Bearer token from Login."
           },
@@ -208,8 +223,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/logout-all",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout-all"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout-all"
+              ]
             },
             "description": "Revoke all active sessions for the current user."
           },
@@ -240,8 +260,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/sessions",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "sessions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "sessions"
+              ]
             },
             "description": "List active sessions for the authenticated user."
           },
@@ -287,8 +312,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/permissions",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "permissions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "permissions"
+              ]
             },
             "description": "Returns the authenticated user's RBAC permissions and role for the current tenant.\n\nRequires Bearer token. Use for frontend UI gating — backend routes still enforce permissions via `PermissionsGuard`.\n\n**Response shape:**\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"permissions\": [\"lead.read\", \"lead.update\"],\n    \"role\": { \"id\": \"...\", \"name\": \"Agent\" }\n  }\n}\n```"
           },
@@ -327,8 +357,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Returns the authenticated user profile.\n\nRequires Bearer token. Run **Login** first — collection pre-request script injects `Authorization` automatically."
           },
@@ -384,14 +419,36 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/pipelines?page=1&limit=20&search=sales&sortBy=createdAt&sortOrder=desc",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "sales", "description": "Case-insensitive name search" },
-                { "key": "sortBy", "value": "createdAt", "description": "name | createdAt" },
-                { "key": "sortOrder", "value": "desc", "description": "asc | desc" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "sales",
+                  "description": "Case-insensitive name search"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "name | createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc"
+                }
               ]
             },
             "description": "List tenant pipelines (paginated, searchable, sortable).\n\n**Query:** `page`, `limit` (max 100), `search` (pipeline name), `sortBy` (`name`|`createdAt`), `sortOrder` (`asc`|`desc`).\n\nDefaults: page=1, limit=20, sortBy=createdAt, sortOrder=asc."
@@ -425,8 +482,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/pipelines/{{pipelineId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines", "{{pipelineId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines",
+                "{{pipelineId}}"
+              ]
             },
             "description": "Get a single pipeline by ID. Run **List Pipelines** first to set `pipelineId`."
           },
@@ -472,8 +534,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/pipelines",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines"
+              ]
             },
             "description": "Create a pipeline with 7 default system stages (New Lead → Lost)."
           },
@@ -500,8 +566,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/pipelines/{{pipelineId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines", "{{pipelineId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines",
+                "{{pipelineId}}"
+              ]
             },
             "description": "Update pipeline name or default flag."
           },
@@ -514,8 +585,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/pipelines/{{pipelineId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines", "{{pipelineId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines",
+                "{{pipelineId}}"
+              ]
             },
             "description": "Delete a non-default pipeline with no leads. Fails for default pipeline or pipelines with leads."
           },
@@ -561,8 +637,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/pipelines/{{pipelineId}}/stages",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines", "{{pipelineId}}", "stages"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines",
+                "{{pipelineId}}",
+                "stages"
+              ]
             },
             "description": "Insert a custom stage at sortOrder. Stages at or after that position shift down (+1). Example: sortOrder 4 inserts before Interested and renumbers later stages."
           },
@@ -589,8 +671,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/pipelines/{{pipelineId}}/stages/{{stageId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines", "{{pipelineId}}", "stages", "{{stageId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines",
+                "{{pipelineId}}",
+                "stages",
+                "{{stageId}}"
+              ]
             },
             "description": "Update stage fields. Closed stages require closeType (WON or LOST)."
           },
@@ -603,8 +692,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/pipelines/{{pipelineId}}/stages/{{stageId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["pipelines", "{{pipelineId}}", "stages", "{{stageId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipelines",
+                "{{pipelineId}}",
+                "stages",
+                "{{stageId}}"
+              ]
             },
             "description": "Delete a stage not in use by leads. Cannot delete the last stage."
           },
@@ -651,14 +747,36 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/lead-sources?page=1&limit=20&search=facebook&sortBy=name&sortOrder=asc",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-sources"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-sources"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "facebook", "description": "Case-insensitive name search" },
-                { "key": "sortBy", "value": "name", "description": "name | createdAt" },
-                { "key": "sortOrder", "value": "asc", "description": "asc | desc" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "facebook",
+                  "description": "Case-insensitive name search"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "name",
+                  "description": "name | createdAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc",
+                  "description": "asc | desc"
+                }
               ]
             },
             "description": "List lead sources (paginated, searchable, sortable).\n\n**Query:** `page`, `limit` (max 100), `search` (source name), `sortBy` (`name`|`createdAt`), `sortOrder` (`asc`|`desc`).\n\nDefaults: page=1, limit=20, sortBy=name, sortOrder=asc."
@@ -692,8 +810,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/lead-sources/{{leadSourceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-sources", "{{leadSourceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-sources",
+                "{{leadSourceId}}"
+              ]
             },
             "description": "Get a single lead source. Run **List Lead Sources** first to set `leadSourceId`."
           },
@@ -739,8 +862,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/lead-sources",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-sources"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-sources"
+              ]
             },
             "description": "Create a lead source. Names must be unique per tenant (case-insensitive)."
           },
@@ -767,8 +894,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/lead-sources/{{leadSourceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-sources", "{{leadSourceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-sources",
+                "{{leadSourceId}}"
+              ]
             },
             "description": "Update a lead source name."
           },
@@ -781,8 +913,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/lead-sources/{{leadSourceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-sources", "{{leadSourceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-sources",
+                "{{leadSourceId}}"
+              ]
             },
             "description": "Delete a lead source not referenced by any leads."
           },
@@ -831,14 +968,36 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/developers?page=1&limit=20&search=palm&sortBy=name&sortOrder=asc",
-              "host": ["{{baseUrl}}"],
-              "path": ["developers"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "developers"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "palm", "description": "Case-insensitive name search" },
-                { "key": "sortBy", "value": "name", "description": "name | createdAt | updatedAt" },
-                { "key": "sortOrder", "value": "asc", "description": "asc | desc" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "palm",
+                  "description": "Case-insensitive name search"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "name",
+                  "description": "name | createdAt | updatedAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc",
+                  "description": "asc | desc"
+                }
               ]
             },
             "description": "List developers (paginated, searchable, sortable). Excludes soft-deleted rows."
@@ -872,8 +1031,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/developers/{{developerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["developers", "{{developerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "developers",
+                "{{developerId}}"
+              ]
             },
             "description": "Get a single developer. Run **List Developers** first to set `developerId`."
           },
@@ -919,8 +1083,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/developers",
-              "host": ["{{baseUrl}}"],
-              "path": ["developers"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "developers"
+              ]
             },
             "description": "Create a developer. Names must be unique per tenant among active developers."
           },
@@ -947,8 +1115,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/developers/{{developerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["developers", "{{developerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "developers",
+                "{{developerId}}"
+              ]
             },
             "description": "Update developer name."
           },
@@ -961,8 +1134,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/developers/{{developerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["developers", "{{developerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "developers",
+                "{{developerId}}"
+              ]
             },
             "description": "Soft-delete a developer with no active projects."
           },
@@ -1014,16 +1192,46 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/projects?page=1&limit=20&search=palm&developerId={{developerId}}&isActive=true&sortBy=name&sortOrder=asc",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "palm", "description": "Case-insensitive name/location search" },
-                { "key": "developerId", "value": "{{developerId}}", "description": "Filter by developer UUID (optional)" },
-                { "key": "isActive", "value": "true", "description": "Filter by active status" },
-                { "key": "sortBy", "value": "name", "description": "name | createdAt | updatedAt | isActive" },
-                { "key": "sortOrder", "value": "asc", "description": "asc | desc" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "palm",
+                  "description": "Case-insensitive name/location search"
+                },
+                {
+                  "key": "developerId",
+                  "value": "{{developerId}}",
+                  "description": "Filter by developer UUID (optional)"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "description": "Filter by active status"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "name",
+                  "description": "name | createdAt | updatedAt | isActive"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc",
+                  "description": "asc | desc"
+                }
               ]
             },
             "description": "List projects (paginated, searchable, sortable). Excludes soft-deleted rows. Includes developer summary."
@@ -1058,8 +1266,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/projects/{{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects", "{{projectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
             },
             "description": "Get a single project. Run **List Projects** first to set `projectId`."
           },
@@ -1105,8 +1318,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
             },
             "description": "Create a project. Run **List Developers** first to set `developerId`. Names must be unique per tenant among active projects."
           },
@@ -1133,8 +1350,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/{{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects", "{{projectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
             },
             "description": "Update project fields (developerId, name, location, isActive)."
           },
@@ -1147,8 +1369,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/projects/{{projectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects", "{{projectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
             },
             "description": "Soft-delete a project. Does not block when linked to leads."
           },
@@ -1194,20 +1421,67 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/leads?page=1&limit=20&search=ahmed&pipelineId={{pipelineId}}&stageId={{stageId}}&sourceId={{leadSourceId}}&status=OPEN&projectId={{projectId}}&sortBy=createdAt&sortOrder=desc",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" },
-                { "key": "search", "value": "ahmed", "description": "fullName, phones, email" },
-                { "key": "pipelineId", "value": "{{pipelineId}}", "description": "Optional pipeline filter" },
-                { "key": "stageId", "value": "{{stageId}}", "description": "Optional stage filter" },
-                { "key": "sourceId", "value": "{{leadSourceId}}", "description": "Optional source filter" },
-                { "key": "assignedUserId", "value": "", "disabled": true, "description": "Optional assignee filter" },
-                { "key": "status", "value": "OPEN", "description": "OPEN | ARCHIVED" },
-                { "key": "projectId", "value": "{{projectId}}", "description": "Optional project interest filter" },
-                { "key": "sortBy", "value": "createdAt", "description": "createdAt | updatedAt | fullName | lastContactedAt" },
-                { "key": "sortOrder", "value": "desc", "description": "asc | desc" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "ahmed",
+                  "description": "fullName, phones, email"
+                },
+                {
+                  "key": "pipelineId",
+                  "value": "{{pipelineId}}",
+                  "description": "Optional pipeline filter"
+                },
+                {
+                  "key": "stageId",
+                  "value": "{{stageId}}",
+                  "description": "Optional stage filter"
+                },
+                {
+                  "key": "sourceId",
+                  "value": "{{leadSourceId}}",
+                  "description": "Optional source filter"
+                },
+                {
+                  "key": "assignedUserId",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional assignee filter"
+                },
+                {
+                  "key": "status",
+                  "value": "OPEN",
+                  "description": "OPEN | ARCHIVED"
+                },
+                {
+                  "key": "projectId",
+                  "value": "{{projectId}}",
+                  "description": "Optional project interest filter"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "createdAt | updatedAt | fullName | lastContactedAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "asc | desc"
+                }
               ]
             },
             "description": "List leads (paginated, searchable, filterable). Excludes soft-deleted rows."
@@ -1243,8 +1517,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}"
+              ]
             },
             "description": "Get lead details. Run **List Leads** first to set `leadId`."
           },
@@ -1299,8 +1578,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/leads",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads"
+              ]
             },
             "description": "Create a lead. Requires `pipelineId`, `stageId` (from **List Pipelines**), optional `leadSourceId` and `projectId`."
           },
@@ -1347,8 +1630,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}"
+              ]
             },
             "description": "Update lead fields. `projectInterests` replaces all existing interests when provided."
           },
@@ -1400,8 +1688,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/move-stage",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "move-stage"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "move-stage"
+              ]
             },
             "description": "Move lead to another stage within the same pipeline. Set `targetStageId` to a stage in the lead's pipeline (different from current). Requires `lead.update`."
           },
@@ -1447,8 +1741,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/assign",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "assign"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "assign"
+              ]
             },
             "description": "Assign lead to a user. Requires `lead.assign`. Default `userId` is seeded Senior Agent."
           },
@@ -1493,8 +1793,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/assign",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "assign"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "assign"
+              ]
             },
             "description": "Remove assignee from lead. Requires `lead.assign`."
           },
@@ -1507,8 +1813,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/notes",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "notes"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "notes"
+              ]
             },
             "description": "List notes for a lead (newest first). Requires `lead-note.read`."
           },
@@ -1554,8 +1866,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/notes",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "notes"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "notes"
+              ]
             },
             "description": "Create a note and append NOTE_ADDED activity. Requires `lead-note.create`."
           },
@@ -1582,8 +1900,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/lead-notes/{{noteId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-notes", "{{noteId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-notes",
+                "{{noteId}}"
+              ]
             },
             "description": "Update note content. Appends NOTE_UPDATED activity. Requires `lead-note.update`."
           },
@@ -1596,8 +1919,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/lead-notes/{{noteId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["lead-notes", "{{noteId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "lead-notes",
+                "{{noteId}}"
+              ]
             },
             "description": "Soft-delete note. Appends NOTE_DELETED activity. Requires `lead-note.delete`."
           },
@@ -1610,11 +1938,23 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/activities?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "activities"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "activities"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
               ]
             },
             "description": "Paginated activity timeline (newest first). Requires `lead.read`."
@@ -1628,8 +1968,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/leads/{{leadId}}/attachments",
-              "host": ["{{baseUrl}}"],
-              "path": ["leads", "{{leadId}}", "attachments"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "attachments"
+              ]
             },
             "description": "List active lead attachments (newest first). Requires `lead.read`."
           },
@@ -1669,17 +2015,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"fileName\": \"test.txt\",\n  \"contentType\": \"text/plain\",\n  \"sizeBytes\": 5\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/files/request-upload",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "request-upload"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "request-upload"
+              ]
             },
             "description": "Step 1: get signed upload URL. Max 25 MB. Quota checked against tenant plan. `sizeBytes` is the declared maximum; the S3 object may be smaller but not larger."
           },
@@ -1701,15 +2059,24 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "text/plain" }
+              {
+                "key": "Content-Type",
+                "value": "text/plain"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "hello",
-              "options": { "raw": { "language": "text" } }
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
             },
             "url": "{{uploadUrl}}",
             "description": "Step 2: PUT the file bytes to S3 using the presigned URL from step 1. Body must be ≤ declared `sizeBytes` and use the same Content-Type. No Bearer token."
@@ -1740,17 +2107,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"objectKey\": \"{{objectKey}}\",\n  \"category\": \"LEAD_ATTACHMENT\",\n  \"leadId\": \"{{leadId}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/files/complete-upload",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "complete-upload"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "complete-upload"
+              ]
             },
             "description": "Step 3: after client PUT to S3 (required — complete fails with 400 if object missing). Persist FileAsset."
           },
@@ -1763,8 +2142,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/files/{{fileId}}/download-url",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "{{fileId}}", "download-url"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{fileId}}",
+                "download-url"
+              ]
             },
             "description": "Get signed download URL for a file."
           },
@@ -1777,8 +2162,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/files/{{fileId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "{{fileId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "{{fileId}}"
+              ]
             },
             "description": "Soft-delete FileAsset, remove from S3, decrement tenant storage."
           },
@@ -1814,17 +2204,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"fileAssetId\": \"{{fileId}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/import-jobs/leads",
-              "host": ["{{baseUrl}}"],
-              "path": ["import-jobs", "leads"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "import-jobs",
+                "leads"
+              ]
             },
             "description": "Creates a PENDING import job and starts processing asynchronously. Requires `import-job.create`. CSV headers: fullName, primaryPhone (required); secondaryPhone, email, sourceName, assignedUserEmail (optional). Extra columns are ignored."
           },
@@ -1837,8 +2239,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/import-jobs/{{importJobId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["import-jobs", "{{importJobId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "import-jobs",
+                "{{importJobId}}"
+              ]
             },
             "description": "Poll job status until COMPLETED, PARTIAL_SUCCESS, or FAILED."
           },
@@ -1851,14 +2258,1437 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/import-jobs?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["import-jobs"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "import-jobs"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "20" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
               ]
             },
             "description": "Paginated list, newest first. Requires `import-job.read`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Export Jobs",
+      "description": "Lead export jobs. Poll until COMPLETED, then download via file download URL.",
+      "item": [
+        {
+          "name": "Create Lead Export Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/export-jobs/leads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export-jobs",
+                "leads"
+              ]
+            },
+            "description": "Requires export-job.create. Saves exportJobId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"format\": \"CSV\",\n  \"filters\": {\n    \"status\": \"OPEN\"\n  },\n  \"sortBy\": \"createdAt\",\n  \"sortOrder\": \"desc\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200/201', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.environment.set('exportJobId', json.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Export Job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/export-jobs/{{exportJobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export-jobs",
+                "{{exportJobId}}"
+              ]
+            },
+            "description": "Requires export-job.read."
+          },
+          "response": []
+        },
+        {
+          "name": "List Export Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/export-jobs?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export-jobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "description": "Task management — CRUD, status transitions, assignment, dashboard. Requires `task.*` permissions.",
+      "item": [
+        {
+          "name": "List Tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "if (json.data?.items?.[0]?.id) {",
+                  "  pm.environment.set('taskId', json.data.items[0].id);",
+                  "  console.log('taskId saved:', json.data.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks?page=1&limit=20&sortBy=dueAt&sortOrder=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "dueAt"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "asc"
+                },
+                {
+                  "key": "assignedUserId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "leadId",
+                  "value": "{{leadId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "projectId",
+                  "value": "{{projectId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "priority",
+                  "value": "HIGH",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "CALL",
+                  "disabled": true
+                },
+                {
+                  "key": "overdueOnly",
+                  "value": "false",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "2026-06-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "call",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paginated task list. Filters: assignedUserId, leadId, projectId, priority, status, type, overdueOnly, from, to, search."
+          },
+          "response": []
+        },
+        {
+          "name": "Task Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "assignedUserId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns pending, completedToday, overdue, dueToday, completionRate, averageCompletionTimeHours."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) { pm.environment.set('taskId', json.data.id); console.log('taskId saved:', json.data.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Call customer\",\n  \"description\": \"Follow up on Palm Hills inquiry\",\n  \"type\": \"CALL\",\n  \"priority\": \"HIGH\",\n  \"leadId\": \"{{leadId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"assignedUserId\": \"{{userId}}\",\n  \"dueAt\": \"2026-07-01T09:00:00.000Z\",\n  \"reminderAt\": \"2026-07-01T08:30:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks"
+              ]
+            },
+            "description": "Create a task. Optional leadId links lead timeline activity."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Call customer (updated)\",\n  \"priority\": \"CRITICAL\",\n  \"dueAt\": \"2026-07-02T10:00:00.000Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Task",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}",
+                "start"
+              ]
+            },
+            "description": "Transitions status to IN_PROGRESS."
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}",
+                "complete"
+              ]
+            },
+            "description": "Transitions status to COMPLETED and sets completedAt."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Task",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}",
+                "cancel"
+              ]
+            },
+            "description": "Transitions status to CANCELLED."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}",
+                "assign"
+              ]
+            },
+            "description": "Assign task to user. Requires task.assign."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "description": "Soft delete. Requires task.delete."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Calendar",
+      "description": "Calendar views query the Task table grouped by dueAt date. No separate calendar entity.",
+      "item": [
+        {
+          "name": "Day View",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/day?date=2026-07-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "day"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-07-01"
+                },
+                {
+                  "key": "assignedUserId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "leadId",
+                  "value": "{{leadId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "projectId",
+                  "value": "{{projectId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "priority",
+                  "value": "HIGH",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns [{ date, tasks[] }] for a single day."
+          },
+          "response": []
+        },
+        {
+          "name": "Week View",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/week?date=2026-07-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "week"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-07-01"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Month View",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calendar/month?date=2026-07-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calendar",
+                "month"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-07-01"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Analytics dashboard endpoints. Requires analytics.read.",
+      "item": [
+        {
+          "name": "Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "overview"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Task Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns pending, completed, overdue, completionRate, averageCompletionTimeHours."
+          },
+          "response": []
+        },
+        {
+          "name": "Recent Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/recent-activity?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "recent-activity"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pipeline Funnel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/pipeline?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "pipeline"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Lead Sources",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/sources?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "sources"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Agent Performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/agents?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "agents"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Project Performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/projects?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "projects"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Developer Performance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/developers?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "developers"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Lead Trends",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/trends?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "trends"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Status Distribution",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/status?from=2026-01-01&to=2026-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Export Dashboard CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/export?from=2026-01-01&to=2026-12-31&format=csv",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31",
+                  "disabled": true
+                },
+                {
+                  "key": "format",
+                  "value": "csv"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "Notification center. Requires notification.read / notification.update.",
+      "item": [
+        {
+          "name": "List Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.items?.[0]?.id) {",
+                  "  pm.environment.set('notificationId', json.data.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "unreadOnly",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read-all"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notificationId}}"
+              ]
+            },
+            "description": "Requires notification.delete."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Notification Preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notification-preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification-preferences"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Update Notification Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification-preferences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification-preferences"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": [\n    {\n      \"category\": \"TASK_UPDATES\",\n      \"inAppEnabled\": true,\n      \"emailEnabled\": false\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Automations",
+      "description": "Workflow automation engine. CREATE_TASK action supported in Phase 1.",
+      "item": [
+        {
+          "name": "List Automations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.items?.[0]?.id) {",
+                  "  pm.environment.set('automationId', json.data.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/automations?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Automation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Executions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}/executions?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}",
+                "executions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Automation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/automations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Auto task on lead assign\",\n  \"description\": \"Creates follow-up call task\",\n  \"trigger\": \"LEAD_ASSIGNED\",\n  \"enabled\": true,\n  \"conditions\": [],\n  \"actions\": [\n    {\n      \"type\": \"CREATE_TASK\",\n      \"sortOrder\": 0,\n      \"configuration\": {\n        \"title\": \"Call Customer\",\n        \"type\": \"CALL\",\n        \"priority\": \"HIGH\",\n        \"dueAt\": \"2026-07-01T09:00:00.000Z\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.id) pm.environment.set('automationId', json.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Automation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Auto task on lead assign (updated)\",\n  \"enabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Enable Automation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}/enable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}",
+                "enable"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Disable Automation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}/disable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}",
+                "disable"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Test Automation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}",
+                "test"
+              ]
+            },
+            "description": "Dry-run test. Requires automation.execute.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entityType\": \"lead\",\n  \"entityId\": \"{{leadId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Automation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/automations/{{automationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "automations",
+                "{{automationId}}"
+              ]
+            },
+            "description": "Requires automation.delete."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Monitoring",
+      "description": "Health and metrics endpoints (typically owner/admin).",
+      "item": [
+        {
+          "name": "Global Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/health",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Root-level health check (no /api/v1 prefix)."
+          },
+          "response": []
+        },
+        {
+          "name": "Jobs Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/jobs/health",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "jobs",
+                "health"
+              ]
+            },
+            "description": "Includes taskReminder worker status."
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/metrics",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Includes tasks metrics and task queue counts."
           },
           "response": []
         }
@@ -1890,8 +3720,13 @@
             "url": {
               "raw": "https://postman-echo.com/get",
               "protocol": "https",
-              "host": ["postman-echo", "com"],
-              "path": ["get"]
+              "host": [
+                "postman-echo",
+                "com"
+              ],
+              "path": [
+                "get"
+              ]
             },
             "description": "Clears stored auth environment variables.\n\nDoes not call CRMPro API. Run when you want a clean auth state."
           },

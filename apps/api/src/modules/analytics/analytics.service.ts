@@ -1,0 +1,224 @@
+import { Injectable } from '@nestjs/common';
+import { CacheService } from '../../common/cache/cache.service';
+import { LoggingService } from '../../common/logging/logging.service';
+import { ANALYTICS_ENDPOINTS, AnalyticsExportFormat } from './analytics.constants';
+import {
+  AgentPerformanceAnalytics,
+  AnalyticsCacheResult,
+  AnalyticsDateRange,
+  AnalyticsExportFile,
+  DashboardOverviewData,
+  DeveloperPerformanceAnalytics,
+  LeadSourceAnalytics,
+  LeadStatusDistribution,
+  LeadTrendPoint,
+  PipelineFunnelAnalytics,
+  ProjectPerformanceAnalytics,
+  RecentActivityResult,
+  TaskAnalyticsData,
+} from './analytics.types';
+import { AnalyticsQueryService } from './queries/analytics-query.service';
+import { AnalyticsExportService } from './services/analytics-export.service';
+
+type AnalyticsHandler<T> = () => Promise<T>;
+
+@Injectable()
+export class AnalyticsService {
+  constructor(
+    private readonly queryService: AnalyticsQueryService,
+    private readonly exportService: AnalyticsExportService,
+    private readonly cacheService: CacheService,
+    private readonly loggingService: LoggingService,
+  ) {}
+
+  getOverview(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<DashboardOverviewData>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.overview,
+      range,
+      () => this.queryService.getOverview(tenantId, range),
+    );
+  }
+
+  getPipelineFunnel(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<PipelineFunnelAnalytics[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.pipeline,
+      range,
+      () => this.queryService.getPipelineFunnel(tenantId, range),
+    );
+  }
+
+  getLeadSources(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<LeadSourceAnalytics[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.sources,
+      range,
+      () => this.queryService.getLeadSources(tenantId, range),
+    );
+  }
+
+  getAgentPerformance(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<AgentPerformanceAnalytics[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.agents,
+      range,
+      () => this.queryService.getAgentPerformance(tenantId, range),
+    );
+  }
+
+  getProjectPerformance(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<ProjectPerformanceAnalytics[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.projects,
+      range,
+      () => this.queryService.getProjectPerformance(tenantId, range),
+    );
+  }
+
+  getDeveloperPerformance(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<DeveloperPerformanceAnalytics[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.developers,
+      range,
+      () => this.queryService.getDeveloperPerformance(tenantId, range),
+    );
+  }
+
+  getLeadTrends(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<LeadTrendPoint[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.trends,
+      range,
+      () => this.queryService.getLeadTrends(tenantId, range),
+    );
+  }
+
+  getStatusDistribution(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<LeadStatusDistribution>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.status,
+      range,
+      () => this.queryService.getStatusDistribution(tenantId, range),
+    );
+  }
+
+  getRecentActivity(
+    tenantId: string,
+    range: AnalyticsDateRange,
+    page: number,
+    limit: number,
+  ): Promise<AnalyticsCacheResult<RecentActivityResult>> {
+    const fromKey = range.from?.toISOString();
+    const toKey = range.to?.toISOString();
+    const extra = `p${page}:l${limit}`;
+
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.recentActivity,
+      { from: range.from, to: range.to },
+      () => this.queryService.getRecentActivity(tenantId, range, page, limit),
+      extra,
+      fromKey,
+      toKey,
+    );
+  }
+
+  getTaskAnalytics(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<TaskAnalyticsData>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.tasks,
+      { from: range.from, to: range.to },
+      () => this.queryService.getTaskAnalytics(tenantId, range),
+    );
+  }
+
+  exportDashboard(
+    tenantId: string,
+    range: AnalyticsDateRange,
+    format: AnalyticsExportFormat,
+  ): Promise<AnalyticsExportFile> {
+    const startedAt = Date.now();
+    return this.exportService.exportDashboard(tenantId, range, format).finally(() => {
+      this.logAnalytics(ANALYTICS_ENDPOINTS.export, Date.now() - startedAt, false);
+    });
+  }
+
+  private async withCache<T>(
+    tenantId: string,
+    endpoint: string,
+    range: AnalyticsDateRange,
+    handler: AnalyticsHandler<T>,
+    extra?: string,
+    fromKey?: string,
+    toKey?: string,
+  ): Promise<AnalyticsCacheResult<T>> {
+    const startedAt = Date.now();
+    const cacheKey = this.cacheService.buildAnalyticsKey(
+      tenantId,
+      endpoint,
+      fromKey ?? range.from?.toISOString(),
+      toKey ?? range.to?.toISOString(),
+      extra,
+    );
+
+    const cached = await this.cacheService.get<T>(cacheKey);
+    if (cached !== null) {
+      this.logAnalytics(endpoint, Date.now() - startedAt, true);
+      return { data: cached, cacheHit: true };
+    }
+
+    const data = await handler();
+    await this.cacheService.set(
+      cacheKey,
+      data,
+      this.cacheService.getAnalyticsTtlSeconds(),
+    );
+
+    this.logAnalytics(endpoint, Date.now() - startedAt, false);
+    return { data, cacheHit: false };
+  }
+
+  private logAnalytics(
+    endpoint: string,
+    durationMs: number,
+    cacheHit: boolean,
+  ): void {
+    this.loggingService.info({
+      module: 'Analytics',
+      operation: endpoint,
+      durationMs,
+      status: cacheHit ? 'cache_hit' : 'cache_miss',
+      metadata: {
+        cacheHit,
+      },
+    });
+  }
+}

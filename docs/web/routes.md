@@ -617,11 +617,21 @@ Not included in MVP.
 Potential future routes:
 
 ```text id="futureroutes"
+/integrations
+/ai-assistant
+/tasks/kanban
+/tasks/gantt
+/calendar/sync
+```
+
+Implemented Phase 1 routes (tenant CRM app):
+
+```text id="phase1routes"
 /analytics
 /notifications
 /automations
-/integrations
-/ai-assistant
+/tasks
+/calendar
 ```
 
-These should be added only when corresponding modules are implemented.
+These should be wired in the web app as corresponding modules are built in the frontend.

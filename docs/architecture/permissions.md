@@ -148,6 +148,23 @@ project.delete
 
 ---
 
+## Tasks
+
+```text id="taskperms"
+task.read
+task.create
+task.update
+task.delete
+task.assign
+```
+
+Default role assignment:
+
+- **Owner / Manager** — all task permissions
+- **Agent** — `task.read`, `task.create`, `task.update` (no delete or assign unless granted)
+
+---
+
 ## Users
 
 ```text id="userperms"

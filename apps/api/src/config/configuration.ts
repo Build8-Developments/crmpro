@@ -67,6 +67,9 @@ export default () => {
     importConcurrency: parseInt(process.env.BULL_IMPORT_CONCURRENCY ?? '3', 10),
     exportConcurrency: parseInt(process.env.BULL_EXPORT_CONCURRENCY ?? '2', 10),
     cleanupConcurrency: parseInt(process.env.BULL_CLEANUP_CONCURRENCY ?? '1', 10),
+    notificationConcurrency: parseInt(process.env.BULL_NOTIFICATION_CONCURRENCY ?? '5', 10),
+    automationConcurrency: parseInt(process.env.BULL_AUTOMATION_CONCURRENCY ?? '3', 10),
+    taskConcurrency: parseInt(process.env.BULL_TASK_CONCURRENCY ?? '2', 10),
     jobAttempts: parseInt(process.env.BULL_JOB_ATTEMPTS ?? '3', 10),
     jobBackoffDelayMs: parseInt(process.env.BULL_JOB_BACKOFF_DELAY_MS ?? '3000', 10),
   } satisfies BullConfig,
@@ -135,6 +138,30 @@ export default () => {
     endpoint: process.env.AWS_S3_ENDPOINT,
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  analytics: {
+    cacheTtlSeconds: parseInt(
+      process.env.ANALYTICS_CACHE_TTL_SECONDS ?? '300',
+      10,
+    ),
+  },
+  notifications: {
+    unreadCountTtlSeconds: parseInt(
+      process.env.NOTIFICATION_UNREAD_TTL_SECONDS ?? '60',
+      10,
+    ),
+  },
+  automation: {
+    cacheTtlSeconds: parseInt(
+      process.env.AUTOMATION_CACHE_TTL_SECONDS ?? '300',
+      10,
+    ),
+  },
+  tasks: {
+    cacheTtlSeconds: parseInt(
+      process.env.TASK_CACHE_TTL_SECONDS ?? '300',
+      10,
+    ),
   },
   };
 };

@@ -9,6 +9,9 @@ import { AssignLeadDto } from '../dto/assign-lead.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';
 import { LeadWorkflowResult } from '../types/lead.types';
 import { LeadActivityService } from './lead-activity.service';
+import { AnalyticsInvalidationService } from '../../analytics/analytics-invalidation.service';
+import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
+import { AutomationTriggerService } from '../../automation/automation-trigger.service';
 
 const workflowLeadSelect = {
   id: true,
@@ -32,6 +35,9 @@ export class LeadAssignmentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
+    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly notificationTrigger: NotificationTriggerService,
+    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async assignLead(
@@ -91,6 +97,23 @@ export class LeadAssignmentService {
     if (!updatedLead) {
       throw new NotFoundException('Lead not found');
     }
+
+    void this.analyticsInvalidation.invalidateTenant(tenantId);
+
+    if (newUserId !== null) {
+      void this.notificationTrigger.notifyLeadAssigned({
+        tenantId,
+        recipientUserId: newUserId,
+        leadId: lead.id,
+        leadName: updatedLead.fullName,
+        actorUserId,
+      });
+    }
+
+    void this.automationTrigger.onLeadAssigned({
+      tenantId,
+      leadId: lead.id,
+    });
 
     return {
       lead: toLeadResponse(updatedLead),

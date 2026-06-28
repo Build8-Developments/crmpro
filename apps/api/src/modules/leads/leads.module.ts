@@ -1,5 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AutomationModule } from '../automation/automation.module';
 import { FilesModule } from '../files/files.module';
 import { LeadNotesController } from './lead-notes.controller';
 import { LeadsController } from './leads.controller';
@@ -12,7 +15,7 @@ import { LeadStageService } from './services/lead-stage.service';
 import { LeadTimelineService } from './services/lead-timeline.service';
 
 @Module({
-  imports: [AuthRbacModule, forwardRef(() => FilesModule)],
+  imports: [AuthRbacModule, AnalyticsModule, NotificationsModule, AutomationModule, forwardRef(() => FilesModule)],
   controllers: [LeadsController, LeadNotesController],
   providers: [
     LeadsService,
