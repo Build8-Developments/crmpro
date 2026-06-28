@@ -3,7 +3,6 @@ import { CacheService } from '../../common/cache/cache.service';
 import { LoggingService } from '../../common/logging/logging.service';
 import { ANALYTICS_ENDPOINTS } from './analytics.constants';
 import { AnalyticsService } from './analytics.service';
-import { AnalyticsExportService } from './services/analytics-export.service';
 import { AnalyticsQueryService } from './queries/analytics-query.service';
 
 describe('AnalyticsService', () => {
@@ -16,7 +15,6 @@ describe('AnalyticsService', () => {
     getAnalyticsTtlSeconds: jest.Mock;
   };
   let loggingService: { info: jest.Mock };
-  let exportService: { exportDashboard: jest.Mock };
 
   const overview = {
     totalLeads: 10,
@@ -54,19 +52,10 @@ describe('AnalyticsService', () => {
       info: jest.fn(),
     };
 
-    exportService = {
-      exportDashboard: jest.fn().mockResolvedValue({
-        buffer: Buffer.from('csv'),
-        mimeType: 'text/csv',
-        filename: 'dashboard.csv',
-      }),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AnalyticsService,
         { provide: AnalyticsQueryService, useValue: queryService },
-        { provide: AnalyticsExportService, useValue: exportService },
         { provide: CacheService, useValue: cacheService },
         { provide: LoggingService, useValue: loggingService },
       ],

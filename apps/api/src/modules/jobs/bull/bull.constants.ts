@@ -2,16 +2,12 @@ export const IMPORT_QUEUE = 'import-jobs';
 export const EXPORT_QUEUE = 'export-jobs';
 export const CLEANUP_QUEUE = 'cleanup-jobs';
 export const NOTIFICATION_QUEUE = 'notification-jobs';
-export const AUTOMATION_QUEUE = 'automation-jobs';
-export const TASK_QUEUE = 'task-jobs';
 
 export const QUEUE_NAMES = [
   IMPORT_QUEUE,
   EXPORT_QUEUE,
   CLEANUP_QUEUE,
   NOTIFICATION_QUEUE,
-  AUTOMATION_QUEUE,
-  TASK_QUEUE,
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];
@@ -21,8 +17,6 @@ export const DEFAULT_IMPORT_CONCURRENCY = 3;
 export const DEFAULT_EXPORT_CONCURRENCY = 2;
 export const DEFAULT_CLEANUP_CONCURRENCY = 1;
 export const DEFAULT_NOTIFICATION_CONCURRENCY = 5;
-export const DEFAULT_AUTOMATION_CONCURRENCY = 3;
-export const DEFAULT_TASK_CONCURRENCY = 2;
 export const DEFAULT_JOB_ATTEMPTS = 3;
 export const DEFAULT_JOB_BACKOFF_DELAY_MS = 3000;
 
@@ -32,8 +26,6 @@ export const BULL_CONFIG_KEYS = {
   exportConcurrency: 'bull.exportConcurrency',
   cleanupConcurrency: 'bull.cleanupConcurrency',
   notificationConcurrency: 'bull.notificationConcurrency',
-  automationConcurrency: 'bull.automationConcurrency',
-  taskConcurrency: 'bull.taskConcurrency',
   jobAttempts: 'bull.jobAttempts',
   jobBackoffDelayMs: 'bull.jobBackoffDelayMs',
 } as const;

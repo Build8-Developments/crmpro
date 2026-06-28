@@ -25,7 +25,7 @@ export class QueueService {
     const payload = this.buildBackgroundPayload(jobId);
 
     await this.bullService.getQueue(IMPORT_QUEUE).add('process-import', payload, {
-      jobId: `import:${jobId}`,
+      jobId,
     });
 
     this.workerLoggingService.queued({
@@ -41,7 +41,7 @@ export class QueueService {
     const payload = this.buildBackgroundPayload(jobId);
 
     await this.bullService.getQueue(EXPORT_QUEUE).add('process-export', payload, {
-      jobId: `export:${jobId}`,
+      jobId,
     });
 
     this.workerLoggingService.queued({
@@ -60,7 +60,7 @@ export class QueueService {
     };
 
     await this.bullService.getQueue(CLEANUP_QUEUE).add('cleanup', payload, {
-      jobId: `cleanup:${jobName}:${Date.now()}`,
+      jobId: `cleanup-${jobName}-${Date.now()}`,
     });
 
     this.workerLoggingService.queued({
@@ -79,7 +79,7 @@ export class QueueService {
     const payload: CleanupJobPayload = { jobName };
 
     await this.bullService.getQueue(CLEANUP_QUEUE).add('cleanup', payload, {
-      jobId: `repeat:cleanup:${jobName}`,
+      jobId: `repeat-cleanup-${jobName}`,
       repeat,
     });
 

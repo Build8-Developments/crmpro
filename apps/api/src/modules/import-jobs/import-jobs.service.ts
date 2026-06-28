@@ -21,7 +21,6 @@ import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
 import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
-import { AutomationTriggerService } from '../automation/automation-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
 import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
 import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
@@ -84,7 +83,6 @@ export class ImportJobsService {
     private readonly queueService: QueueService,
     private readonly analyticsInvalidation: AnalyticsInvalidationService,
     private readonly notificationTrigger: NotificationTriggerService,
-    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async createLeadImportJob(
@@ -560,11 +558,6 @@ export class ImportJobsService {
         importJobId: jobId,
         successfulRows: params.successfulRows,
         failedRows: params.failedRows,
-      });
-
-      void this.automationTrigger.onImportCompleted({
-        tenantId,
-        importJobId: jobId,
       });
     }
   }

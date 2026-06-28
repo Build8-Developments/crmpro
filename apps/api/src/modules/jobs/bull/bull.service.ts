@@ -18,8 +18,6 @@ import {
   DEFAULT_EXPORT_CONCURRENCY,
   DEFAULT_IMPORT_CONCURRENCY,
   DEFAULT_NOTIFICATION_CONCURRENCY,
-  DEFAULT_AUTOMATION_CONCURRENCY,
-  DEFAULT_TASK_CONCURRENCY,
   DEFAULT_JOB_ATTEMPTS,
   DEFAULT_JOB_BACKOFF_DELAY_MS,
   EXPORT_QUEUE,
@@ -113,20 +111,6 @@ export class BullService implements OnModuleInit, OnModuleDestroy {
     return (
       this.configService.get<number>(BULL_CONFIG_KEYS.notificationConcurrency) ??
       DEFAULT_NOTIFICATION_CONCURRENCY
-    );
-  }
-
-  getAutomationConcurrency(): number {
-    return (
-      this.configService.get<number>(BULL_CONFIG_KEYS.automationConcurrency) ??
-      DEFAULT_AUTOMATION_CONCURRENCY
-    );
-  }
-
-  getTaskConcurrency(): number {
-    return (
-      this.configService.get<number>(BULL_CONFIG_KEYS.taskConcurrency) ??
-      DEFAULT_TASK_CONCURRENCY
     );
   }
 

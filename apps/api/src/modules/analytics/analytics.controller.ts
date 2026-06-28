@@ -1,8 +1,7 @@
-import { Controller, Get, Query, StreamableFile, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiProduces,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -13,7 +12,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsDateQueryDto } from './dto/analytics-date-query.dto';
-import { AnalyticsExportQueryDto } from './dto/analytics-export-query.dto';
 import { AnalyticsRecentActivityQueryDto } from './dto/analytics-recent-activity-query.dto';
 import { parseAnalyticsDateRange } from './queries/analytics-date.util';
 
@@ -143,43 +141,5 @@ export class AnalyticsController {
       query.limit ?? 20,
     );
     return { success: true, data: result.data };
-  }
-
-  @Get('tasks')
-  @ApiOperation({ summary: 'Task analytics metrics' })
-  @ApiResponse({
-    status: 200,
-    description: 'Task completion and workload analytics',
-  })
-  async getTasks(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() query: AnalyticsDateQueryDto,
-  ) {
-    const result = await this.analyticsService.getTaskAnalytics(
-      user.tenantId,
-      parseAnalyticsDateRange(query),
-    );
-    return { success: true, data: result.data };
-  }
-
-  @Get('export')
-  @ApiOperation({ summary: 'Download analytics dashboard as CSV or PDF' })
-  @ApiProduces('text/csv', 'application/pdf')
-  @ApiResponse({ status: 200, description: 'Dashboard export file' })
-  async exportDashboard(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query() query: AnalyticsExportQueryDto,
-  ): Promise<StreamableFile> {
-    const format = query.format ?? query.type!;
-    const file = await this.analyticsService.exportDashboard(
-      user.tenantId,
-      parseAnalyticsDateRange(query),
-      format,
-    );
-
-    return new StreamableFile(file.buffer, {
-      type: file.mimeType,
-      disposition: `attachment; filename="${file.filename}"`,
-    });
   }
 }

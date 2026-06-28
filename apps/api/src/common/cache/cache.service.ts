@@ -11,13 +11,8 @@ import {
   ANALYTICS_CACHE_PREFIX,
   CACHE_CONFIG_KEYS,
   DEFAULT_ANALYTICS_CACHE_TTL_SECONDS,
-  DEFAULT_AUTOMATION_CACHE_TTL_SECONDS,
-  DEFAULT_TASK_CACHE_TTL_SECONDS,
   DEFAULT_NOTIFICATION_UNREAD_TTL_SECONDS,
   NOTIFICATION_UNREAD_CACHE_PREFIX,
-  AUTOMATION_WORKFLOW_CACHE_PREFIX,
-  TASK_DASHBOARD_CACHE_PREFIX,
-  TASK_CALENDAR_CACHE_PREFIX,
 } from './cache.constants';
 
 @Injectable()
@@ -61,69 +56,6 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       this.configService.get<number>(
         CACHE_CONFIG_KEYS.notificationUnreadTtlSeconds,
       ) ?? DEFAULT_NOTIFICATION_UNREAD_TTL_SECONDS
-    );
-  }
-
-  getAutomationCacheTtlSeconds(): number {
-    return (
-      this.configService.get<number>(
-        CACHE_CONFIG_KEYS.automationCacheTtlSeconds,
-      ) ?? DEFAULT_AUTOMATION_CACHE_TTL_SECONDS
-    );
-  }
-
-  buildAutomationWorkflowKey(tenantId: string, trigger: string): string {
-    return `${AUTOMATION_WORKFLOW_CACHE_PREFIX}:${tenantId}:${trigger}`;
-  }
-
-  getTaskCacheTtlSeconds(): number {
-    return (
-      this.configService.get<number>(CACHE_CONFIG_KEYS.taskCacheTtlSeconds) ??
-      DEFAULT_TASK_CACHE_TTL_SECONDS
-    );
-  }
-
-  buildTaskDashboardKey(tenantId: string, userId?: string): string {
-    return `${TASK_DASHBOARD_CACHE_PREFIX}:${tenantId}:${userId ?? 'all'}`;
-  }
-
-  buildTaskCalendarKey(
-    tenantId: string,
-    view: string,
-    anchor: string,
-    scope: string,
-  ): string {
-    return `${TASK_CALENDAR_CACHE_PREFIX}:${tenantId}:${view}:${anchor}:${scope}`;
-  }
-
-  async invalidateTaskCaches(tenantId: string, userId?: string): Promise<void> {
-    if (!this.redis) {
-      return;
-    }
-
-    await this.deleteByPattern(`${TASK_DASHBOARD_CACHE_PREFIX}:${tenantId}:*`);
-    await this.deleteByPattern(`${TASK_CALENDAR_CACHE_PREFIX}:${tenantId}:*`);
-
-    if (userId) {
-      await this.redis.del(this.buildTaskDashboardKey(tenantId, userId));
-    }
-  }
-
-  async invalidateAutomationWorkflows(
-    tenantId: string,
-    trigger?: string,
-  ): Promise<void> {
-    if (!this.redis) {
-      return;
-    }
-
-    if (trigger) {
-      await this.redis.del(this.buildAutomationWorkflowKey(tenantId, trigger));
-      return;
-    }
-
-    await this.deleteByPattern(
-      `${AUTOMATION_WORKFLOW_CACHE_PREFIX}:${tenantId}:*`,
     );
   }
 

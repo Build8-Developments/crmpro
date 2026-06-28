@@ -28,16 +28,30 @@ jest.mock('ioredis', () =>
   })),
 );
 
+type MockQueue = {
+  add: jest.Mock;
+  close: jest.Mock;
+};
+
 describe('QueueService', () => {
   let queueService: QueueService;
-  let importQueue: { add: jest.Mock };
-  let exportQueue: { add: jest.Mock };
-  let cleanupQueue: { add: jest.Mock };
+  let importQueue: MockQueue;
+  let exportQueue: MockQueue;
+  let cleanupQueue: MockQueue;
 
   beforeEach(async () => {
-    importQueue = { add: jest.fn().mockResolvedValue(undefined), close: jest.fn() };
-    exportQueue = { add: jest.fn().mockResolvedValue(undefined), close: jest.fn() };
-    cleanupQueue = { add: jest.fn().mockResolvedValue(undefined), close: jest.fn() };
+    importQueue = {
+      add: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+    exportQueue = {
+      add: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+    cleanupQueue = {
+      add: jest.fn().mockResolvedValue(undefined),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
 
     const bullService = {
       getQueue: jest.fn((name: string) => {
@@ -74,7 +88,7 @@ describe('QueueService', () => {
     expect(importQueue.add).toHaveBeenCalledWith(
       'process-import',
       { jobId: 'job-123', requestId: 'req-123' },
-      { jobId: 'import:job-123' },
+      { jobId: 'job-123' },
     );
   });
 
@@ -84,7 +98,7 @@ describe('QueueService', () => {
     expect(exportQueue.add).toHaveBeenCalledWith(
       'process-export',
       { jobId: 'job-456', requestId: 'req-123' },
-      { jobId: 'export:job-456' },
+      { jobId: 'job-456' },
     );
   });
 
@@ -98,7 +112,7 @@ describe('QueueService', () => {
         requestId: 'req-123',
       },
       expect.objectContaining({
-        jobId: expect.stringMatching(/^cleanup:FILE_UPLOAD_INTENTS:\d+$/),
+        jobId: expect.stringMatching(/^cleanup-FILE_UPLOAD_INTENTS-\d+$/),
       }),
     );
   });
@@ -113,7 +127,7 @@ describe('QueueService', () => {
       'cleanup',
       { jobName: CleanupJobName.STALE_IMPORT_JOBS },
       {
-        jobId: 'repeat:cleanup:STALE_IMPORT_JOBS',
+        jobId: 'repeat-cleanup-STALE_IMPORT_JOBS',
         repeat: { every: 900_000 },
       },
     );
@@ -152,7 +166,7 @@ describe('BullService queue registration', () => {
     const bullService = module.get(BullService);
     bullService.onModuleInit();
 
-    expect(Queue).toHaveBeenCalledTimes(6);
+    expect(Queue).toHaveBeenCalledTimes(4);
     expect(bullService.getDefaultJobOptions()).toEqual({
       attempts: 3,
       backoff: { type: 'exponential', delay: 3000 },

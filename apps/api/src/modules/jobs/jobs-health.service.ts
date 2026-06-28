@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { CleanupHealthService } from '../cleanup/cleanup-health.service';
 import { CleanupProcessor } from '../cleanup/workers/cleanup.processor';
 import { NotificationProcessor } from '../notifications/workers/notification.processor';
-import { AutomationProcessor } from '../automation/workers/automation.processor';
-import { TaskReminderProcessor } from '../tasks/workers/task-reminder.processor';
 import { BullService } from './bull/bull.service';
 import { JobsHealthStatus } from './bull/bull.types';
 import { ExportProcessor } from './processors/export.processor';
@@ -17,8 +15,6 @@ export class JobsHealthService {
     private readonly exportProcessor: ExportProcessor,
     private readonly cleanupProcessor: CleanupProcessor,
     private readonly notificationProcessor: NotificationProcessor,
-    private readonly automationProcessor: AutomationProcessor,
-    private readonly taskReminderProcessor: TaskReminderProcessor,
     private readonly cleanupHealthService: CleanupHealthService,
   ) {}
 
@@ -34,12 +30,6 @@ export class JobsHealthService {
         export: this.exportProcessor.isRunning() ? 'running' : 'stopped',
         cleanup: this.cleanupProcessor.isRunning() ? 'running' : 'stopped',
         notification: this.notificationProcessor.isRunning()
-          ? 'running'
-          : 'stopped',
-        automation: this.automationProcessor.isRunning()
-          ? 'running'
-          : 'stopped',
-        taskReminder: this.taskReminderProcessor.isRunning()
           ? 'running'
           : 'stopped',
       },

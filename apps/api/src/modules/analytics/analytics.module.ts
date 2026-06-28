@@ -5,7 +5,6 @@ import { AnalyticsInvalidationService } from './analytics-invalidation.service';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryService } from './queries/analytics-query.service';
 import { AnalyticsDateRangePipe } from './queries/analytics-date.util';
-import { AnalyticsExportService } from './services/analytics-export.service';
 
 @Module({
   imports: [AuthRbacModule],
@@ -13,7 +12,6 @@ import { AnalyticsExportService } from './services/analytics-export.service';
   providers: [
     AnalyticsService,
     AnalyticsQueryService,
-    AnalyticsExportService,
     AnalyticsInvalidationService,
     AnalyticsDateRangePipe,
   ],

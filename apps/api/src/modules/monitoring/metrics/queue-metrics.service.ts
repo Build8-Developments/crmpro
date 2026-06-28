@@ -1,11 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import {
-  AUTOMATION_QUEUE,
   CLEANUP_QUEUE,
   EXPORT_QUEUE,
   IMPORT_QUEUE,
   NOTIFICATION_QUEUE,
-  TASK_QUEUE,
   QueueName,
 } from '../../jobs/bull/bull.constants';
 import { BullService } from '../../jobs/bull/bull.service';
@@ -20,32 +18,20 @@ export class QueueMetricsService {
     export: QueueMetricsSnapshot;
     cleanup: QueueMetricsSnapshot;
     notification: QueueMetricsSnapshot;
-    automation: QueueMetricsSnapshot;
-    task: QueueMetricsSnapshot;
   }> {
-    const [
-      importCounts,
-      exportCounts,
-      cleanupCounts,
-      notificationCounts,
-      automationCounts,
-      taskCounts,
-    ] = await Promise.all([
-      this.getCounts(IMPORT_QUEUE),
-      this.getCounts(EXPORT_QUEUE),
-      this.getCounts(CLEANUP_QUEUE),
-      this.getCounts(NOTIFICATION_QUEUE),
-      this.getCounts(AUTOMATION_QUEUE),
-      this.getCounts(TASK_QUEUE),
-    ]);
+    const [importCounts, exportCounts, cleanupCounts, notificationCounts] =
+      await Promise.all([
+        this.getCounts(IMPORT_QUEUE),
+        this.getCounts(EXPORT_QUEUE),
+        this.getCounts(CLEANUP_QUEUE),
+        this.getCounts(NOTIFICATION_QUEUE),
+      ]);
 
     return {
       import: importCounts,
       export: exportCounts,
       cleanup: cleanupCounts,
       notification: notificationCounts,
-      automation: automationCounts,
-      task: taskCounts,
     };
   }
 

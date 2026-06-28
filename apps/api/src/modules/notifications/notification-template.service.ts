@@ -72,30 +72,6 @@ export class NotificationTemplateService {
           ),
           priority: NotificationPriority.NORMAL,
         };
-      case NotificationType.TASK_ASSIGNED:
-        return {
-          title: 'Task Assigned',
-          message: `You have been assigned: ${this.asString(input.metadata.taskTitle, 'a task')}.`,
-          priority: NotificationPriority.HIGH,
-        };
-      case NotificationType.TASK_DUE:
-        return {
-          title: 'Task Due',
-          message: `${this.asString(input.metadata.taskTitle, 'A task')} is ${this.asString(input.metadata.dueLabel, 'due soon')}.`,
-          priority: NotificationPriority.NORMAL,
-        };
-      case NotificationType.TASK_OVERDUE:
-        return {
-          title: 'Task Overdue',
-          message: `${this.asString(input.metadata.taskTitle, 'A task')} is overdue.`,
-          priority: NotificationPriority.HIGH,
-        };
-      case NotificationType.TASK_COMPLETED:
-        return {
-          title: 'Task Completed',
-          message: `${this.asString(input.metadata.taskTitle, 'A task')} has been completed.`,
-          priority: NotificationPriority.NORMAL,
-        };
       case NotificationType.SYSTEM:
       default:
         return {

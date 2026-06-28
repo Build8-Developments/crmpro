@@ -11,7 +11,6 @@ import { LeadWorkflowResult } from '../types/lead.types';
 import { LeadActivityService } from './lead-activity.service';
 import { AnalyticsInvalidationService } from '../../analytics/analytics-invalidation.service';
 import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
-import { AutomationTriggerService } from '../../automation/automation-trigger.service';
 
 const workflowLeadSelect = {
   id: true,
@@ -37,7 +36,6 @@ export class LeadAssignmentService {
     private readonly leadActivityService: LeadActivityService,
     private readonly analyticsInvalidation: AnalyticsInvalidationService,
     private readonly notificationTrigger: NotificationTriggerService,
-    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async assignLead(
@@ -109,11 +107,6 @@ export class LeadAssignmentService {
         actorUserId,
       });
     }
-
-    void this.automationTrigger.onLeadAssigned({
-      tenantId,
-      leadId: lead.id,
-    });
 
     return {
       lead: toLeadResponse(updatedLead),

@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpMetricsStore } from '../../../common/logging/http-metrics.store';
 import { JobsHealthService } from '../../jobs/jobs-health.service';
-import { AutomationMetricsStore } from '../../automation/metrics/automation-metrics.store';
 import { NotificationMetricsStore } from '../../notifications/metrics/notification-metrics.store';
-import { TaskMetricsStore } from '../../tasks/metrics/task-metrics.store';
 import { MetricsService } from './metrics.service';
 import { QueueMetricsService } from './queue-metrics.service';
 
@@ -31,20 +29,6 @@ describe('MetricsService', () => {
               export: { waiting: 0, active: 0, completed: 1, failed: 0 },
               cleanup: { waiting: 0, active: 0, completed: 1, failed: 0 },
               notification: { waiting: 1, active: 0, completed: 2, failed: 0 },
-              automation: { waiting: 0, active: 1, completed: 3, failed: 0 },
-              task: { waiting: 0, active: 0, completed: 0, failed: 0 },
-            }),
-          },
-        },
-        {
-          provide: TaskMetricsStore,
-          useValue: {
-            getSnapshot: jest.fn().mockReturnValue({
-              created: 10,
-              completed: 8,
-              overdue: 1,
-              remindersSent: 5,
-              averageCompletionTimeHours: 4.2,
             }),
           },
         },
@@ -59,19 +43,6 @@ describe('MetricsService', () => {
           },
         },
         {
-          provide: AutomationMetricsStore,
-          useValue: {
-            getSnapshot: jest.fn().mockReturnValue({
-              executions: 5,
-              successes: 4,
-              failures: 1,
-              skipped: 0,
-              averageExecutionTimeMs: 84,
-              successRate: 80,
-            }),
-          },
-        },
-        {
           provide: JobsHealthService,
           useValue: {
             getHealth: jest.fn().mockResolvedValue({
@@ -80,8 +51,6 @@ describe('MetricsService', () => {
                 export: 'running',
                 cleanup: 'running',
                 notification: 'running',
-                automation: 'running',
-                taskReminder: 'running',
               },
             }),
           },
@@ -97,15 +66,7 @@ describe('MetricsService', () => {
         created: 3,
         unreadCount: 1,
       }),
-      automation: expect.objectContaining({
-        executions: 5,
-        successRate: 80,
-      }),
-      tasks: expect.objectContaining({
-        created: 10,
-        completed: 8,
-      }),
-      workers: expect.objectContaining({ taskReminder: 'running' }),
+      workers: expect.objectContaining({ notification: 'running' }),
     });
   });
 });

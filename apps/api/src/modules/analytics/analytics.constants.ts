@@ -8,15 +8,10 @@ export const ANALYTICS_ENDPOINTS = {
   trends: 'trends',
   status: 'status',
   recentActivity: 'recent-activity',
-  tasks: 'tasks',
-  export: 'export',
 } as const;
 
 export type AnalyticsEndpoint =
   (typeof ANALYTICS_ENDPOINTS)[keyof typeof ANALYTICS_ENDPOINTS];
-
-export const ANALYTICS_EXPORT_FORMATS = ['CSV', 'PDF'] as const;
-export type AnalyticsExportFormat = (typeof ANALYTICS_EXPORT_FORMATS)[number];
 
 export const DEFAULT_TREND_MONTHS = 12;
 export const DEFAULT_RECENT_ACTIVITY_LIMIT = 20;

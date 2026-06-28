@@ -33,17 +33,4 @@ describe('NotificationTemplateService', () => {
       priority: 'NORMAL',
     });
   });
-
-  it('builds task assigned template', () => {
-    expect(
-      service.buildTemplate({
-        type: NotificationType.TASK_ASSIGNED,
-        metadata: { taskTitle: 'Call customer' },
-      }),
-    ).toEqual({
-      title: 'Task Assigned',
-      message: 'You have been assigned: Call customer.',
-      priority: 'HIGH',
-    });
-  });
 });

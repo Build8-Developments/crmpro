@@ -19,8 +19,6 @@ export interface WorkerHealthMap {
   export: WorkerStatus;
   cleanup: WorkerStatus;
   notification: WorkerStatus;
-  automation: WorkerStatus;
-  taskReminder: WorkerStatus;
 }
 
 export interface JobsHealthData {
@@ -52,29 +50,12 @@ export interface MetricsData {
     export: QueueMetricsSnapshot;
     cleanup: QueueMetricsSnapshot;
     notification: QueueMetricsSnapshot;
-    automation: QueueMetricsSnapshot;
-    task: QueueMetricsSnapshot;
-  };
-  tasks: {
-    created: number;
-    completed: number;
-    overdue: number;
-    remindersSent: number;
-    averageCompletionTimeHours: number;
   };
   notifications: {
     created: number;
     deliveryFailures: number;
     averageDeliveryTimeMs: number;
     unreadCount: number | null;
-  };
-  automation: {
-    executions: number;
-    successes: number;
-    failures: number;
-    skipped: number;
-    averageExecutionTimeMs: number;
-    successRate: number;
   };
   workers: WorkerHealthMap;
 }

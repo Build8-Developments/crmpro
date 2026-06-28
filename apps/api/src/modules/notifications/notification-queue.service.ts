@@ -29,7 +29,7 @@ export class NotificationQueueService {
     await this.bullService
       .getQueue(NOTIFICATION_QUEUE)
       .add(NOTIFICATION_JOB_NAME, jobPayload, {
-        jobId: `notification:${payload.tenantId}:${payload.recipientUserId}:${Date.now()}`,
+        jobId: `notification-${payload.tenantId}-${payload.recipientUserId}-${Date.now()}`,
       });
 
     this.metricsStore.recordCreated();

@@ -22,7 +22,6 @@ describe('AnalyticsQueryService', () => {
     user: { findMany: jest.Mock };
     leadProjectInterest: { groupBy: jest.Mock };
     leadActivity: { findMany: jest.Mock };
-    task: { count: jest.Mock; findMany: jest.Mock };
     $queryRaw: jest.Mock;
   };
 
@@ -56,10 +55,6 @@ describe('AnalyticsQueryService', () => {
       user: { findMany: jest.fn().mockResolvedValue([]) },
       leadProjectInterest: { groupBy: jest.fn().mockResolvedValue([]) },
       leadActivity: { findMany: jest.fn().mockResolvedValue([]) },
-      task: {
-        count: jest.fn().mockResolvedValue(0),
-        findMany: jest.fn().mockResolvedValue([]),
-      },
       $queryRaw: jest.fn().mockResolvedValue([]),
     };
 
@@ -261,36 +256,6 @@ describe('AnalyticsQueryService', () => {
           tenantId: 'tenant-a',
           status: JobStatus.COMPLETED,
         }),
-      }),
-    );
-  });
-
-  it('returns task analytics scoped to tenant', async () => {
-    prisma.task.count
-      .mockResolvedValueOnce(25)
-      .mockResolvedValueOnce(182)
-      .mockResolvedValueOnce(4);
-    prisma.task.findMany.mockResolvedValue([
-      {
-        createdAt: new Date('2026-06-28T08:00:00.000Z'),
-        completedAt: new Date('2026-06-28T13:48:00.000Z'),
-      },
-    ]);
-
-    const result = await service.getTaskAnalytics('tenant-a', {});
-
-    expect(result).toEqual(
-      expect.objectContaining({
-        pending: 25,
-        completed: 182,
-        overdue: 4,
-        completionRate: expect.any(Number),
-        averageCompletionTimeHours: expect.any(Number),
-      }),
-    );
-    expect(prisma.task.count).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ tenantId: 'tenant-a', deletedAt: null }),
       }),
     );
   });

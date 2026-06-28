@@ -89,7 +89,6 @@ Standard across CRM and system entities, including:
 - Lead, LeadProjectInterest, LeadNote
 - ImportJob, ExportJob
 - Developer
-- Task
 
 Append-only / immutable entities use `createdAt` only (no `updatedAt`):
 
@@ -121,7 +120,7 @@ LeadNote      → Lead → Tenant
 
 | Pattern | Entities | `tenantId` in DB |
 | ------- | -------- | -------------- |
-| **Real foreign key** | `Pipeline`, `Lead`, `Project`, `LeadSource`, `FileAsset`, `AuditLog`, `ImportJob`, `ExportJob`, `Developer`, `Role`, `User`, `Task` | FK to `Tenant` — draw `Tenant \|\|--o{ Entity` in ERD |
+| **Real foreign key** | `Pipeline`, `Lead`, `Project`, `LeadSource`, `FileAsset`, `AuditLog`, `ImportJob`, `ExportJob`, `Developer`, `Role`, `User` | FK to `Tenant` — draw `Tenant \|\|--o{ Entity` in ERD |
 | **Denormalized copy (no FK)** | `PipelineStage`, `LeadActivity`, `LeadNote` | Plain column — **not** a Prisma/DB relation |
 
 On denormalized tables:
@@ -1140,61 +1139,6 @@ Creating a note should also append a `LeadActivity(NOTE_ADDED)` event — see [L
 
 ---
 
-## Task
-
-Sales team tasks and calendar events (same table — calendar is a view over tasks).
-
-Examples:
-
-- call customer tomorrow 9 AM
-- site visit scheduled
-- collect documents after lead won
-
-Fields:
-
-- id
-- tenantId — FK to Tenant
-- leadId — optional FK to Lead
-- projectId — optional FK to Project
-- developerId — optional FK to Developer
-- assignedUserId — optional FK to User
-- createdByUserId — FK to User
-- title
-- description
-- type — `TaskType` enum
-- priority — `TaskPriority` enum
-- status — `TaskStatus` enum
-- dueAt
-- completedAt
-- reminderAt
-- metadata — JSON
-- createdAt
-- updatedAt
-- deletedAt — soft delete
-
-Enums:
-
-**TaskType:** `CALL`, `MEETING`, `SITE_VISIT`, `EMAIL`, `FOLLOW_UP`, `DOCUMENT_COLLECTION`, `PAYMENT`, `REMINDER`, `CUSTOM`
-
-**TaskPriority:** `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
-
-**TaskStatus:** `PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `OVERDUE`
-
-Indexes: `tenantId`, `assignedUserId`, `status`, `priority`, `dueAt`, `leadId`
-
-Relationships:
-
-Task → one Tenant
-Task → optional Lead, Project, Developer
-Task → optional assigned User
-Task → one creator User
-
-When `leadId` is set, task lifecycle events append **LeadActivity** entries (`TASK_CREATED`, `TASK_COMPLETED`, `TASK_ASSIGNED`, `TASK_CANCELLED`).
-
-Calendar views (`/calendar/day`, `/calendar/week`, `/calendar/month`) query tasks by `dueAt` — no separate Calendar table.
-
----
-
 # 4. System Domain
 
 Operational entities.
@@ -1825,28 +1769,6 @@ erDiagram
         uuid leadId FK
         uuid authorId FK
         string content
-        datetime createdAt
-        datetime updatedAt
-        datetime deletedAt
-    }
-
-    Task {
-        uuid id PK
-        uuid tenantId FK
-        uuid leadId FK "nullable"
-        uuid projectId FK "nullable"
-        uuid developerId FK "nullable"
-        uuid assignedUserId FK "nullable"
-        uuid createdByUserId FK
-        string title
-        string description "nullable"
-        enum type "TaskType"
-        enum priority "TaskPriority"
-        enum status "TaskStatus"
-        datetime dueAt "nullable"
-        datetime completedAt "nullable"
-        datetime reminderAt "nullable"
-        json metadata
         datetime createdAt
         datetime updatedAt
         datetime deletedAt

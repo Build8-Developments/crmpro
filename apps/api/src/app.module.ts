@@ -21,8 +21,6 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
-import { AutomationModule } from './modules/automation/automation.module';
-import { TasksModule } from './modules/tasks/tasks.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -51,8 +49,6 @@ import { envValidationSchema } from './config/env.validation';
     MonitoringModule,
     AnalyticsModule,
     NotificationsModule,
-    AutomationModule,
-    TasksModule,
   ],
   controllers: [],
   providers: [

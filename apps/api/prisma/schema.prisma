@@ -170,8 +170,6 @@ model Tenant {
   importJobs       ImportJob[]
   exportJobs       ExportJob[]
   notifications         Notification[]
-  automationWorkflows   AutomationWorkflow[]
-  tasks                 Task[]
 
   @@index([subscriptionPlanId])
 }
@@ -240,9 +238,6 @@ model User {
   notifications      Notification[]        @relation("NotificationRecipient")
   createdNotifications Notification[]      @relation("NotificationCreator")
   notificationPreferences NotificationPreference[]
-  createdAutomationWorkflows AutomationWorkflow[] @relation("AutomationWorkflowCreator")
-  assignedTasks              Task[]               @relation("AssignedTasks")
-  createdTasks               Task[]               @relation("CreatedTasks")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -278,7 +273,6 @@ model Developer {
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   projects Project[]
-  tasks    Task[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -300,7 +294,6 @@ model Project {
   developer           Developer             @relation(fields: [developerId], references: [id])
   fileAssets          FileAsset[]
   leadProjectInterests LeadProjectInterest[]
-  tasks                Task[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -392,7 +385,6 @@ model Lead {
   activities            LeadActivity[]
   notes                 LeadNote[]
   leadProjectInterests  LeadProjectInterest[]
-  tasks                 Task[]
 
   @@index([tenantId, pipelineStageId, assignedUserId])
   @@index([tenantId, createdAt(sort: Desc)])
@@ -610,185 +602,4 @@ model NotificationPreference {
 
   @@unique([userId, category])
   @@index([tenantId, userId])
-}
-
-enum AutomationTriggerType {
-  LEAD_CREATED
-  LEAD_UPDATED
-  LEAD_ASSIGNED
-  LEAD_STAGE_CHANGED
-  LEAD_WON
-  LEAD_LOST
-  IMPORT_COMPLETED
-  EXPORT_COMPLETED
-  FILE_UPLOADED
-  TASK_OVERDUE
-  SCHEDULE
-}
-
-enum AutomationConditionOperator {
-  EQUALS
-  NOT_EQUALS
-  GREATER_THAN
-  LESS_THAN
-  CONTAINS
-  NOT_CONTAINS
-  IN
-  NOT_IN
-  IS_EMPTY
-  IS_NOT_EMPTY
-}
-
-enum AutomationActionType {
-  CREATE_NOTIFICATION
-  CREATE_TASK
-  SEND_EMAIL
-  ASSIGN_AGENT
-  MOVE_STAGE
-  ADD_TAG
-  REMOVE_TAG
-  CREATE_NOTE
-  CREATE_ACTIVITY
-  WEBHOOK
-  DELAY
-}
-
-enum AutomationExecutionStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-  SKIPPED
-  PARTIAL
-}
-
-model AutomationWorkflow {
-  id              String                @id @default(uuid()) @db.Uuid
-  tenantId        String                @db.Uuid
-  name            String
-  description     String?
-  enabled         Boolean               @default(true)
-  trigger         AutomationTriggerType
-  createdByUserId String                @db.Uuid
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  deletedAt       DateTime?
-
-  tenant     Tenant               @relation(fields: [tenantId], references: [id])
-  createdBy  User                 @relation("AutomationWorkflowCreator", fields: [createdByUserId], references: [id])
-  conditions AutomationCondition[]
-  actions    AutomationAction[]
-  executions AutomationExecution[]
-
-  @@index([tenantId, enabled, deletedAt])
-  @@index([tenantId, trigger, enabled, deletedAt])
-}
-
-model AutomationCondition {
-  id         String                      @id @default(uuid()) @db.Uuid
-  workflowId String                      @db.Uuid
-  field      String
-  operator   AutomationConditionOperator
-  value      String?
-
-  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  @@index([workflowId])
-}
-
-model AutomationAction {
-  id             String              @id @default(uuid()) @db.Uuid
-  workflowId       String              @db.Uuid
-  actionType     AutomationActionType
-  configuration  Json                @default("{}")
-  executionOrder Int
-
-  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  @@index([workflowId, executionOrder])
-}
-
-model AutomationExecution {
-  id           String                    @id @default(uuid()) @db.Uuid
-  workflowId   String                    @db.Uuid
-  tenantId     String                    @db.Uuid
-  triggerType  AutomationTriggerType
-  entityType   String
-  entityId     String
-  status       AutomationExecutionStatus @default(PENDING)
-  startedAt    DateTime?
-  finishedAt   DateTime?
-  durationMs   Int?
-  errorMessage String?
-  createdAt    DateTime                  @default(now())
-
-  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  @@index([workflowId, createdAt(sort: Desc)])
-  @@index([tenantId, createdAt(sort: Desc)])
-  @@index([status])
-}
-
-enum TaskType {
-  CALL
-  MEETING
-  SITE_VISIT
-  EMAIL
-  FOLLOW_UP
-  DOCUMENT_COLLECTION
-  PAYMENT
-  REMINDER
-  CUSTOM
-}
-
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum TaskStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  OVERDUE
-}
-
-model Task {
-  id              String       @id @default(uuid()) @db.Uuid
-  tenantId        String       @db.Uuid
-  leadId          String?      @db.Uuid
-  projectId       String?      @db.Uuid
-  developerId     String?      @db.Uuid
-  assignedUserId  String?      @db.Uuid
-  createdByUserId String       @db.Uuid
-  title           String
-  description     String?
-  type            TaskType     @default(CUSTOM)
-  priority        TaskPriority @default(MEDIUM)
-  status          TaskStatus   @default(PENDING)
-  dueAt           DateTime?
-  completedAt     DateTime?
-  reminderAt      DateTime?
-  metadata        Json         @default("{}")
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?
-
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  lead       Lead?      @relation(fields: [leadId], references: [id])
-  project    Project?   @relation(fields: [projectId], references: [id])
-  developer  Developer? @relation(fields: [developerId], references: [id])
-  assignedUser User?    @relation("AssignedTasks", fields: [assignedUserId], references: [id])
-  createdBy    User     @relation("CreatedTasks", fields: [createdByUserId], references: [id])
-
-  @@index([tenantId, deletedAt])
-  @@index([tenantId, assignedUserId, status])
-  @@index([tenantId, status, priority])
-  @@index([tenantId, dueAt])
-  @@index([tenantId, leadId])
-  @@index([assignedUserId])
-  @@index([dueAt])
 }

@@ -17,7 +17,6 @@ import { UpdateLeadDto } from './dto/update-lead.dto';
 import { leadSelect, toLeadResponse } from './lead.mapper';
 import { LeadActivityService } from './services/lead-activity.service';
 import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
-import { AutomationTriggerService } from '../automation/automation-trigger.service';
 import {
   DefaultPipelinePlacement,
   DuplicateWarning,
@@ -47,7 +46,6 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
     private readonly analyticsInvalidation: AnalyticsInvalidationService,
-    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async listLeads(
@@ -174,8 +172,6 @@ export class LeadsService {
     const lead = await this.getLeadOrThrow(leadId, tenantId);
 
     void this.analyticsInvalidation.invalidateTenant(tenantId);
-
-    void this.automationTrigger.onLeadCreated({ tenantId, leadId });
 
     return {
       lead: toLeadResponse(lead),
@@ -417,11 +413,6 @@ export class LeadsService {
     const lead = await this.getLeadOrThrow(existing.id, tenantId);
 
     void this.analyticsInvalidation.invalidateTenant(tenantId);
-
-    void this.automationTrigger.onLeadUpdated({
-      tenantId,
-      leadId: existing.id,
-    });
 
     return {
       lead: toLeadResponse(lead),

@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CacheService } from '../../common/cache/cache.service';
 import { LoggingService } from '../../common/logging/logging.service';
-import { ANALYTICS_ENDPOINTS, AnalyticsExportFormat } from './analytics.constants';
+import { ANALYTICS_ENDPOINTS } from './analytics.constants';
 import {
   AgentPerformanceAnalytics,
   AnalyticsCacheResult,
   AnalyticsDateRange,
-  AnalyticsExportFile,
   DashboardOverviewData,
   DeveloperPerformanceAnalytics,
   LeadSourceAnalytics,
@@ -15,10 +14,8 @@ import {
   PipelineFunnelAnalytics,
   ProjectPerformanceAnalytics,
   RecentActivityResult,
-  TaskAnalyticsData,
 } from './analytics.types';
 import { AnalyticsQueryService } from './queries/analytics-query.service';
-import { AnalyticsExportService } from './services/analytics-export.service';
 
 type AnalyticsHandler<T> = () => Promise<T>;
 
@@ -26,7 +23,6 @@ type AnalyticsHandler<T> = () => Promise<T>;
 export class AnalyticsService {
   constructor(
     private readonly queryService: AnalyticsQueryService,
-    private readonly exportService: AnalyticsExportService,
     private readonly cacheService: CacheService,
     private readonly loggingService: LoggingService,
   ) {}
@@ -146,29 +142,6 @@ export class AnalyticsService {
       fromKey,
       toKey,
     );
-  }
-
-  getTaskAnalytics(
-    tenantId: string,
-    range: AnalyticsDateRange,
-  ): Promise<AnalyticsCacheResult<TaskAnalyticsData>> {
-    return this.withCache(
-      tenantId,
-      ANALYTICS_ENDPOINTS.tasks,
-      { from: range.from, to: range.to },
-      () => this.queryService.getTaskAnalytics(tenantId, range),
-    );
-  }
-
-  exportDashboard(
-    tenantId: string,
-    range: AnalyticsDateRange,
-    format: AnalyticsExportFormat,
-  ): Promise<AnalyticsExportFile> {
-    const startedAt = Date.now();
-    return this.exportService.exportDashboard(tenantId, range, format).finally(() => {
-      this.logAnalytics(ANALYTICS_ENDPOINTS.export, Date.now() - startedAt, false);
-    });
   }
 
   private async withCache<T>(

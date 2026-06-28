@@ -619,9 +619,6 @@ Potential future routes:
 ```text id="futureroutes"
 /integrations
 /ai-assistant
-/tasks/kanban
-/tasks/gantt
-/calendar/sync
 ```
 
 Implemented Phase 1 routes (tenant CRM app):
@@ -629,9 +626,6 @@ Implemented Phase 1 routes (tenant CRM app):
 ```text id="phase1routes"
 /analytics
 /notifications
-/automations
-/tasks
-/calendar
 ```
 
 These should be wired in the web app as corresponding modules are built in the frontend.

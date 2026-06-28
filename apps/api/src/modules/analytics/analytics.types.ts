@@ -100,31 +100,7 @@ export interface RecentActivityResult {
   totalPages: number;
 }
 
-export interface TaskAnalyticsData {
-  pending: number;
-  completed: number;
-  overdue: number;
-  completionRate: number;
-  averageCompletionTimeHours: number;
-}
-
 export interface AnalyticsCacheResult<T> {
   data: T;
   cacheHit: boolean;
-}
-
-export interface DashboardExportSnapshot {
-  overview: DashboardOverviewData;
-  pipeline: PipelineFunnelAnalytics[];
-  sources: LeadSourceAnalytics[];
-  agents: AgentPerformanceAnalytics[];
-  trends: LeadTrendPoint[];
-  status: LeadStatusDistribution;
-  generatedAt: string;
-}
-
-export interface AnalyticsExportFile {
-  buffer: Buffer;
-  mimeType: string;
-  filename: string;
 }

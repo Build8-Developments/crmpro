@@ -13,7 +13,6 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
-import { AutomationTriggerService } from '../automation/automation-trigger.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
 import {
@@ -56,7 +55,6 @@ export class FilesService {
     private readonly leadActivityService: LeadActivityService,
     private readonly storageLoggingService: StorageLoggingService,
     private readonly notificationTrigger: NotificationTriggerService,
-    private readonly automationTrigger: AutomationTriggerService,
   ) {}
 
   async requestUpload(
@@ -217,11 +215,6 @@ export class FilesService {
       fileId: file.id,
       sizeBytes: Number(file.sizeBytes),
       durationMs: Date.now() - startedAt,
-    });
-
-    void this.automationTrigger.onFileUploaded({
-      tenantId,
-      fileId: file.id,
     });
 
     return this.toCompleteUploadResponse(file);

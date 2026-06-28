@@ -1,6 +1,6 @@
 # CRMPro Postman
 
-Local API testing collection for auth, CRM modules, tasks, calendar, analytics, notifications, automations, and monitoring.
+Local API testing collection for auth, CRM modules, analytics, notifications, and monitoring.
 
 ## Files
 
@@ -40,9 +40,7 @@ Local API testing collection for auth, CRM modules, tasks, calendar, analytics, 
 | `fileId` | *(empty)* | Auto-filled by **Complete Upload** |
 | `objectKey` | *(empty)* | Auto-filled by **Request Upload** |
 | `importJobId` | *(empty)* | Auto-filled by **Create Lead Import Job** |
-| `taskId` | *(empty)* | Auto-filled by **List Tasks** or **Create Task** |
 | `notificationId` | *(empty)* | Auto-filled by **List Notifications** |
-| `automationId` | *(empty)* | Auto-filled by **List Automations** |
 
 Switch `email` / `password` to test other seeded users (`manager@primeestates.com`, `agent@primeestates.com`) and compare **Get Permissions** responses.
 
@@ -205,49 +203,6 @@ List query example:
 GET /leads?page=1&limit=20&search=ahmed&pipelineId=...&stageId=...&status=OPEN&sortBy=createdAt&sortOrder=desc
 ```
 
-## Task endpoints
-
-Run **Auth → Login** first. Optional: **Leads → List Leads** (sets `leadId`) and **Leads → Assign Lead** context for `userId`.
-
-| Request | Method | Permission |
-| --- | --- | --- |
-| List Tasks | `GET /tasks` | `task.read` |
-| Task Dashboard | `GET /tasks/dashboard` | `task.read` |
-| Create Task | `POST /tasks` | `task.create` |
-| Get Task | `GET /tasks/:id` | `task.read` |
-| Update Task | `PATCH /tasks/:id` | `task.update` |
-| Start Task | `PATCH /tasks/:id/start` | `task.update` |
-| Complete Task | `PATCH /tasks/:id/complete` | `task.update` |
-| Cancel Task | `PATCH /tasks/:id/cancel` | `task.update` |
-| Assign Task | `PATCH /tasks/:id/assign` | `task.assign` |
-| Delete Task | `DELETE /tasks/:id` | `task.delete` |
-
-List query example:
-
-```text
-GET /tasks?page=1&limit=20&assignedUserId=...&leadId=...&priority=HIGH&status=PENDING&type=CALL&overdueOnly=true&from=2026-06-01&to=2026-12-31&sortBy=dueAt&sortOrder=asc
-```
-
-Task types: `CALL`, `MEETING`, `SITE_VISIT`, `EMAIL`, `FOLLOW_UP`, `DOCUMENT_COLLECTION`, `PAYMENT`, `REMINDER`, `CUSTOM`.
-
-Priorities: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`. Statuses: `PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `OVERDUE`.
-
-When linked to a lead, task create/complete/assign/cancel append **LeadActivity** timeline events.
-
-## Calendar endpoints
-
-Calendar reads the **Task** table only — no separate calendar entity.
-
-| Request | Method | Permission |
-| --- | --- | --- |
-| Day View | `GET /calendar/day` | `task.read` |
-| Week View | `GET /calendar/week` | `task.read` |
-| Month View | `GET /calendar/month` | `task.read` |
-
-Query params: `date` (ISO date), optional `assignedUserId`, `leadId`, `projectId`, `priority`.
-
-Response shape: `[{ "date": "2026-07-01", "tasks": [] }]`.
-
 ## Analytics endpoints
 
 Requires `analytics.read`.
@@ -263,8 +218,6 @@ Requires `analytics.read`.
 | Lead Trends | `GET /analytics/trends` |
 | Status Distribution | `GET /analytics/status` |
 | Recent Activity | `GET /analytics/recent-activity` |
-| Task Analytics | `GET /analytics/tasks` |
-| Export Dashboard | `GET /analytics/export?format=csv` |
 
 Optional date range: `?from=2026-01-01&to=2026-12-31`.
 
@@ -279,21 +232,7 @@ Optional date range: `?from=2026-01-01&to=2026-12-31`.
 | Mark All Read | `PATCH /notifications/read-all` | `notification.update` |
 | Delete Notification | `DELETE /notifications/:id` | `notification.delete` |
 
-Task notification types: `TASK_ASSIGNED`, `TASK_DUE`, `TASK_OVERDUE`, `TASK_COMPLETED`.
-
-## Automation endpoints
-
-| Request | Method | Permission |
-| --- | --- | --- |
-| List Automations | `GET /automations` | `automation.read` |
-| Create Automation | `POST /automations` | `automation.create` |
-| Get Automation | `GET /automations/:id` | `automation.read` |
-| Update Automation | `PATCH /automations/:id` | `automation.update` |
-| Delete Automation | `DELETE /automations/:id` | `automation.delete` |
-| Test Automation | `POST /automations/:id/test` | `automation.execute` |
-| List Executions | `GET /automations/:id/executions` | `automation.read` |
-
-Supported action types include `CREATE_TASK` (auto-create follow-up tasks from lead events).
+Task notification types (legacy enum values): `TASK_ASSIGNED`, `TASK_DUE`, `TASK_OVERDUE`, `TASK_COMPLETED`.
 
 ## Monitoring endpoints
 
@@ -305,7 +244,7 @@ No `/api/v1` prefix — root-level routes:
 | Jobs Health | `GET /jobs/health` |
 | Metrics | `GET /metrics` |
 
-Jobs health includes `taskReminder` worker. Metrics include `tasks` snapshot and `task` queue counts.
+Jobs health reports import, export, cleanup, and notification worker status. Metrics include queue counts and notification snapshots.
 
 ## Token auto-save
 
@@ -319,14 +258,19 @@ Chunk 2 returned `{ success, message, user }` — no tokens.
 
 Chunk 3+ login returns `accessToken` and `refreshToken` — both auto-save to the environment.
 
-## Bearer token injection
+## Bearer token injection and auto-refresh
 
 Collection **pre-request script**:
 
-- If `accessToken` is set → adds `Authorization: Bearer {{accessToken}}`
-- If empty → no header (login and other public routes work unchanged)
+- If the access token is missing or expired (default 15m, 30s buffer), calls `POST /auth/refresh` with `{{refreshToken}}` and saves the new tokens
+- Skips refresh on `POST /auth/login` and `POST /auth/refresh`
+- If `accessToken` is set → adds `Authorization: Bearer {{accessToken}}` on protected routes
 
-Protected routes work after login once tokens are returned.
+Collection **test script** (Collection Runner):
+
+- On `401 Unauthorized`, attempts one token refresh and re-runs the same request
+
+After login, protected routes stay authenticated without manually running **Refresh Token**. Re-import the collection if you already had an older version loaded in Postman.
 
 ## List query params
 
@@ -349,8 +293,6 @@ Paginated list endpoints support:
 **Projects** — `search` matches project `name` and `location`. Filters: `developerId`, `isActive`. Sort: `name`, `createdAt`, `updatedAt`, `isActive` (default `name` asc). Soft-deleted rows excluded. List items include `developer` summary.
 
 **Leads** — `search` matches `fullName`, phones, `email`. Filters: `pipelineId`, `stageId`, `sourceId`, `assignedUserId`, `status`, `projectId`. Sort: `createdAt`, `updatedAt`, `fullName`, `lastContactedAt` (default `createdAt` desc). Soft-deleted rows excluded.
-
-**Tasks** — `search` matches `title`, `description`. Filters: `assignedUserId`, `leadId`, `projectId`, `priority`, `status`, `type`, `overdueOnly`, `from`, `to` (due date range). Sort: `dueAt`, `createdAt`, `updatedAt`, `priority`, `title` (default `dueAt` asc). Soft-deleted rows excluded.
 
 ## List response shape
 

@@ -5,7 +5,6 @@ import {
   LeadStatus,
   PipelineCloseType,
   Prisma,
-  TaskStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
@@ -25,7 +24,6 @@ import {
   ProjectPerformanceAnalytics,
   RecentActivityItem,
   RecentActivityResult,
-  TaskAnalyticsData,
 } from '../analytics.types';
 import {
   buildLeadCreatedAtFilter,
@@ -734,66 +732,5 @@ export class AnalyticsQueryService {
       default:
         return `Stage changed: ${leadName}`;
     }
-  }
-
-  async getTaskAnalytics(
-    tenantId: string,
-    range: AnalyticsDateRange,
-  ): Promise<TaskAnalyticsData> {
-    const createdAt = buildLeadCreatedAtFilter(range);
-
-    const baseWhere: Prisma.TaskWhereInput = {
-      tenantId,
-      deletedAt: null,
-      ...(createdAt ? { createdAt } : {}),
-    };
-
-    const [pending, completed, overdue, completedTasks] = await Promise.all([
-      this.prisma.task.count({
-        where: {
-          ...baseWhere,
-          status: { in: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS] },
-        },
-      }),
-      this.prisma.task.count({
-        where: { ...baseWhere, status: TaskStatus.COMPLETED },
-      }),
-      this.prisma.task.count({
-        where: { ...baseWhere, status: TaskStatus.OVERDUE },
-      }),
-      this.prisma.task.findMany({
-        where: {
-          ...baseWhere,
-          status: TaskStatus.COMPLETED,
-          completedAt: { not: null },
-        },
-        select: { createdAt: true, completedAt: true },
-        take: 1000,
-      }),
-    ]);
-
-    const totalFinished = completed + overdue;
-    const completionRate =
-      totalFinished === 0
-        ? 100
-        : Math.round((completed / totalFinished) * 1000) / 10;
-
-    let totalMs = 0;
-    for (const task of completedTasks) {
-      if (task.completedAt) {
-        totalMs += task.completedAt.getTime() - task.createdAt.getTime();
-      }
-    }
-
-    return {
-      pending,
-      completed,
-      overdue,
-      completionRate,
-      averageCompletionTimeHours:
-        completedTasks.length === 0
-          ? 0
-          : Math.round((totalMs / completedTasks.length / 3_600_000) * 10) / 10,
-    };
   }
 }

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "crmpro-auth-collection",
     "name": "CRMPro API — Complete",
-    "description": "CRMPro API — complete local development collection.\n\nImport with crmpro-local.postman_environment.json.\n\nBase URL: {{baseUrl}} = http://localhost:3000/api/v1\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Projects, Leads, Files, Import/Export Jobs, Tasks, Calendar, Analytics, Notifications, Automations, Monitoring, Debug.\n\nStart: Auth → Login, then run module folders.",
+    "description": "CRMPro API — complete local development collection.\n\nImport with crmpro-local.postman_environment.json.\n\nBase URL: {{baseUrl}} = http://localhost:3000/api/v1\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Projects, Leads, Files, Import/Export Jobs, Analytics, Notifications, Monitoring, Debug.\n\nStart: Auth → Login, then run module folders.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -11,13 +11,150 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "const accessToken = pm.environment.get('accessToken');",
+          "function getRequestPath() {",
+          "  const url = pm.request.url;",
+          "  if (typeof url.getPath === 'function') {",
+          "    const path = url.getPath();",
+          "    if (Array.isArray(path)) {",
+          "      return path.filter(Boolean).join('/');",
+          "    }",
+          "    if (typeof path === 'string') {",
+          "      return path.replace(/^\\/+/, '').replace(/\\/+$/, '');",
+          "    }",
+          "  }",
+          "  if (Array.isArray(url.path)) {",
+          "    return url.path.filter(Boolean).join('/');",
+          "  }",
+          "  return '';",
+          "}",
           "",
-          "if (accessToken) {",
+          "function isPublicAuthRoute() {",
+          "  return /(^|\\/)auth\\/(login|refresh)$/.test(getRequestPath());",
+          "}",
+          "",
+          "function parseJwtPayload(token) {",
+          "  try {",
+          "    const parts = token.split('.');",
+          "    if (parts.length !== 3) return null;",
+          "    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');",
+          "    return JSON.parse(atob(base64));",
+          "  } catch (e) {",
+          "    return null;",
+          "  }",
+          "}",
+          "",
+          "function isAccessTokenExpired(token, bufferSeconds = 30) {",
+          "  const payload = parseJwtPayload(token);",
+          "  if (!payload || typeof payload.exp !== 'number') return true;",
+          "  return Date.now() >= payload.exp * 1000 - bufferSeconds * 1000;",
+          "}",
+          "",
+          "function saveTokens(json) {",
+          "  if (json.accessToken) {",
+          "    pm.environment.set('accessToken', json.accessToken);",
+          "  }",
+          "  if (json.refreshToken) {",
+          "    pm.environment.set('refreshToken', json.refreshToken);",
+          "    const sessionId = json.refreshToken.split('.')[0];",
+          "    if (sessionId) {",
+          "      pm.environment.set('sessionId', sessionId);",
+          "    }",
+          "  }",
+          "}",
+          "",
+          "function refreshAccessToken(refreshToken) {",
+          "  const baseUrl = pm.environment.get('baseUrl');",
+          "  const response = pm.sendRequest({",
+          "    url: `${baseUrl}/auth/refresh`,",
+          "    method: 'POST',",
+          "    header: { 'Content-Type': 'application/json' },",
+          "    body: {",
+          "      mode: 'raw',",
+          "      raw: JSON.stringify({ refreshToken }),",
+          "    },",
+          "  });",
+          "",
+          "  if (response.code === 200 || response.code === 201) {",
+          "    const json = response.json();",
+          "    saveTokens(json);",
+          "    return json.accessToken || null;",
+          "  }",
+          "",
+          "  console.warn('Token refresh failed:', response.code);",
+          "  return null;",
+          "}",
+          "",
+          "let accessToken = pm.environment.get('accessToken');",
+          "const refreshToken = pm.environment.get('refreshToken');",
+          "",
+          "if (!isPublicAuthRoute() && refreshToken && (!accessToken || isAccessTokenExpired(accessToken))) {",
+          "  console.log('Access token missing or expired — refreshing...');",
+          "  const newToken = refreshAccessToken(refreshToken);",
+          "  if (newToken) {",
+          "    accessToken = newToken;",
+          "    console.log('Access token refreshed');",
+          "  }",
+          "}",
+          "",
+          "if (accessToken && !isPublicAuthRoute()) {",
           "  pm.request.headers.upsert({",
           "    key: 'Authorization',",
           "    value: `Bearer ${accessToken}`,",
           "  });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function getRequestPath() {",
+          "  const url = pm.request.url;",
+          "  if (typeof url.getPath === 'function') {",
+          "    const path = url.getPath();",
+          "    if (Array.isArray(path)) {",
+          "      return path.filter(Boolean).join('/');",
+          "    }",
+          "    if (typeof path === 'string') {",
+          "      return path.replace(/^\\/+/, '').replace(/\\/+$/, '');",
+          "    }",
+          "  }",
+          "  if (Array.isArray(url.path)) {",
+          "    return url.path.filter(Boolean).join('/');",
+          "  }",
+          "  return '';",
+          "}",
+          "",
+          "if (pm.response.code === 401 && !/(^|\\/)auth\\/(login|refresh)$/.test(getRequestPath())) {",
+          "  const refreshToken = pm.environment.get('refreshToken');",
+          "  if (refreshToken && !pm.variables.get('__retriedAfterRefresh')) {",
+          "    const baseUrl = pm.environment.get('baseUrl');",
+          "    const refreshResponse = pm.sendRequest({",
+          "      url: `${baseUrl}/auth/refresh`,",
+          "      method: 'POST',",
+          "      header: { 'Content-Type': 'application/json' },",
+          "      body: {",
+          "        mode: 'raw',",
+          "        raw: JSON.stringify({ refreshToken }),",
+          "      },",
+          "    });",
+          "",
+          "    if (refreshResponse.code === 200 || refreshResponse.code === 201) {",
+          "      const json = refreshResponse.json();",
+          "      if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
+          "      if (json.refreshToken) {",
+          "        pm.environment.set('refreshToken', json.refreshToken);",
+          "        const sessionId = json.refreshToken.split('.')[0];",
+          "        if (sessionId) pm.environment.set('sessionId', sessionId);",
+          "      }",
+          "      pm.variables.set('__retriedAfterRefresh', '1');",
+          "      postman.setNextRequest(pm.info.requestName);",
+          "    }",
+          "  }",
+          "} else {",
+          "  pm.variables.unset('__retriedAfterRefresh');",
           "}"
         ]
       }
@@ -2381,447 +2518,6 @@
       ]
     },
     {
-      "name": "Tasks",
-      "description": "Task management — CRUD, status transitions, assignment, dashboard. Requires `task.*` permissions.",
-      "item": [
-        {
-          "name": "List Tasks",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
-                  "const json = pm.response.json();",
-                  "if (json.data?.items?.[0]?.id) {",
-                  "  pm.environment.set('taskId', json.data.items[0].id);",
-                  "  console.log('taskId saved:', json.data.items[0].id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks?page=1&limit=20&sortBy=dueAt&sortOrder=asc",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                },
-                {
-                  "key": "sortBy",
-                  "value": "dueAt"
-                },
-                {
-                  "key": "sortOrder",
-                  "value": "asc"
-                },
-                {
-                  "key": "assignedUserId",
-                  "value": "{{userId}}",
-                  "disabled": true
-                },
-                {
-                  "key": "leadId",
-                  "value": "{{leadId}}",
-                  "disabled": true
-                },
-                {
-                  "key": "projectId",
-                  "value": "{{projectId}}",
-                  "disabled": true
-                },
-                {
-                  "key": "priority",
-                  "value": "HIGH",
-                  "disabled": true
-                },
-                {
-                  "key": "status",
-                  "value": "PENDING",
-                  "disabled": true
-                },
-                {
-                  "key": "type",
-                  "value": "CALL",
-                  "disabled": true
-                },
-                {
-                  "key": "overdueOnly",
-                  "value": "false",
-                  "disabled": true
-                },
-                {
-                  "key": "from",
-                  "value": "2026-06-01",
-                  "disabled": true
-                },
-                {
-                  "key": "to",
-                  "value": "2026-12-31",
-                  "disabled": true
-                },
-                {
-                  "key": "search",
-                  "value": "call",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "Paginated task list. Filters: assignedUserId, leadId, projectId, priority, status, type, overdueOnly, from, to, search."
-          },
-          "response": []
-        },
-        {
-          "name": "Task Dashboard",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks/dashboard",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "dashboard"
-              ],
-              "query": [
-                {
-                  "key": "assignedUserId",
-                  "value": "{{userId}}",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "Returns pending, completedToday, overdue, dueToday, completionRate, averageCompletionTimeHours."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Task",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
-                  "const json = pm.response.json();",
-                  "if (json.data?.id) { pm.environment.set('taskId', json.data.id); console.log('taskId saved:', json.data.id); }"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Call customer\",\n  \"description\": \"Follow up on Palm Hills inquiry\",\n  \"type\": \"CALL\",\n  \"priority\": \"HIGH\",\n  \"leadId\": \"{{leadId}}\",\n  \"projectId\": \"{{projectId}}\",\n  \"assignedUserId\": \"{{userId}}\",\n  \"dueAt\": \"2026-07-01T09:00:00.000Z\",\n  \"reminderAt\": \"2026-07-01T08:30:00.000Z\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/tasks",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks"
-              ]
-            },
-            "description": "Create a task. Optional leadId links lead timeline activity."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Task",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update Task",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Call customer (updated)\",\n  \"priority\": \"CRITICAL\",\n  \"dueAt\": \"2026-07-02T10:00:00.000Z\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Start Task",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}/start",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "start"
-              ]
-            },
-            "description": "Transitions status to IN_PROGRESS."
-          },
-          "response": []
-        },
-        {
-          "name": "Complete Task",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}/complete",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "complete"
-              ]
-            },
-            "description": "Transitions status to COMPLETED and sets completedAt."
-          },
-          "response": []
-        },
-        {
-          "name": "Cancel Task",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}/cancel",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "cancel"
-              ]
-            },
-            "description": "Transitions status to CANCELLED."
-          },
-          "response": []
-        },
-        {
-          "name": "Assign Task",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}/assign",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "assign"
-              ]
-            },
-            "description": "Assign task to user. Requires task.assign."
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Task",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/tasks/{{taskId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ]
-            },
-            "description": "Soft delete. Requires task.delete."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Calendar",
-      "description": "Calendar views query the Task table grouped by dueAt date. No separate calendar entity.",
-      "item": [
-        {
-          "name": "Day View",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/calendar/day?date=2026-07-01",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "calendar",
-                "day"
-              ],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-07-01"
-                },
-                {
-                  "key": "assignedUserId",
-                  "value": "{{userId}}",
-                  "disabled": true
-                },
-                {
-                  "key": "leadId",
-                  "value": "{{leadId}}",
-                  "disabled": true
-                },
-                {
-                  "key": "projectId",
-                  "value": "{{projectId}}",
-                  "disabled": true
-                },
-                {
-                  "key": "priority",
-                  "value": "HIGH",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "Returns [{ date, tasks[] }] for a single day."
-          },
-          "response": []
-        },
-        {
-          "name": "Week View",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/calendar/week?date=2026-07-01",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "calendar",
-                "week"
-              ],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-07-01"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Month View",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/calendar/month?date=2026-07-01",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "calendar",
-                "month"
-              ],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-07-01"
-                }
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
       "name": "Analytics",
       "description": "Analytics dashboard endpoints. Requires analytics.read.",
       "item": [
@@ -2852,37 +2548,6 @@
                 }
               ]
             }
-          },
-          "response": []
-        },
-        {
-          "name": "Task Analytics",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/analytics/tasks",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "analytics",
-                "tasks"
-              ],
-              "query": [
-                {
-                  "key": "from",
-                  "value": "2026-01-01",
-                  "disabled": true
-                },
-                {
-                  "key": "to",
-                  "value": "2026-12-31",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "Returns pending, completed, overdue, completionRate, averageCompletionTimeHours."
           },
           "response": []
         },
@@ -3130,41 +2795,6 @@
             "description": ""
           },
           "response": []
-        },
-        {
-          "name": "Export Dashboard CSV",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/analytics/export?from=2026-01-01&to=2026-12-31&format=csv",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "analytics",
-                "export"
-              ],
-              "query": [
-                {
-                  "key": "from",
-                  "value": "2026-01-01",
-                  "disabled": true
-                },
-                {
-                  "key": "to",
-                  "value": "2026-12-31",
-                  "disabled": true
-                },
-                {
-                  "key": "format",
-                  "value": "csv"
-                }
-              ]
-            },
-            "description": ""
-          },
-          "response": []
         }
       ]
     },
@@ -3351,277 +2981,13 @@
             "description": "",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"preferences\": [\n    {\n      \"category\": \"TASK_UPDATES\",\n      \"inAppEnabled\": true,\n      \"emailEnabled\": false\n    }\n  ]\n}",
+              "raw": "{\n  \"preferences\": [\n    {\n      \"category\": \"LEAD_UPDATES\",\n      \"inAppEnabled\": true,\n      \"emailEnabled\": false\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Automations",
-      "description": "Workflow automation engine. CREATE_TASK action supported in Phase 1.",
-      "item": [
-        {
-          "name": "List Automations",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data?.items?.[0]?.id) {",
-                  "  pm.environment.set('automationId', json.data.items[0].id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/automations?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Automation",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "List Executions",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}/executions?page=1&limit=20",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}",
-                "executions"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Create Automation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/automations",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations"
-              ]
-            },
-            "description": "",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Auto task on lead assign\",\n  \"description\": \"Creates follow-up call task\",\n  \"trigger\": \"LEAD_ASSIGNED\",\n  \"enabled\": true,\n  \"conditions\": [],\n  \"actions\": [\n    {\n      \"type\": \"CREATE_TASK\",\n      \"sortOrder\": 0,\n      \"configuration\": {\n        \"title\": \"Call Customer\",\n        \"type\": \"CALL\",\n        \"priority\": \"HIGH\",\n        \"dueAt\": \"2026-07-01T09:00:00.000Z\"\n      }\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data?.id) pm.environment.set('automationId', json.data.id);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Update Automation",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}"
-              ]
-            },
-            "description": "",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Auto task on lead assign (updated)\",\n  \"enabled\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Enable Automation",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}/enable",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}",
-                "enable"
-              ]
-            },
-            "description": ""
-          },
-          "response": []
-        },
-        {
-          "name": "Disable Automation",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}/disable",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}",
-                "disable"
-              ]
-            },
-            "description": ""
-          },
-          "response": []
-        },
-        {
-          "name": "Test Automation",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}/test",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}",
-                "test"
-              ]
-            },
-            "description": "Dry-run test. Requires automation.execute.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"entityType\": \"lead\",\n  \"entityId\": \"{{leadId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Delete Automation",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/automations/{{automationId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "automations",
-                "{{automationId}}"
-              ]
-            },
-            "description": "Requires automation.delete."
           },
           "response": []
         }
@@ -3668,7 +3034,7 @@
                 "health"
               ]
             },
-            "description": "Includes taskReminder worker status."
+            "description": "Returns redis, queue, and worker health."
           },
           "response": []
         },
@@ -3688,7 +3054,7 @@
                 "metrics"
               ]
             },
-            "description": "Includes tasks metrics and task queue counts."
+            "description": "HTTP, queue, notification, and worker metrics."
           },
           "response": []
         }
