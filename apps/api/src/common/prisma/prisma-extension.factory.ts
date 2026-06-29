@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@crmpro/database';
 import { ConfigService } from '@nestjs/config';
 import {
   DEFAULT_SLOW_QUERY_THRESHOLD_MS,

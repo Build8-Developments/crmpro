@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { NotificationPriority, NotificationType } from '@prisma/client';
+import { NotificationPriority, NotificationType } from '@crmpro/database';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,

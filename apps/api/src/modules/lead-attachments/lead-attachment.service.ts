@@ -3,7 +3,7 @@ import {
   FileAssetCategory,
   LeadActivityEventType,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
 import { LeadAttachmentSummary } from './lead-attachment.types';

@@ -1,0 +1,38 @@
+{
+  "name": "@crmpro/database",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "dotenv -e ../../apps/api/.env -- prisma migrate dev",
+    "prisma:migrate:deploy": "dotenv -e ../../apps/api/.env -- prisma migrate deploy",
+    "prisma:migrate:reset": "dotenv -e ../../apps/api/.env -- prisma migrate reset",
+    "prisma:db:push": "dotenv -e ../../apps/api/.env -- prisma db push",
+    "prisma:studio": "dotenv -e ../../apps/api/.env -- prisma studio",
+    "prisma:seed": "dotenv -e ../../apps/api/.env -- prisma db seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.8.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "argon2": "^0.44.0",
+    "dotenv": "^17.4.2",
+    "dotenv-cli": "^8.0.0",
+    "pg": "^8.22.0",
+    "prisma": "^7.8.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

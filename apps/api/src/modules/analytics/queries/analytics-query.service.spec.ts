@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { JobStatus, LeadStatus, PipelineCloseType } from '@prisma/client';
+import { JobStatus, LeadStatus, PipelineCloseType } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AnalyticsQueryService } from './analytics-query.service';
 

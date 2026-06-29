@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { JobStatus } from '@prisma/client';
+import { JobStatus } from '@crmpro/database';
 import { LoggingService } from '../../common/logging/logging.service';
 import { RequestContextService } from '../../common/logging/request-context.service';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';

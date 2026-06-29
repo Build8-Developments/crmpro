@@ -1,4 +1,4 @@
-import { FileAssetCategory } from '@prisma/client';
+import { FileAssetCategory } from '@crmpro/database';
 import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { PHASE1_UPLOAD_CATEGORIES } from '../files.constants';
 

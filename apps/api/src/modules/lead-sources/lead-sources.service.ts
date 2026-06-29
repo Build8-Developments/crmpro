@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   buildPaginatedResponse,

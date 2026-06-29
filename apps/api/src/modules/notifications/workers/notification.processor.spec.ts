@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@crmpro/database';
 import { WorkerLoggingService } from '../../../common/logging/worker-logging.service';
 import { BullService } from '../../jobs/bull/bull.service';
 import { NotificationDeliveryService } from '../notification-delivery.service';

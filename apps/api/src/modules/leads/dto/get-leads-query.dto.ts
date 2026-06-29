@@ -1,4 +1,4 @@
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus } from '@crmpro/database';
 import { IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { ListQueryDto } from '../../../common/query';
 

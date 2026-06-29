@@ -2,7 +2,7 @@ import {
   ExportFormat,
   ExportType,
   JobStatus,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { LeadExportParams } from '../../leads/types/lead.types';
 
 export interface ExportJobFileSummary {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditActorType, Prisma } from '@prisma/client';
+import { AuditActorType, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   IN_APP_NOTIFICATION_CHANNEL,

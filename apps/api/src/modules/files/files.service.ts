@@ -6,7 +6,7 @@ import {
 import {
   FileAssetCategory,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';

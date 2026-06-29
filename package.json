@@ -9,6 +9,12 @@
     "dev:web-stack": "concurrently -n web,api \"pnpm dev:web\" \"pnpm dev:api\"",
     "dev:admin-stack": "concurrently -n admin,api \"pnpm dev:admin\" \"pnpm dev:api\"",
     "dev:all": "concurrently -n web,admin,api \"pnpm dev:web\" \"pnpm dev:admin\" \"pnpm dev:api\"",
+    "db:generate": "pnpm --filter @crmpro/database prisma:generate",
+    "db:migrate": "pnpm --filter @crmpro/database prisma:migrate:dev",
+    "db:deploy": "pnpm --filter @crmpro/database prisma:migrate:deploy",
+    "db:reset": "pnpm --filter @crmpro/database prisma:migrate:reset",
+    "db:seed": "pnpm --filter @crmpro/database prisma:seed",
+    "db:studio": "pnpm --filter @crmpro/database prisma:studio",
     "docker:up": "docker compose -f docker/docker-compose.local.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.local.yml down",
     "docker:logs": "docker compose -f docker/docker-compose.local.yml logs -f"

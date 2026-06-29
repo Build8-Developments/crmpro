@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LeadActivityEventType, Prisma } from '@prisma/client';
+import { LeadActivityEventType, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { LeadActivityResponse } from '../types/lead.types';
 

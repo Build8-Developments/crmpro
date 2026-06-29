@@ -1,4 +1,4 @@
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@crmpro/database';
 import { NotificationTemplateService } from './notification-template.service';
 
 describe('NotificationTemplateService', () => {

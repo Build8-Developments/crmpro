@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@crmpro/database';
 import { CacheService } from '../../common/cache/cache.service';
 import { LoggingService } from '../../common/logging/logging.service';
 import { InAppNotificationChannel } from './channels/in-app-notification.channel';

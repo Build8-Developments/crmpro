@@ -1,4 +1,4 @@
-import { FileAssetCategory } from '@prisma/client';
+import { FileAssetCategory } from '@crmpro/database';
 
 export interface RequestUploadResponse {
   uploadUrl: string;

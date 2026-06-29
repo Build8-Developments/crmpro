@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationStatus, NotificationType } from '@prisma/client';
+import { NotificationStatus, NotificationType } from '@crmpro/database';
 import { CacheService } from '../../common/cache/cache.service';
 import { LoggingService } from '../../common/logging/logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';

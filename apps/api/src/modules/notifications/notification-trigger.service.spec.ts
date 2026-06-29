@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@crmpro/database';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationQueueService } from './notification-queue.service';
 import { NotificationTriggerService } from './notification-trigger.service';

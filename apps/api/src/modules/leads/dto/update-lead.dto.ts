@@ -1,4 +1,4 @@
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus } from '@crmpro/database';
 import { Transform, Type } from 'class-transformer';
 import {
   IsArray,

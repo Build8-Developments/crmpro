@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@crmpro/database';
 import { SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { LeadsService } from '../../leads/leads.service';

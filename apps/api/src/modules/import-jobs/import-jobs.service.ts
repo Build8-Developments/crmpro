@@ -9,7 +9,7 @@ import {
   ImportJob,
   JobStatus,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { parse } from 'csv-parse/sync';
 import {
   buildPaginatedResponse,

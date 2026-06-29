@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Notification } from '@prisma/client';
+import { Notification } from '@crmpro/database';
 import { LoggingService } from '../../common/logging/logging.service';
 import { InAppNotificationChannel } from './channels/in-app-notification.channel';
 import { NotificationDeliveryChannel } from './entities/notification-delivery.types';

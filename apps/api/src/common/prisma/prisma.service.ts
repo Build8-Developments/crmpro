@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@crmpro/database';
 import { LoggingService } from '../logging/logging.service';
 import { createSlowQueryExtension } from './prisma-extension.factory';
 

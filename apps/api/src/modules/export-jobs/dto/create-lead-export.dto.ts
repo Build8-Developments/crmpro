@@ -1,4 +1,4 @@
-import { ExportFormat } from '@prisma/client';
+import { ExportFormat } from '@crmpro/database';
 import { Type } from 'class-transformer';
 import {
   IsEnum,

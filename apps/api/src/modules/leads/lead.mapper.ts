@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@crmpro/database';
 import { LeadResponse } from './types/lead.types';
 
 export const leadSelect = {

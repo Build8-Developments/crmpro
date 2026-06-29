@@ -1,4 +1,4 @@
-import { InterestLevel, LeadStatus, PipelineCloseType } from '@prisma/client';
+import { InterestLevel, LeadStatus, PipelineCloseType } from '@crmpro/database';
 
 export interface LeadSourceSummary {
   id: string;

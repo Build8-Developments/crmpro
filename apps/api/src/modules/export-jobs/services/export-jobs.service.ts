@@ -11,7 +11,7 @@ import {
   FileAssetCategory,
   JobStatus,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import {
   buildPaginatedResponse,
   getPaginationParams,

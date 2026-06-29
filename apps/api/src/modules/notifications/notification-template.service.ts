@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   NotificationPriority,
   NotificationType,
-} from '@prisma/client';
+} from '@crmpro/database';
 import {
   NotificationTemplateInput,
   NotificationTemplateResult,

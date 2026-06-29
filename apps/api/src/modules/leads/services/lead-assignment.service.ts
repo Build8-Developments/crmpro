@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeadActivityEventType, LeadStatus, Prisma } from '@prisma/client';
+import { LeadActivityEventType, LeadStatus, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AssignLeadDto } from '../dto/assign-lead.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { NotificationPreferenceCategory } from '@prisma/client';
+import { NotificationPreferenceCategory } from '@crmpro/database';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,

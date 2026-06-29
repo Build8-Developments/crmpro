@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { LeadActivityEventType, LeadStatus, Prisma } from '@prisma/client';
+import { LeadActivityEventType, LeadStatus, Prisma } from '@crmpro/database';
 import { isEmail } from 'class-validator';
 import {
   buildPaginatedResponse,

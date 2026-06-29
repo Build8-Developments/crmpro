@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@crmpro/database';
 import { AnalyticsDateRange } from '../analytics.types';
 
 const RESPONSE_EVENTS_IN_SQL = Prisma.sql`

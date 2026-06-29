@@ -3,7 +3,7 @@ import {
   NotificationPriority,
   NotificationType,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { NotificationPreferencesService } from './notification-preferences.service';
 import { NotificationQueueService } from './notification-queue.service';
 import { TriggerNotificationInput } from './entities/notification.types';

@@ -24,6 +24,10 @@ import { NotificationsService } from './notifications.service';
     NotificationMetricsStore,
     InAppNotificationChannel,
   ],
-  exports: [NotificationTriggerService, NotificationMetricsStore],
+  exports: [
+    NotificationTriggerService,
+    NotificationMetricsStore,
+    NotificationDeliveryService,
+  ],
 })
 export class NotificationsModule {}

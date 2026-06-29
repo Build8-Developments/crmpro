@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Tenant } from '@prisma/client';
+import { Prisma, Tenant } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 const userWithRoleAndTenant = Prisma.validator<Prisma.UserDefaultArgs>()({

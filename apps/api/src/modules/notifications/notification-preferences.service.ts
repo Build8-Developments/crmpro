@@ -3,7 +3,7 @@ import {
   NotificationPreferenceCategory,
   NotificationType,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   NOTIFICATION_PREFERENCE_CATEGORIES,

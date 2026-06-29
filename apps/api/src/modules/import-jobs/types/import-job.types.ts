@@ -1,4 +1,4 @@
-import { JobStatus } from '@prisma/client';
+import { JobStatus } from '@crmpro/database';
 
 export interface ImportJobErrorEntry {
   row: number;

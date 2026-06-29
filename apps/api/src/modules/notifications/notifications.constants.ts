@@ -2,7 +2,7 @@ import {
   NotificationPreferenceCategory,
   NotificationPriority,
   NotificationType,
-} from '@prisma/client';
+} from '@crmpro/database';
 
 export const NOTIFICATION_JOB_NAME = 'deliver-notification';
 

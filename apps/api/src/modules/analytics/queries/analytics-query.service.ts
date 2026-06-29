@@ -5,7 +5,7 @@ import {
   LeadStatus,
   PipelineCloseType,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   DEFAULT_RECENT_ACTIVITY_LIMIT,

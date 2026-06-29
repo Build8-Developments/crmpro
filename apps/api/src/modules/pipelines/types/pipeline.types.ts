@@ -1,4 +1,4 @@
-import type { PipelineCloseType } from '@prisma/client';
+import type { PipelineCloseType } from '@crmpro/database';
 
 export interface PipelineStageResponse {
   id: string;

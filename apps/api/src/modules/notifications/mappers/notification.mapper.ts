@@ -4,7 +4,7 @@ import {
   NotificationPriority,
   NotificationStatus,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import {
   NOTIFICATION_PREFERENCE_LABELS,
 } from '../notifications.constants';

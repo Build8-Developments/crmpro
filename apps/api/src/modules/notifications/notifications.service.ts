@@ -8,7 +8,7 @@ import {
   NotificationStatus,
   NotificationType,
   Prisma,
-} from '@prisma/client';
+} from '@crmpro/database';
 import {
   buildPaginatedResponse,
   getPaginationParams,

@@ -1,4 +1,4 @@
-import { PipelineCloseType } from '@prisma/client';
+import { PipelineCloseType } from '@crmpro/database';
 import {
   IsBoolean,
   IsEnum,

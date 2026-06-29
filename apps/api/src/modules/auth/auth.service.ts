@@ -3,7 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { TenantStatus, UserSession } from '@prisma/client';
+import { TenantStatus, UserSession } from '@crmpro/database';
 import { AuthLoggingService } from '../../common/logging/auth-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from '../../common/security/password.service';

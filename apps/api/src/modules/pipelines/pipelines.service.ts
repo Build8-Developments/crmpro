@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PipelineCloseType, Prisma } from '@prisma/client';
+import { PipelineCloseType, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { PipelineChangedEvent } from '../../common/events/domain-event.types';

@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 @Injectable()

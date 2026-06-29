@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JobStatus, Prisma } from '@prisma/client';
+import { JobStatus, Prisma } from '@crmpro/database';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { LoggingService } from '../../common/logging/logging.service';
 import { RequestContextService } from '../../common/logging/request-context.service';

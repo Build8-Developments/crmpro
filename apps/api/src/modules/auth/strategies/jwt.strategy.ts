@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { TenantStatus } from '@prisma/client';
+import { TenantStatus } from '@crmpro/database';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { UsersService } from '../../users/users.service';
