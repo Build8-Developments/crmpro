@@ -7,7 +7,7 @@ Local API testing collection for auth, CRM modules, analytics, notifications, an
 | File | Purpose |
 | --- | --- |
 | `crmpro-auth.postman_collection.json` | Tenant API requests, scripts, folder structure |
-| `crmpro-admin-auth.postman_collection.json` | Admin API auth endpoints |
+| `crmpro-admin-auth.postman_collection.json` | Admin API — auth, admins, plans, contracts, tenants, audit explorer |
 | `crmpro-local.postman_environment.json` | Local dev variables (tenant + admin) |
 
 ## Import
@@ -17,6 +17,98 @@ Local API testing collection for auth, CRM modules, analytics, notifications, an
 3. Select environment **CRMPro Local** in the top-right dropdown
 4. Start API: `pnpm --filter api start:dev`
 5. Run **Auth → Login**
+
+## Global Error Contract
+
+Both **CRM API** (`apps/api`) and **Admin API** (`apps/admin-api`) return errors in one standardized envelope.
+
+### Error response shape
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable message",
+    "details": null
+  }
+}
+```
+
+`details` is optional and usually `null` except for validation failures.
+
+Success responses use `{ success: true, data: ... }`. Auth login and refresh wrap tokens under `data`:
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "accessToken": "...",
+    "refreshToken": "...",
+    "user": {}
+  }
+}
+```
+
+Refresh returns `data.accessToken` and `data.refreshToken` only (no `user`).
+
+### Error codes
+
+| Code | HTTP status | Typical cause |
+| --- | --- | --- |
+| `VALIDATION_ERROR` | 400 | DTO / request validation failed |
+| `BAD_REQUEST` | 400 | Invalid business input |
+| `UNAUTHORIZED` | 401 | Missing or invalid auth |
+| `FORBIDDEN` | 403 | Permission or tenant access denied |
+| `NOT_FOUND` | 404 | Resource not found |
+| `CONFLICT` | 409 | Duplicate resource (e.g. email) |
+| `RATE_LIMITED` | 429 | Rate limit exceeded |
+| `INTERNAL_SERVER_ERROR` | 500 | Unexpected server failure |
+
+### Validation `details` shape
+
+Field-based validation errors use property names as keys:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": {
+      "email": ["must be an email"],
+      "password": ["must be longer than 8 characters"]
+    }
+  }
+}
+```
+
+### Examples
+
+Forbidden:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Tenant account is suspended."
+  }
+}
+```
+
+Duplicate email (Prisma unique constraint):
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Email already exists"
+  }
+}
+```
 
 ## Environment
 
@@ -253,11 +345,9 @@ Jobs health reports import, export, cleanup, and notification worker status. Met
 
 - Asserts a successful status code (200 or 201)
 - Parses JSON response
-- Saves `accessToken`, `refreshToken`, `sessionId` **only if present**
+- Saves `data.accessToken`, `data.refreshToken`, and derived `sessionId` when present
 
-Chunk 2 returned `{ success, message, user }` — no tokens.
-
-Chunk 3+ login returns `accessToken` and `refreshToken` — both auto-save to the environment.
+Login and refresh return tokens under `data` — both auto-save to the environment.
 
 ## Bearer token injection and auto-refresh
 

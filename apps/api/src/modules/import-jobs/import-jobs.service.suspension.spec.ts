@@ -7,6 +7,7 @@ import { LeadsService } from '../leads/leads.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
+import { AuditWriterService } from '../audit/audit-writer.service';
 import { ImportJobsService } from './import-jobs.service';
 
 describe('ImportJobsService tenant suspension', () => {
@@ -47,6 +48,7 @@ describe('ImportJobsService tenant suspension', () => {
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         { provide: NotificationTriggerService, useValue: {} },
         { provide: TenantStatusService, useValue: tenantStatusService },
+        { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
       ],
     }).compile();
 

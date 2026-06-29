@@ -22,6 +22,11 @@ import type { RequestSecurityMetadata } from '../../auth/auth.types';
 
 type PrismaTx = Prisma.TransactionClient;
 
+type ProvisionableContract = {
+  id: string;
+  planId: string;
+};
+
 @Injectable()
 export class TenantProvisioningService {
   constructor(
@@ -38,10 +43,15 @@ export class TenantProvisioningService {
     await this.assertSlugAvailable(dto.slug);
     await this.assertOwnerEmailAvailable(dto.ownerEmail);
 
-    const contract = await this.findProvisionableContract(dto.contractId);
+    await this.findProvisionableContract(dto.contractId);
     const passwordHash = await this.passwordService.hash(dto.ownerPassword);
 
     return this.prisma.$transaction(async (tx) => {
+      const contract = await this.lockProvisionableContractInTx(
+        tx,
+        dto.contractId,
+      );
+
       const tenant = await tx.tenant.create({
         data: {
           name: dto.name,
@@ -52,10 +62,7 @@ export class TenantProvisioningService {
         },
       });
 
-      await tx.tenantContract.update({
-        where: { id: contract.id },
-        data: { tenantId: tenant.id },
-      });
+      await this.linkContractToTenantInTx(tx, contract.id, tenant.id);
 
       const ownerRoleId = await this.createDefaultRoles(tx, tenant.id);
       await this.createOwnerUser(tx, {
@@ -127,18 +134,97 @@ export class TenantProvisioningService {
     }
   }
 
-  private async findProvisionableContract(contractId: string) {
+  private async findProvisionableContract(contractId: string): Promise<void> {
     const contract = await this.prisma.tenantContract.findFirst({
       where: { id: contractId, deletedAt: null },
       select: {
         id: true,
         status: true,
-        planId: true,
         tenantId: true,
         plan: { select: { isActive: true } },
       },
     });
 
+    this.assertProvisionableContract(contract);
+  }
+
+  /**
+   * Locks the contract row and re-validates eligibility inside the provisioning
+   * transaction so concurrent requests cannot both pass a pre-tx availability check.
+   */
+  private async lockProvisionableContractInTx(
+    tx: PrismaTx,
+    contractId: string,
+  ): Promise<ProvisionableContract> {
+    const rows = await tx.$queryRaw<
+      Array<{
+        id: string;
+        planId: string;
+        tenantId: string | null;
+        status: ContractStatus;
+        deletedAt: Date | null;
+        planIsActive: boolean;
+      }>
+    >`
+      SELECT
+        tc.id,
+        tc."planId",
+        tc."tenantId",
+        tc.status,
+        tc."deletedAt",
+        sp."isActive" AS "planIsActive"
+      FROM "TenantContract" tc
+      INNER JOIN "SubscriptionPlan" sp ON sp.id = tc."planId"
+      WHERE tc.id = ${contractId}::uuid
+      FOR UPDATE OF tc
+    `;
+
+    const contract = rows[0] ?? null;
+    this.assertProvisionableContract(
+      contract
+        ? {
+            id: contract.id,
+            status: contract.status,
+            tenantId: contract.tenantId,
+            plan: { isActive: contract.planIsActive },
+          }
+        : null,
+    );
+
+    return { id: contract!.id, planId: contract!.planId };
+  }
+
+  /**
+   * Conditional link: only one provisioner may attach a tenant when tenantId is still null.
+   */
+  private async linkContractToTenantInTx(
+    tx: PrismaTx,
+    contractId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const result = await tx.tenantContract.updateMany({
+      where: {
+        id: contractId,
+        tenantId: null,
+        deletedAt: null,
+        status: ContractStatus.ACTIVE,
+      },
+      data: { tenantId },
+    });
+
+    if (result.count !== 1) {
+      throw new ConflictException('Contract is already linked to a tenant');
+    }
+  }
+
+  private assertProvisionableContract(
+    contract: {
+      id: string;
+      status: ContractStatus;
+      tenantId: string | null;
+      plan: { isActive: boolean };
+    } | null,
+  ): void {
     if (!contract) {
       throw new NotFoundException('Contract not found');
     }
@@ -156,8 +242,6 @@ export class TenantProvisioningService {
     if (contract.tenantId !== null) {
       throw new ConflictException('Contract is already linked to a tenant');
     }
-
-    return contract;
   }
 
   private async assertSlugAvailable(slug: string): Promise<void> {

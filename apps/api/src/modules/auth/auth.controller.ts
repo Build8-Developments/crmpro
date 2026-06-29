@@ -27,9 +27,11 @@ export class AuthController {
     return {
       success: true,
       message: 'Login successful',
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      user: result.user,
+      data: {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user,
+      },
     };
   }
 
@@ -40,8 +42,10 @@ export class AuthController {
     return {
       success: true,
       message: 'Token refreshed successfully',
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
+      data: {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      },
     };
   }
 

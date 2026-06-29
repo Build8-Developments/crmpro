@@ -8,8 +8,10 @@ export enum CleanupJobName {
 
 export const CLEANUP_JOB_NAMES = Object.values(CleanupJobName);
 
-export const STALE_IMPORT_JOB_ERROR = 'Marked failed by cleanup worker.';
-export const STALE_EXPORT_JOB_ERROR = 'Marked failed by cleanup worker.';
+export const STALE_IMPORT_JOB_RECLAIMED =
+  'Stale import job reclaimed for retry by cleanup worker.';
+export const STALE_EXPORT_JOB_RECLAIMED =
+  'Stale export job reclaimed for retry by cleanup worker.';
 
 export const S3_TENANT_PREFIX = 'tenant/';
 

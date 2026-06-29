@@ -18,7 +18,7 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 import { RolesAuditService } from './services/roles-audit.service';
 import type { RoleDetail, RoleListItem } from './types/role.types';
-import { assertCanGrantPermissions } from './utils/permission-escalation.util';
+import { assertCanGrantPermissions } from '../../common/auth/utils/permission-escalation.util';
 import { toRoleDetail, toRoleListItem } from './utils/role.mapper';
 
 const SYSTEM_ROLE_NAMES = new Set<string>(Object.values(TENANT_ROLE_NAMES));
@@ -171,7 +171,7 @@ export class RolesService {
         tenantId,
         actorUserId,
         id,
-        { permissionKeys },
+        { permissionCount: permissionKeys.length },
         tx,
       );
     });

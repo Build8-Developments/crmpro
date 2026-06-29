@@ -7,7 +7,7 @@ import { LeadsService } from './leads.service';
 
 describe('LeadsService quota enforcement', () => {
   let service: LeadsService;
-  let quotaService: { canCreateLead: jest.Mock };
+  let quotaService: { canCreateLeadInTransaction: jest.Mock };
 
   const pipeline = {
     pipelineId: 'pipeline-1',
@@ -16,14 +16,20 @@ describe('LeadsService quota enforcement', () => {
 
   beforeEach(async () => {
     quotaService = {
-      canCreateLead: jest.fn(),
+      canCreateLeadInTransaction: jest.fn(),
     };
 
     const prisma = {
       lead: { findMany: jest.fn().mockResolvedValue([]) },
       user: { findFirst: jest.fn().mockResolvedValue(null) },
       leadSource: { findFirst: jest.fn() },
-      $transaction: jest.fn(),
+      $transaction: jest.fn(async (callback) =>
+        callback({
+          lead: {
+            create: jest.fn().mockResolvedValue({ id: 'lead-1' }),
+          },
+        }),
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -43,7 +49,7 @@ describe('LeadsService quota enforcement', () => {
   });
 
   it('returns row error when import exceeds lead quota', async () => {
-    quotaService.canCreateLead.mockResolvedValue(false);
+    quotaService.canCreateLeadInTransaction.mockResolvedValue(false);
 
     const result = await service.createLeadFromImport(
       'tenant-1',

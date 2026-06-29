@@ -6,12 +6,17 @@ import { RequestContextService } from '../../common/logging/request-context.serv
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
+import { QueueService } from '../jobs/queues/queue.service';
 import { CleanupJobName } from './cleanup.constants';
 import { CleanupHealthService } from './cleanup-health.service';
 import { CleanupService } from './cleanup.service';
 
 describe('CleanupService', () => {
   let service: CleanupService;
+  let queueService: {
+    requeueImportJob: jest.Mock;
+    requeueExportJob: jest.Mock;
+  };
   let prisma: {
     fileUploadIntent: {
       findMany: jest.Mock;
@@ -50,6 +55,11 @@ describe('CleanupService', () => {
   };
 
   beforeEach(async () => {
+    queueService = {
+      requeueImportJob: jest.fn().mockResolvedValue(undefined),
+      requeueExportJob: jest.fn().mockResolvedValue(undefined),
+    };
+
     prisma = {
       fileUploadIntent: {
         findMany: jest.fn(),
@@ -105,6 +115,7 @@ describe('CleanupService', () => {
           provide: StorageLoggingService,
           useValue: { orphanCleanup: jest.fn() },
         },
+        { provide: QueueService, useValue: queueService },
       ],
     }).compile();
 
@@ -125,7 +136,7 @@ describe('CleanupService', () => {
     );
   });
 
-  it('marks stale import jobs as failed', async () => {
+  it('reclaims stale import jobs and requeues them', async () => {
     prisma.importJob.findMany.mockResolvedValueOnce([{ id: 'import-1' }]);
     prisma.importJob.updateMany.mockResolvedValue({ count: 1 });
 
@@ -134,16 +145,24 @@ describe('CleanupService', () => {
     expect(result.updated).toBe(1);
     expect(prisma.importJob.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: JobStatus.PROCESSING }),
+        where: expect.objectContaining({
+          id: 'import-1',
+          status: JobStatus.PROCESSING,
+        }),
         data: expect.objectContaining({
-          status: JobStatus.FAILED,
-          errorSummary: [{ row: 0, reason: 'Marked failed by cleanup worker.' }],
+          status: JobStatus.PENDING,
+          processedRows: 0,
+          successfulRows: 0,
+          failedRows: 0,
+          totalRows: 0,
+          completedAt: null,
         }),
       }),
     );
+    expect(queueService.requeueImportJob).toHaveBeenCalledWith('import-1');
   });
 
-  it('marks stale export jobs as failed', async () => {
+  it('reclaims stale export jobs and requeues them', async () => {
     prisma.exportJob.findMany.mockResolvedValueOnce([{ id: 'export-1' }]);
     prisma.exportJob.updateMany.mockResolvedValue({ count: 1 });
 
@@ -152,11 +171,19 @@ describe('CleanupService', () => {
     expect(result.updated).toBe(1);
     expect(prisma.exportJob.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'export-1',
+          status: JobStatus.PROCESSING,
+        }),
         data: expect.objectContaining({
-          errorMessage: 'Marked failed by cleanup worker.',
+          status: JobStatus.PENDING,
+          progress: 0,
+          errorMessage: null,
+          completedAt: null,
         }),
       }),
     );
+    expect(queueService.requeueExportJob).toHaveBeenCalledWith('export-1');
   });
 
   it('deletes expired sessions', async () => {
@@ -192,7 +219,7 @@ describe('CleanupService', () => {
     expect(storageService.deleteFile).not.toHaveBeenCalledWith('tenant/a/file.csv');
   });
 
-  it('is idempotent when stale import jobs are already failed', async () => {
+  it('is idempotent when stale import jobs are already reclaimed', async () => {
     prisma.importJob.findMany.mockResolvedValue([]);
 
     const first = await service.cleanupStaleImportJobs();

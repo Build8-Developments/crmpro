@@ -9,6 +9,7 @@ import {
   ImportJob,
   JobStatus,
   Prisma,
+  AuditActorType,
 } from '@crmpro/database';
 import { parse } from 'csv-parse/sync';
 import {
@@ -27,6 +28,11 @@ import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { ImportCompletedEvent } from '../../common/events/domain-event.types';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
+import {
+  AUDIT_ENTITY_TYPES,
+  IMPORT_AUDIT_ACTIONS,
+} from '../audit/audit.constants';
+import { AuditWriterService } from '../audit/audit-writer.service';
 import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
 import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
 import {
@@ -89,6 +95,7 @@ export class ImportJobsService {
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
     private readonly tenantStatusService: TenantStatusService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async createLeadImportJob(
@@ -109,6 +116,14 @@ export class ImportJobsService {
     });
 
     await this.queueService.enqueueImportJob(job.id);
+
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorUserId: userId,
+      action: IMPORT_AUDIT_ACTIONS.STARTED,
+      entityType: AUDIT_ENTITY_TYPES.IMPORT_JOB,
+      entityId: job.id,
+    });
 
     return this.toImportJobResponse(job);
   }
@@ -146,6 +161,14 @@ export class ImportJobsService {
       }
 
       throw error;
+    }
+
+    const claimed = await this.claimImportJob(job.id);
+    if (!claimed) {
+      this.logger.log(
+        `Import job ${jobId} was not claimed (already processing or completed)`,
+      );
+      return;
     }
 
     const file = await this.validateImportFile(job.fileAssetId, job.tenantId);
@@ -208,17 +231,24 @@ export class ImportJobsService {
     );
   }
 
+  private async claimImportJob(jobId: string): Promise<boolean> {
+    const result = await this.prisma.importJob.updateMany({
+      where: {
+        id: jobId,
+        status: JobStatus.PENDING,
+      },
+      data: { status: JobStatus.PROCESSING },
+    });
+
+    return result.count === 1;
+  }
+
   private async processLeadImportJob(
     jobId: string,
     tenantId: string,
     userId: string,
     file: ValidatedImportFile,
   ): Promise<void> {
-    await this.prisma.importJob.update({
-      where: { id: jobId },
-      data: { status: JobStatus.PROCESSING },
-    });
-
     const errors: ImportJobErrorEntry[] = [];
     let successfulRows = 0;
     let failedRows = 0;
@@ -560,6 +590,21 @@ export class ImportJobsService {
             ? (params.errors as unknown as Prisma.InputJsonValue)
             : Prisma.DbNull,
         completedAt: new Date(),
+      },
+    });
+
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorType: AuditActorType.SYSTEM,
+      actorUserId: null,
+      action: IMPORT_AUDIT_ACTIONS.COMPLETED,
+      entityType: AUDIT_ENTITY_TYPES.IMPORT_JOB,
+      entityId: jobId,
+      metadata: {
+        totalRows: params.totalRows,
+        successfulRows: params.successfulRows,
+        failedRows: params.failedRows,
+        status,
       },
     });
 

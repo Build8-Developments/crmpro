@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { AuditActorType, Prisma } from '@crmpro/database';
-import { PrismaService } from '../../../common/prisma/prisma.service';
+import { Prisma } from '@crmpro/database';
+import { AUDIT_ENTITY_TYPES } from '../../audit/audit.constants';
+import { AuditWriterService } from '../../audit/audit-writer.service';
 import { USER_AUDIT_ACTIONS } from '../users.constants';
 
 type AuditTx = Prisma.TransactionClient;
 
 @Injectable()
 export class UsersAuditService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly auditWriter: AuditWriterService) {}
 
   async logUserCreated(
     tenantId: string,
@@ -136,18 +137,14 @@ export class UsersAuditService {
     metadata: Record<string, unknown>,
     tx?: AuditTx,
   ): Promise<void> {
-    const client = tx ?? this.prisma;
-
-    await client.auditLog.create({
-      data: {
-        tenantId,
-        actorType: AuditActorType.USER,
-        actorUserId,
-        entityType: 'User',
-        entityId: userId,
-        action,
-        metadata: metadata as Prisma.InputJsonValue,
-      },
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorUserId,
+      action,
+      entityType: AUDIT_ENTITY_TYPES.USER,
+      entityId: userId,
+      metadata,
+      tx,
     });
   }
 }

@@ -96,22 +96,28 @@ export class ProjectsService {
     tenantId: string,
     dto: CreateProjectDto,
   ): Promise<ProjectResponse> {
-    await this.quotaService.assertCanCreateProject(tenantId);
     await this.getDeveloperOrThrow(dto.developerId, tenantId);
 
     const name = this.normalizeName(dto.name);
     await this.ensureNameUnique(name, tenantId);
 
     try {
-      const project = await this.prisma.project.create({
-        data: {
+      const project = await this.prisma.$transaction(async (tx) => {
+        await this.quotaService.assertCanCreateProjectInTransaction(
+          tx,
           tenantId,
-          developerId: dto.developerId,
-          name,
-          location: this.normalizeLocation(dto.location),
-          isActive: true,
-        },
-        select: projectSelect,
+        );
+
+        return tx.project.create({
+          data: {
+            tenantId,
+            developerId: dto.developerId,
+            name,
+            location: this.normalizeLocation(dto.location),
+            isActive: true,
+          },
+          select: projectSelect,
+        });
       });
 
       return this.toProjectResponse(project);

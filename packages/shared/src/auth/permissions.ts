@@ -58,6 +58,8 @@ export const PERMISSIONS = {
   NOTIFICATION_UPDATE: 'notification.update',
   NOTIFICATION_DELETE: 'notification.delete',
 
+  AUDIT_READ: 'audit.read',
+
   TENANT_MANAGE: 'tenant.manage',
   BILLING_MANAGE: 'billing.manage',
 } as const;
@@ -162,6 +164,7 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.NOTIFICATION_UPDATE,
     PERMISSIONS.NOTIFICATION_DELETE,
   ],
+  AUDIT: [PERMISSIONS.AUDIT_READ],
   TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
@@ -205,6 +208,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   EXPORT_JOBS: 'Export Jobs',
   ANALYTICS: 'Analytics',
   NOTIFICATIONS: 'Notifications',
+  AUDIT: 'Audit',
   TENANT: 'Organization',
 };
 
@@ -240,5 +244,6 @@ export const PERMISSION_GROUP_ORDER = [
   'EXPORT_JOBS',
   'ANALYTICS',
   'NOTIFICATIONS',
+  'AUDIT',
   'TENANT',
 ] as const satisfies readonly PermissionGroupKey[];

@@ -11,6 +11,7 @@ import {
   FileAssetCategory,
   JobStatus,
   Prisma,
+  AuditActorType,
 } from '@crmpro/database';
 import {
   buildPaginatedResponse,
@@ -29,6 +30,11 @@ import { ExportCompletedEvent } from '../../../common/events/domain-event.types'
 import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
 import { QueueService } from '../../jobs/queues/queue.service';
+import {
+  AUDIT_ENTITY_TYPES,
+  EXPORT_AUDIT_ACTIONS,
+} from '../../audit/audit.constants';
+import { AuditWriterService } from '../../audit/audit-writer.service';
 import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
 import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
 import {
@@ -92,6 +98,7 @@ export class ExportJobsService {
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
     private readonly tenantStatusService: TenantStatusService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async createLeadExportJob(
@@ -133,6 +140,14 @@ export class ExportJobsService {
 
     await this.queueService.enqueueExportJob(job.id);
 
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorUserId: userId,
+      action: EXPORT_AUDIT_ACTIONS.STARTED,
+      entityType: AUDIT_ENTITY_TYPES.EXPORT_JOB,
+      entityId: job.id,
+    });
+
     return job;
   }
 
@@ -169,7 +184,31 @@ export class ExportJobsService {
       throw error;
     }
 
+    const claimed = await this.claimExportJob(job.id);
+    if (!claimed) {
+      this.logger.log(
+        `Export job ${jobId} was not claimed (already processing or completed)`,
+      );
+      return;
+    }
+
     await this.runExportJob(job.id, job.tenantId, job.createdByUserId);
+  }
+
+  private async claimExportJob(jobId: string): Promise<boolean> {
+    const result = await this.prisma.exportJob.updateMany({
+      where: {
+        id: jobId,
+        status: JobStatus.PENDING,
+      },
+      data: {
+        status: JobStatus.PROCESSING,
+        progress: 5,
+        errorMessage: null,
+      },
+    });
+
+    return result.count === 1;
   }
 
   async failExportJobIfActive(
@@ -252,15 +291,6 @@ export class ExportJobsService {
 
     this.logger.log(`Export job ${jobId} started`);
 
-    await this.prisma.exportJob.update({
-      where: { id: jobId },
-      data: {
-        status: JobStatus.PROCESSING,
-        progress: 5,
-        errorMessage: null,
-      },
-    });
-
     try {
       const exportParams = this.parseExportParams(job.filters);
 
@@ -319,6 +349,18 @@ export class ExportJobsService {
           fileAssetId: file.id,
           completedAt: new Date(),
           errorMessage: null,
+        },
+      });
+
+      await this.auditWriter.createAuditLog({
+        tenantId,
+        actorType: AuditActorType.SYSTEM,
+        actorUserId: null,
+        action: EXPORT_AUDIT_ACTIONS.COMPLETED,
+        entityType: AUDIT_ENTITY_TYPES.EXPORT_JOB,
+        entityId: jobId,
+        metadata: {
+          rowCount: rows.length,
         },
       });
 

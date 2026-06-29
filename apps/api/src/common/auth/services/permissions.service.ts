@@ -68,4 +68,30 @@ export class PermissionsService {
     const { permissions } = await this.getUserAuthorization(userId, tenantId);
     return new Set(permissions);
   }
+
+  async getPermissionKeysForRole(
+    roleId: string,
+    tenantId: string,
+  ): Promise<PermissionKey[]> {
+    const role = await this.prisma.role.findFirst({
+      where: { id: roleId, tenantId, deletedAt: null },
+      select: {
+        permissions: {
+          select: {
+            permission: {
+              select: { key: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!role) {
+      return [];
+    }
+
+    return role.permissions.map(
+      (rolePermission) => rolePermission.permission.key,
+    ) as PermissionKey[];
+  }
 }

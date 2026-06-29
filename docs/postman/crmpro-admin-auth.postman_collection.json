@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "crmpro-admin-auth-collection",
     "name": "CRMPro Admin API",
-    "description": "CRMPro Admin API — auth and admins modules.\n\nBase URL: {{adminBaseUrl}} = http://localhost:3100/api/v1\n\nStart with Admin Auth → Login. Tokens are saved to adminAccessToken / adminRefreshToken / adminSessionId.",
+    "description": "CRMPro Admin API — auth, admins, plans, contracts, tenants, and audit explorer.\n\nBase URL: {{adminBaseUrl}} = http://localhost:3100/api/v1\n\nStart with Admin Auth → Login. Tokens are saved to adminAccessToken / adminRefreshToken / adminSessionId.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -596,6 +596,105 @@
           "request": {
             "method": "GET",
             "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/usage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "item": [
+        {
+          "name": "List Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const first = json.data && json.data.items && json.data.items[0];",
+                  "  if (first && first.id) {",
+                  "    pm.environment.set('auditId', first.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{adminBaseUrl}}/audit?page=1&limit=20",
+              "host": ["{{adminBaseUrl}}"],
+              "path": ["audit"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "actorAdminId", "value": "{{targetAdminId}}", "disabled": true },
+                { "key": "action", "value": "TENANT_CREATED", "disabled": true },
+                { "key": "entityType", "value": "Tenant", "disabled": true },
+                { "key": "tenantId", "value": "{{tenantId}}", "disabled": true },
+                { "key": "from", "value": "2026-06-01", "disabled": true },
+                { "key": "to", "value": "2026-06-30", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Audit Log",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/audit/{{auditId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security Events",
+      "item": [
+        {
+          "name": "List Security Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  const first = json.data && json.data.items && json.data.items[0];",
+                  "  if (first && first.id) {",
+                  "    pm.environment.set('securityEventId', first.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{adminBaseUrl}}/security-events?page=1&limit=20",
+              "host": ["{{adminBaseUrl}}"],
+              "path": ["security-events"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "adminId", "value": "{{targetAdminId}}", "disabled": true },
+                { "key": "eventType", "value": "LOGIN_FAILED", "disabled": true },
+                { "key": "severity", "value": "CRITICAL", "disabled": true },
+                { "key": "from", "value": "2026-06-01", "disabled": true },
+                { "key": "to", "value": "2026-06-30", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Security Event",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/security-events/{{securityEventId}}"
           }
         }
       ]

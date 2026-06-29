@@ -1,11 +1,28 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QUOTA_EXCEEDED_MESSAGES } from './quota.constants';
-import type { TenantPlanLimits } from './quota.types';
+import type {
+  QuotaTransactionClient,
+  TenantPlanLimits,
+  TenantQuotaContext,
+} from './quota.types';
+
+const tenantQuotaSelect = {
+  storageUsedBytes: true,
+  subscriptionPlan: {
+    select: {
+      maxUsers: true,
+      maxLeads: true,
+      maxProjects: true,
+      maxStorageBytes: true,
+    },
+  },
+} as const;
 
 @Injectable()
 export class QuotaService {
@@ -25,6 +42,32 @@ export class QuotaService {
     }
 
     const used = await this.prisma.lead.count({
+      where: { tenantId, deletedAt: null },
+    });
+
+    return used < plan.maxLeads;
+  }
+
+  async assertCanCreateLeadInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<void> {
+    if (!(await this.canCreateLeadInTransaction(tx, tenantId))) {
+      throw new ForbiddenException(QUOTA_EXCEEDED_MESSAGES.LEAD);
+    }
+  }
+
+  async canCreateLeadInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<boolean> {
+    const plan = await this.loadTenantQuotaContextInTransaction(tx, tenantId);
+
+    if (plan.maxLeads === null) {
+      return true;
+    }
+
+    const used = await tx.lead.count({
       where: { tenantId, deletedAt: null },
     });
 
@@ -51,6 +94,32 @@ export class QuotaService {
     return used < plan.maxProjects;
   }
 
+  async assertCanCreateProjectInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<void> {
+    if (!(await this.canCreateProjectInTransaction(tx, tenantId))) {
+      throw new ForbiddenException(QUOTA_EXCEEDED_MESSAGES.PROJECT);
+    }
+  }
+
+  async canCreateProjectInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<boolean> {
+    const plan = await this.loadTenantQuotaContextInTransaction(tx, tenantId);
+
+    if (plan.maxProjects === null) {
+      return true;
+    }
+
+    const used = await tx.project.count({
+      where: { tenantId, deletedAt: null },
+    });
+
+    return used < plan.maxProjects;
+  }
+
   async assertCanCreateUser(tenantId: string): Promise<void> {
     if (!(await this.canCreateUser(tenantId))) {
       throw new ForbiddenException(QUOTA_EXCEEDED_MESSAGES.USER);
@@ -71,13 +140,58 @@ export class QuotaService {
     return used < plan.maxUsers;
   }
 
-  async getTenantPlanLimits(tenantId: string): Promise<TenantPlanLimits> {
-    return this.loadTenantPlanLimits(tenantId);
+  async assertCanCreateUserInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<void> {
+    if (!(await this.canCreateUserInTransaction(tx, tenantId))) {
+      throw new ForbiddenException(QUOTA_EXCEEDED_MESSAGES.USER);
+    }
   }
 
-  private async loadTenantPlanLimits(
+  async canCreateUserInTransaction(
+    tx: QuotaTransactionClient,
     tenantId: string,
-  ): Promise<TenantPlanLimits> {
+  ): Promise<boolean> {
+    const plan = await this.loadTenantQuotaContextInTransaction(tx, tenantId);
+
+    if (plan.maxUsers === null) {
+      return true;
+    }
+
+    const used = await tx.user.count({
+      where: { tenantId, deletedAt: null, isActive: true },
+    });
+
+    return used < plan.maxUsers;
+  }
+
+  async assertCanUseStorageInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+    sizeBytes: number,
+    options?: { excludeUploadIntentId?: string },
+  ): Promise<void> {
+    const context = await this.loadTenantQuotaContextInTransaction(tx, tenantId);
+
+    if (context.maxStorageBytes === null) {
+      return;
+    }
+
+    const pendingBytes = await this.sumPendingUploadBytes(
+      tx,
+      tenantId,
+      options?.excludeUploadIntentId,
+    );
+    const projected =
+      context.storageUsedBytes + pendingBytes + BigInt(sizeBytes);
+
+    if (projected > context.maxStorageBytes) {
+      throw new BadRequestException('Storage quota exceeded');
+    }
+  }
+
+  async getTenantPlanLimits(tenantId: string): Promise<TenantPlanLimits> {
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deletedAt: null },
       select: {
@@ -96,5 +210,61 @@ export class QuotaService {
     }
 
     return tenant.subscriptionPlan;
+  }
+
+  private async loadTenantQuotaContextInTransaction(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<TenantQuotaContext> {
+    await this.lockTenantRow(tx, tenantId);
+
+    const tenant = await tx.tenant.findFirst({
+      where: { id: tenantId, deletedAt: null },
+      select: tenantQuotaSelect,
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    return {
+      ...tenant.subscriptionPlan,
+      storageUsedBytes: tenant.storageUsedBytes,
+    };
+  }
+
+  private async sumPendingUploadBytes(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+    excludeUploadIntentId?: string,
+  ): Promise<bigint> {
+    const result = await tx.fileUploadIntent.aggregate({
+      where: {
+        tenantId,
+        expiresAt: { gt: new Date() },
+        ...(excludeUploadIntentId
+          ? { id: { not: excludeUploadIntentId } }
+          : {}),
+      },
+      _sum: { sizeBytes: true },
+    });
+
+    return result._sum.sizeBytes ?? 0n;
+  }
+
+  private async lockTenantRow(
+    tx: QuotaTransactionClient,
+    tenantId: string,
+  ): Promise<void> {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM "Tenant"
+      WHERE id = ${tenantId} AND "deletedAt" IS NULL
+      FOR UPDATE
+    `;
+
+    if (rows.length === 0) {
+      throw new NotFoundException('Tenant not found');
+    }
   }
 }

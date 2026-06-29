@@ -7,9 +7,8 @@ type PrismaTx = Prisma.TransactionClient;
 /**
  * Keeps tenant.subscriptionPlanId aligned with the active contract plan.
  *
- * Terminated contracts do not clear tenant.subscriptionPlanId — tenants may
- * still operate during a future grace-period policy; plan entitlement remains
- * until explicitly changed via a new active contract.
+ * Terminated or expired contracts do not clear tenant.subscriptionPlanId.
+ * CRM access continues until contractEndAt + gracePeriodDays (see shared billing util).
  */
 @Injectable()
 export class ContractEntitlementSyncService {

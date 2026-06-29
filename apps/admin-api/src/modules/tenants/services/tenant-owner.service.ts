@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@crmpro/database';
 import { PasswordService } from '../../../common/security/password.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { RequestSecurityMetadata } from '../../auth/auth.types';
@@ -18,6 +19,8 @@ type OwnerUser = {
   name: string;
   email: string;
 };
+
+type PrismaTx = Prisma.TransactionClient;
 
 @Injectable()
 export class TenantOwnerService {
@@ -83,19 +86,24 @@ export class TenantOwnerService {
     const owner = await this.resolveOwnerUser(tenantId);
     const passwordHash = await this.passwordService.hash(dto.newPassword);
 
-    await this.prisma.user.update({
-      where: { id: owner.id },
-      data: { passwordHash },
+    const revokedSessions = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: owner.id },
+        data: { passwordHash },
+      });
+
+      const count = await this.revokeUserSessions(owner.id, tx);
+
+      await this.auditService.logOwnerPasswordReset(
+        actorAdminId,
+        tenantId,
+        metadata,
+        count,
+        tx,
+      );
+
+      return count;
     });
-
-    const revokedSessions = await this.revokeUserSessions(owner.id);
-
-    await this.auditService.logOwnerPasswordReset(
-      actorAdminId,
-      tenantId,
-      metadata,
-      revokedSessions,
-    );
 
     return { revokedSessions };
   }
@@ -175,8 +183,12 @@ export class TenantOwnerService {
     }
   }
 
-  private async revokeUserSessions(userId: string): Promise<number> {
-    const result = await this.prisma.userSession.updateMany({
+  private async revokeUserSessions(
+    userId: string,
+    tx?: PrismaTx,
+  ): Promise<number> {
+    const client = tx ?? this.prisma;
+    const result = await client.userSession.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });

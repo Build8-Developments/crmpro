@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { PrismaModule } from './common/prisma/prisma.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 import { AdminsModule } from './modules/admins/admins.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { PlansModule } from './modules/plans/plans.module';
@@ -22,8 +25,15 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     PlansModule,
     ContractsModule,
     TenantsModule,
+    AuditModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    GlobalExceptionFilter,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}

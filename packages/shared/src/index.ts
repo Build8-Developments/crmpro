@@ -32,3 +32,20 @@ export {
   type PipelineStageDefinition,
   type TenantRolePermissionMap,
 } from './bootstrap';
+export {
+  API_ERROR_CODES,
+  formatValidationErrors,
+  mapExceptionToApiErrorResponse,
+  mapHttpException,
+  mapPrismaKnownRequestError,
+  mapStatusToErrorCode,
+  type ApiErrorCode,
+  type ApiErrorResponse,
+  type StructuredApiErrorPayload,
+  type ValidationErrorLike,
+} from './errors';
+export {
+  computeContractAccessEndAt,
+  isWithinContractGrace,
+  type ContractGraceInput,
+} from './billing';

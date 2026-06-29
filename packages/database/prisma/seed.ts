@@ -19,6 +19,9 @@ import {
   ContractStatus,
   PaymentMethod,
   PaymentFrequency,
+  AdminActorType,
+  AdminSecurityEventType,
+  SecuritySeverity,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
 import {
@@ -205,6 +208,7 @@ const PERMISSIONS = [
   { key: 'notification.read', description: 'View notifications' },
   { key: 'notification.update', description: 'Mark notifications as read' },
   { key: 'notification.delete', description: 'Delete notifications' },
+  { key: 'audit.read', description: 'View business audit logs' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
 ] as const;
@@ -217,6 +221,18 @@ const ADMIN_ROLE_IDS = {
 } as const;
 
 const INITIAL_PLATFORM_ADMIN_ID = '99999999-9999-4999-8999-999999999901';
+
+const ADMIN_AUDIT_IDS = {
+  tenantCreated: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb001',
+  contractCreated: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb002',
+  login: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb003',
+} as const;
+
+const ADMIN_SECURITY_EVENT_IDS = {
+  loginSuccess: 'cccccccc-cccc-4ccc-8ccc-cccccccccc01',
+  loginFailed: 'cccccccc-cccc-4ccc-8ccc-cccccccccc02',
+  tokenRefresh: 'cccccccc-cccc-4ccc-8ccc-cccccccccc03',
+} as const;
 
 const CONTRACT_IDS = {
   primeEstatesGrowth: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01',
@@ -595,6 +611,108 @@ async function seedInitialPlatformAdmin(passwordHash: string): Promise<void> {
       isActive: true,
     },
   });
+}
+
+async function seedAdminAuditTrail(): Promise<void> {
+  const auditLogs = [
+    {
+      id: ADMIN_AUDIT_IDS.tenantCreated,
+      actorAdminId: INITIAL_PLATFORM_ADMIN_ID,
+      actorType: AdminActorType.ADMIN,
+      action: 'TENANT_CREATED',
+      entityType: 'Tenant',
+      entityId: TENANT_ID,
+      ipAddress: '127.0.0.1',
+      userAgent: 'seed-script',
+      fingerprint: 'seed-local',
+      metadata: {
+        seed: true,
+        contractId: CONTRACT_IDS.primeEstatesGrowth,
+        ownerEmail: 'owner@primeestates.com',
+      },
+      createdAt: new Date('2026-06-15T10:00:00.000Z'),
+    },
+    {
+      id: ADMIN_AUDIT_IDS.contractCreated,
+      actorAdminId: INITIAL_PLATFORM_ADMIN_ID,
+      actorType: AdminActorType.ADMIN,
+      action: 'CONTRACT_CREATED',
+      entityType: 'TenantContract',
+      entityId: CONTRACT_IDS.primeEstatesGrowth,
+      ipAddress: '127.0.0.1',
+      userAgent: 'seed-script',
+      fingerprint: 'seed-local',
+      metadata: { seed: true, planId: PLAN_IDS.growth },
+      createdAt: new Date('2026-06-14T09:00:00.000Z'),
+    },
+    {
+      id: ADMIN_AUDIT_IDS.login,
+      actorAdminId: INITIAL_PLATFORM_ADMIN_ID,
+      actorType: AdminActorType.ADMIN,
+      action: 'LOGIN',
+      entityType: 'PlatformAdmin',
+      entityId: INITIAL_PLATFORM_ADMIN_ID,
+      ipAddress: '127.0.0.1',
+      userAgent: 'seed-script',
+      fingerprint: 'seed-local',
+      metadata: { seed: true },
+      createdAt: new Date('2026-06-16T08:30:00.000Z'),
+    },
+  ] as const;
+
+  for (const log of auditLogs) {
+    const { id, ...data } = log;
+    await prisma.adminAuditLog.upsert({
+      where: { id },
+      create: log,
+      update: data,
+    });
+  }
+
+  const securityEvents = [
+    {
+      id: ADMIN_SECURITY_EVENT_IDS.loginSuccess,
+      adminId: INITIAL_PLATFORM_ADMIN_ID,
+      eventType: AdminSecurityEventType.LOGIN_SUCCESS,
+      severity: SecuritySeverity.LOW,
+      ipAddress: '127.0.0.1',
+      userAgent: 'seed-script',
+      fingerprint: 'seed-local',
+      metadata: { seed: true },
+      createdAt: new Date('2026-06-16T08:30:00.000Z'),
+    },
+    {
+      id: ADMIN_SECURITY_EVENT_IDS.loginFailed,
+      adminId: null,
+      eventType: AdminSecurityEventType.LOGIN_FAILED,
+      severity: SecuritySeverity.MEDIUM,
+      ipAddress: '203.0.113.50',
+      userAgent: 'suspicious-client',
+      fingerprint: 'unknown-device',
+      metadata: { seed: true, reason: 'not_found' },
+      createdAt: new Date('2026-06-16T07:15:00.000Z'),
+    },
+    {
+      id: ADMIN_SECURITY_EVENT_IDS.tokenRefresh,
+      adminId: INITIAL_PLATFORM_ADMIN_ID,
+      eventType: AdminSecurityEventType.TOKEN_REFRESH,
+      severity: SecuritySeverity.LOW,
+      ipAddress: '127.0.0.1',
+      userAgent: 'seed-script',
+      fingerprint: 'seed-local',
+      metadata: { seed: true },
+      createdAt: new Date('2026-06-16T09:00:00.000Z'),
+    },
+  ] as const;
+
+  for (const event of securityEvents) {
+    const { id, ...data } = event;
+    await prisma.adminSecurityEvent.upsert({
+      where: { id },
+      create: event,
+      update: data,
+    });
+  }
 }
 
 async function seedTenantContracts(): Promise<void> {
@@ -1552,6 +1670,9 @@ async function main(): Promise<void> {
   await seedTenantContracts();
   console.log('✓ Tenant contracts');
 
+  await seedAdminAuditTrail();
+  console.log('✓ Admin audit logs & security events');
+
   const userIds = await seedUsers(TENANT_ID, SAMPLE_USERS, passwordHash);
   console.log('✓ Users (fixed credentials)');
 
@@ -1576,6 +1697,9 @@ async function main(): Promise<void> {
   console.log('  agent@primeestates.com / Password123!');
   console.log('\nLogin (admin-api):');
   console.log('  admin@crmpro.local / Admin123!');
+  console.log('\nAdmin audit explorer sample IDs:');
+  console.log(`  auditId: ${ADMIN_AUDIT_IDS.tenantCreated}`);
+  console.log(`  securityEventId: ${ADMIN_SECURITY_EVENT_IDS.loginSuccess}`);
   console.log('\nStable sample IDs (prime-estates):');
   console.log(`  developerId (Palm Hills): ${DEVELOPER_IDS.palmHills}`);
   console.log(`  projectId (Palm Hills New Cairo): ${PROJECT_IDS.palmHillsNewCairo}`);

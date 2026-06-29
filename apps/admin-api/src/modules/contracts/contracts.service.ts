@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ContractStatus, Prisma } from '@crmpro/database';
+import { computeContractAccessEndAt } from '@crmpro/shared';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   buildPaginatedResponse,
@@ -282,13 +283,28 @@ export class ContractsService {
       );
     }
 
+    const terminatedAt = new Date();
+
     const contract = await this.prisma.tenantContract.update({
       where: { id },
       data: { status: ContractStatus.TERMINATED },
       include: contractInclude,
     });
 
-    await this.auditService.logContractTerminated(actorAdminId, id, metadata);
+    const accessUntil = computeContractAccessEndAt(
+      {
+        contractEndAt: existing.contractEndAt,
+        gracePeriodDays: existing.gracePeriodDays,
+      },
+      existing.contractEndAt ? undefined : terminatedAt,
+    );
+
+    await this.auditService.logContractTerminated(actorAdminId, id, {
+      ...metadata,
+      tenantId: existing.tenantId,
+      accessUntil: accessUntil?.toISOString() ?? null,
+      gracePeriodDays: existing.gracePeriodDays,
+    });
 
     return toContractDetail(contract);
   }

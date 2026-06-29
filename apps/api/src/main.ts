@@ -3,18 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { createValidationPipeOptions } from './common/filters/validation-pipe.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
   app.setGlobalPrefix('api/v1');
   app.getHttpAdapter().getInstance().set('trust proxy', true);
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-    }),
-  );
+  app.useGlobalPipes(new ValidationPipe(createValidationPipeOptions()));
 
   const configService = app.get(ConfigService);
   const swaggerConfig = new DocumentBuilder()

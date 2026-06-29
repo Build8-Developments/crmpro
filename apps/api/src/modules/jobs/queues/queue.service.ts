@@ -53,6 +53,16 @@ export class QueueService {
     this.logger.log(`Export queued: jobId=${jobId}`);
   }
 
+  async requeueImportJob(jobId: string): Promise<void> {
+    await this.removeQueueJobIfPresent(IMPORT_QUEUE, jobId);
+    await this.enqueueImportJob(jobId);
+  }
+
+  async requeueExportJob(jobId: string): Promise<void> {
+    await this.removeQueueJobIfPresent(EXPORT_QUEUE, jobId);
+    await this.enqueueExportJob(jobId);
+  }
+
   async enqueueCleanupJob(jobName: CleanupJobName): Promise<void> {
     const payload: CleanupJobPayload = {
       jobName,
@@ -91,5 +101,26 @@ export class QueueService {
   private buildBackgroundPayload(jobId: string): BackgroundJobPayload {
     const requestId = this.requestContext.getRequestId();
     return requestId ? { jobId, requestId } : { jobId };
+  }
+
+  private async removeQueueJobIfPresent(
+    queueName: typeof IMPORT_QUEUE | typeof EXPORT_QUEUE,
+    jobId: string,
+  ): Promise<void> {
+    const queue = this.bullService.getQueue(queueName);
+    const existing = await queue.getJob(jobId);
+
+    if (!existing) {
+      return;
+    }
+
+    try {
+      await existing.remove();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Could not remove existing ${queueName} job ${jobId} before requeue: ${message}`,
+      );
+    }
   }
 }

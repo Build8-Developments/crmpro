@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, TenantStatus } from '@crmpro/database';
+import { ContractStatus, Prisma, TenantStatus } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   buildPaginatedResponse,
@@ -189,12 +189,21 @@ export class TenantsService {
       throw new BadRequestException('Tenant is already active');
     }
 
-    await this.prisma.tenant.update({
-      where: { id },
-      data: { status: TenantStatus.ACTIVE },
-    });
+    await this.assertTenantEligibleForReactivation(id);
 
-    await this.auditService.logTenantReactivated(actorAdminId, id, metadata);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenant.update({
+        where: { id },
+        data: { status: TenantStatus.ACTIVE },
+      });
+
+      await this.auditService.logTenantReactivated(
+        actorAdminId,
+        id,
+        metadata,
+        tx,
+      );
+    });
 
     return { tenantId: id, status: TenantStatus.ACTIVE };
   }
@@ -274,5 +283,34 @@ export class TenantsService {
     }
 
     return tenant;
+  }
+
+  private async assertTenantEligibleForReactivation(
+    tenantId: string,
+  ): Promise<void> {
+    const activeContract = await this.prisma.tenantContract.findFirst({
+      where: {
+        tenantId,
+        status: ContractStatus.ACTIVE,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        plan: { select: { id: true, isActive: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!activeContract) {
+      throw new BadRequestException(
+        'Tenant must have an active contract before reactivation',
+      );
+    }
+
+    if (!activeContract.plan.isActive) {
+      throw new BadRequestException(
+        'Active contract plan must be active before reactivation',
+      );
+    }
   }
 }

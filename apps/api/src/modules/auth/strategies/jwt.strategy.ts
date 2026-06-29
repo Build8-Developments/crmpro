@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { TenantStatus } from '@crmpro/database';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { TenantAccessService } from '../../../common/tenant-access/tenant-access.service';
 import { UsersService } from '../../users/users.service';
 import {
   AccessTokenPayload,
@@ -23,6 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     configService: ConfigService,
     private readonly usersService: UsersService,
     private readonly prisma: PrismaService,
+    private readonly tenantAccessService: TenantAccessService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -55,13 +56,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid authentication session');
     }
 
-    if (tenant.status === TenantStatus.SUSPENDED) {
-      throw new ForbiddenException('Tenant access suspended');
-    }
-
-    if (tenant.status === TenantStatus.CANCELLED) {
-      throw new ForbiddenException('Tenant subscription cancelled');
-    }
+    await this.tenantAccessService.assertTenantAccessible(user.tenantId);
 
     const session = await this.prisma.userSession.findUnique({
       where: { id: payload.sessionId },

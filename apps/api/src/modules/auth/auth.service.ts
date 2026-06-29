@@ -1,12 +1,12 @@
 import {
-  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { TenantStatus, UserSession } from '@crmpro/database';
+import { UserSession } from '@crmpro/database';
 import { AuthLoggingService } from '../../common/logging/auth-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PasswordService } from '../../common/security/password.service';
+import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
 import { UsersService, UserWithRoleAndTenant } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { TokenService } from './token.service';
@@ -25,6 +25,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly prisma: PrismaService,
     private readonly authLoggingService: AuthLoggingService,
+    private readonly tenantAccessService: TenantAccessService,
   ) {}
 
   async login(
@@ -32,6 +33,8 @@ export class AuthService {
     sessionMetadata: LoginSessionMetadata,
   ): Promise<LoginResult> {
     const user = await this.validateCredentials(loginDto, sessionMetadata);
+    await this.tenantAccessService.assertTenantAccessible(user.tenantId);
+
     const rawRefreshSecret = this.tokenService.generateRawRefreshSecret();
     const hashedRefreshToken =
       await this.tokenService.hashRefreshToken(rawRefreshSecret);
@@ -113,16 +116,30 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    this.assertUserAndTenantAllowed(user);
+    this.assertUserActive(user);
+    await this.tenantAccessService.assertTenantAccessible(user.tenantId);
 
     const newRawSecret = this.tokenService.generateRawRefreshSecret();
     const newHashedRefreshToken =
       await this.tokenService.hashRefreshToken(newRawSecret);
 
-    await this.prisma.userSession.update({
-      where: { id: session.id },
+    const rotated = await this.prisma.userSession.updateMany({
+      where: {
+        id: session.id,
+        hashedRefreshToken: session.hashedRefreshToken,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
       data: { hashedRefreshToken: newHashedRefreshToken },
     });
+
+    if (rotated.count !== 1) {
+      this.authLoggingService.refreshFailure({
+        reason: 'refresh_token_replay',
+        sessionId: session.id,
+      });
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
     const newRefreshToken = this.tokenService.formatRefreshToken(
       session.id,
@@ -237,7 +254,7 @@ export class AuthService {
     }
   }
 
-  private assertUserAndTenantAllowed(user: UserWithRoleAndTenant): void {
+  private assertUserActive(user: UserWithRoleAndTenant): void {
     if (user.deletedAt !== null || !user.isActive) {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -245,14 +262,6 @@ export class AuthService {
     const tenant = user.tenant;
     if (!tenant || tenant.deletedAt !== null) {
       throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    if (tenant.status === TenantStatus.SUSPENDED) {
-      throw new ForbiddenException('Tenant access suspended');
-    }
-
-    if (tenant.status === TenantStatus.CANCELLED) {
-      throw new ForbiddenException('Tenant subscription cancelled');
     }
   }
 
@@ -271,26 +280,6 @@ export class AuthService {
         device: sessionMetadata.deviceName ?? undefined,
       });
       throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (tenant.status === TenantStatus.SUSPENDED) {
-      this.authLoggingService.loginFailure({
-        email,
-        tenantSlug,
-        ip: sessionMetadata.ipAddress ?? undefined,
-        device: sessionMetadata.deviceName ?? undefined,
-      });
-      throw new ForbiddenException('Tenant access suspended');
-    }
-
-    if (tenant.status === TenantStatus.CANCELLED) {
-      this.authLoggingService.loginFailure({
-        email,
-        tenantSlug,
-        ip: sessionMetadata.ipAddress ?? undefined,
-        device: sessionMetadata.deviceName ?? undefined,
-      });
-      throw new ForbiddenException('Tenant subscription cancelled');
     }
 
     const user = await this.usersService.findByTenantAndEmail(tenantSlug, email);

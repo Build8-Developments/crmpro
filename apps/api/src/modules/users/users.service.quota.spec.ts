@@ -11,21 +11,30 @@ import { UsersService } from './users.service';
 
 describe('UsersService quota enforcement', () => {
   let service: UsersService;
-  let quotaService: { assertCanCreateUser: jest.Mock };
+  let quotaService: { assertCanCreateUserInTransaction: jest.Mock };
 
   beforeEach(async () => {
     quotaService = {
-      assertCanCreateUser: jest.fn(),
+      assertCanCreateUserInTransaction: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
-        { provide: PrismaService, useValue: { user: { findFirst: jest.fn() } } },
+        {
+          provide: PrismaService,
+          useValue: {
+            user: { findFirst: jest.fn().mockResolvedValue(null) },
+            $transaction: jest.fn(async (callback) => callback({})),
+          },
+        },
         { provide: PasswordService, useValue: { hash: jest.fn() } },
         { provide: QuotaService, useValue: quotaService },
         { provide: PermissionsService, useValue: {} },
-        { provide: UserGuardService, useValue: { assertRoleBelongsToTenant: jest.fn() } },
+        {
+          provide: UserGuardService,
+          useValue: { assertActorCanAssignRole: jest.fn() },
+        },
         { provide: UserSessionService, useValue: {} },
         { provide: UsersAuditService, useValue: { logUserCreated: jest.fn() } },
       ],
@@ -35,7 +44,7 @@ describe('UsersService quota enforcement', () => {
   });
 
   it('throws 403 when user quota is exceeded', async () => {
-    quotaService.assertCanCreateUser.mockRejectedValue(
+    quotaService.assertCanCreateUserInTransaction.mockRejectedValue(
       new ForbiddenException('User quota exceeded'),
     );
 

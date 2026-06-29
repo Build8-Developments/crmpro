@@ -8,10 +8,16 @@ import {
   Prisma,
 } from '@crmpro/database';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
+import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadAttachmentService } from '../lead-attachments/lead-attachment.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
+import {
+  AUDIT_ENTITY_TYPES,
+  FILE_AUDIT_ACTIONS,
+} from '../audit/audit.constants';
+import { AuditWriterService } from '../audit/audit-writer.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
 import {
@@ -49,10 +55,12 @@ type FileAssetRecord = Prisma.FileAssetGetPayload<{
 export class FilesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly quotaService: QuotaService,
     private readonly storageService: StorageService,
     private readonly leadAttachmentService: LeadAttachmentService,
     private readonly storageLoggingService: StorageLoggingService,
     private readonly notificationTrigger: NotificationTriggerService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async requestUpload(
@@ -67,21 +75,27 @@ export class FilesService {
         throw new BadRequestException('File exceeds maximum size of 25 MB');
       }
 
-      await this.validateTenantQuota(tenantId, dto.sizeBytes);
-
       const objectKey = generateUploadObjectKey(tenantId, dto.fileName);
       const expiresAt = new Date(Date.now() + UPLOAD_INTENT_TTL_SECONDS * 1000);
 
-      await this.prisma.fileUploadIntent.create({
-        data: {
+      await this.prisma.$transaction(async (tx) => {
+        await this.quotaService.assertCanUseStorageInTransaction(
+          tx,
           tenantId,
-          userId,
-          objectKey,
-          originalFilename: dto.fileName.trim(),
-          mimeType: dto.contentType,
-          sizeBytes: BigInt(dto.sizeBytes),
-          expiresAt,
-        },
+          dto.sizeBytes,
+        );
+
+        await tx.fileUploadIntent.create({
+          data: {
+            tenantId,
+            userId,
+            objectKey,
+            originalFilename: dto.fileName.trim(),
+            mimeType: dto.contentType,
+            sizeBytes: BigInt(dto.sizeBytes),
+            expiresAt,
+          },
+        });
       });
 
       const signed = await this.storageService.getSignedUploadUrl({
@@ -144,8 +158,6 @@ export class FilesService {
 
     const verified = await this.verifyUploadedObject(intent.objectKey, intent);
 
-    await this.validateTenantQuota(tenantId, verified.sizeBytes);
-
     if (dto.category === FileAssetCategory.LEAD_ATTACHMENT && dto.leadId) {
       await this.leadAttachmentService.validateAttachmentTarget(
         dto.leadId,
@@ -168,6 +180,13 @@ export class FilesService {
         : null;
 
     const file = await this.prisma.$transaction(async (tx) => {
+      await this.quotaService.assertCanUseStorageInTransaction(
+        tx,
+        tenantId,
+        verified.sizeBytes,
+        { excludeUploadIntentId: intent.id },
+      );
+
       const created = await tx.fileAsset.create({
         data: {
           tenantId,
@@ -267,8 +286,6 @@ export class FilesService {
       throw new BadRequestException('File content is empty');
     }
 
-    await this.validateTenantQuota(params.tenantId, sizeBytes);
-
     const objectKey = generateExportObjectKey(params.tenantId, params.fileName);
     const originalFilename = params.fileName.trim();
 
@@ -279,6 +296,12 @@ export class FilesService {
     });
 
     const file = await this.prisma.$transaction(async (tx) => {
+      await this.quotaService.assertCanUseStorageInTransaction(
+        tx,
+        params.tenantId,
+        sizeBytes,
+      );
+
       const created = await tx.fileAsset.create({
         data: {
           tenantId: params.tenantId,
@@ -357,6 +380,18 @@ export class FilesService {
       durationMs: Date.now() - startedAt,
     });
 
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorUserId: userId,
+      action: FILE_AUDIT_ACTIONS.DELETED,
+      entityType: AUDIT_ENTITY_TYPES.FILE_ASSET,
+      entityId: file.id,
+      metadata: {
+        category: file.category,
+        filename: file.originalFilename,
+      },
+    });
+
     if (file.leadId) {
       const assigneeUserId = await this.leadAttachmentService.getLeadAssigneeId(
         file.leadId,
@@ -375,31 +410,6 @@ export class FilesService {
     }
 
     return { id: file.id };
-  }
-
-  private async validateTenantQuota(
-    tenantId: string,
-    sizeBytes: number,
-  ): Promise<void> {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: {
-        storageUsedBytes: true,
-        subscriptionPlan: { select: { maxStorageBytes: true } },
-      },
-    });
-
-    if (!tenant) {
-      throw new NotFoundException('Tenant not found');
-    }
-
-    const projected =
-      tenant.storageUsedBytes + BigInt(sizeBytes);
-
-    const maxStorageBytes = tenant.subscriptionPlan.maxStorageBytes;
-    if (maxStorageBytes !== null && projected > maxStorageBytes) {
-      throw new BadRequestException('Storage quota exceeded');
-    }
   }
 
   private async verifyUploadedObject(

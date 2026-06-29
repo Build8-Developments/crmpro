@@ -101,4 +101,111 @@ describe('QuotaService', () => {
       NotFoundException,
     );
   });
+
+  describe('transaction-safe quota checks', () => {
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 'tenant-1' }]),
+      tenant: {
+        findFirst: jest.fn().mockResolvedValue({
+          storageUsedBytes: 0n,
+          subscriptionPlan: starterPlan,
+        }),
+      },
+      lead: { count: jest.fn() },
+      project: { count: jest.fn() },
+      user: { count: jest.fn() },
+      fileUploadIntent: { aggregate: jest.fn() },
+    };
+
+    it('locks tenant row before counting leads in transaction', async () => {
+      tx.lead.count.mockResolvedValue(1);
+
+      await expect(
+        service.assertCanCreateLeadInTransaction(tx as never, 'tenant-1'),
+      ).resolves.toBeUndefined();
+
+      expect(tx.$queryRaw).toHaveBeenCalled();
+      expect(tx.lead.count).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1', deletedAt: null },
+      });
+    });
+
+    it('rejects lead creation in transaction when at limit', async () => {
+      tx.lead.count.mockResolvedValue(2);
+
+      await expect(
+        service.assertCanCreateLeadInTransaction(tx as never, 'tenant-1'),
+      ).rejects.toThrow(new ForbiddenException(QUOTA_EXCEEDED_MESSAGES.LEAD));
+    });
+
+    it('rejects storage usage in transaction when projected usage exceeds limit', async () => {
+      tx.tenant.findFirst.mockResolvedValue({
+        storageUsedBytes: 100n,
+        subscriptionPlan: {
+          ...starterPlan,
+          maxStorageBytes: 150n,
+        },
+      });
+      tx.fileUploadIntent.aggregate.mockResolvedValue({
+        _sum: { sizeBytes: 0n },
+      });
+
+      await expect(
+        service.assertCanUseStorageInTransaction(tx as never, 'tenant-1', 100),
+      ).rejects.toThrow('Storage quota exceeded');
+    });
+
+    it('includes pending upload intents when checking storage quota', async () => {
+      tx.tenant.findFirst.mockResolvedValue({
+        storageUsedBytes: 80n,
+        subscriptionPlan: {
+          ...starterPlan,
+          maxStorageBytes: 100n,
+        },
+      });
+      tx.fileUploadIntent.aggregate.mockResolvedValue({
+        _sum: { sizeBytes: 15n },
+      });
+
+      await expect(
+        service.assertCanUseStorageInTransaction(tx as never, 'tenant-1', 10),
+      ).rejects.toThrow('Storage quota exceeded');
+
+      expect(tx.fileUploadIntent.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            tenantId: 'tenant-1',
+            expiresAt: { gt: expect.any(Date) },
+          }),
+        }),
+      );
+    });
+
+    it('excludes the completing upload intent from pending storage reservation', async () => {
+      tx.tenant.findFirst.mockResolvedValue({
+        storageUsedBytes: 80n,
+        subscriptionPlan: {
+          ...starterPlan,
+          maxStorageBytes: 100n,
+        },
+      });
+      tx.fileUploadIntent.aggregate.mockResolvedValue({
+        _sum: { sizeBytes: 0n },
+      });
+
+      await expect(
+        service.assertCanUseStorageInTransaction(tx as never, 'tenant-1', 20, {
+          excludeUploadIntentId: 'intent-1',
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(tx.fileUploadIntent.aggregate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { not: 'intent-1' },
+          }),
+        }),
+      );
+    });
+  });
 });

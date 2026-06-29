@@ -31,6 +31,7 @@ jest.mock('ioredis', () =>
 type MockQueue = {
   add: jest.Mock;
   close: jest.Mock;
+  getJob: jest.Mock;
 };
 
 describe('QueueService', () => {
@@ -43,14 +44,17 @@ describe('QueueService', () => {
     importQueue = {
       add: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
+      getJob: jest.fn().mockResolvedValue(null),
     };
     exportQueue = {
       add: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
+      getJob: jest.fn().mockResolvedValue(null),
     };
     cleanupQueue = {
       add: jest.fn().mockResolvedValue(undefined),
       close: jest.fn().mockResolvedValue(undefined),
+      getJob: jest.fn().mockResolvedValue(null),
     };
 
     const bullService = {
@@ -114,6 +118,20 @@ describe('QueueService', () => {
       expect.objectContaining({
         jobId: expect.stringMatching(/^cleanup-FILE_UPLOAD_INTENTS-\d+$/),
       }),
+    );
+  });
+
+  it('requeues import jobs after removing any existing queue entry', async () => {
+    const remove = jest.fn().mockResolvedValue(undefined);
+    importQueue.getJob.mockResolvedValue({ remove });
+
+    await queueService.requeueImportJob('job-123');
+
+    expect(remove).toHaveBeenCalled();
+    expect(importQueue.add).toHaveBeenCalledWith(
+      'process-import',
+      { jobId: 'job-123', requestId: 'req-123' },
+      { jobId: 'job-123' },
     );
   });
 

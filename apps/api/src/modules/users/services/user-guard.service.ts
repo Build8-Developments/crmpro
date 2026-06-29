@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TENANT_ROLE_NAMES } from '@crmpro/shared/bootstrap';
+import { assertActorCanAssignRole } from '../../../common/auth/utils/permission-escalation.util';
+import { PermissionsService } from '../../../common/auth/services/permissions.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
 type ResolvedUser = {
@@ -21,7 +23,10 @@ type ResolvedUser = {
 
 @Injectable()
 export class UserGuardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   async resolveUser(tenantId: string, userId: string): Promise<ResolvedUser> {
     const user = await this.prisma.user.findFirst({
@@ -85,6 +90,23 @@ export class UserGuardService {
     if (!role) {
       throw new BadRequestException('Role not found for this tenant');
     }
+
+    return role;
+  }
+
+  async assertActorCanAssignRole(
+    tenantId: string,
+    actorUserId: string,
+    roleId: string,
+  ): Promise<{ id: string; name: string; isSystem: boolean }> {
+    const role = await this.assertRoleBelongsToTenant(tenantId, roleId);
+
+    const [actorPermissionKeys, targetRolePermissionKeys] = await Promise.all([
+      this.permissionsService.getPermissionKeysForUser(actorUserId, tenantId),
+      this.permissionsService.getPermissionKeysForRole(roleId, tenantId),
+    ]);
+
+    assertActorCanAssignRole(actorPermissionKeys, targetRolePermissionKeys);
 
     return role;
   }

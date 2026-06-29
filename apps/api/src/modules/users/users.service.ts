@@ -143,14 +143,19 @@ export class UsersService {
     actorUserId: string,
     dto: CreateUserDto,
   ): Promise<UserListItem> {
-    await this.quotaService.assertCanCreateUser(tenantId);
     await this.assertEmailAvailable(dto.email);
-    await this.userGuardService.assertRoleBelongsToTenant(tenantId, dto.roleId);
+    await this.userGuardService.assertActorCanAssignRole(
+      tenantId,
+      actorUserId,
+      dto.roleId,
+    );
 
     const passwordHash = await this.passwordService.hash(dto.password);
     const fullName = normalizeDisplayName(dto.fullName);
 
     const user = await this.prisma.$transaction(async (tx) => {
+      await this.quotaService.assertCanCreateUserInTransaction(tx, tenantId);
+
       const created = await tx.user.create({
         data: {
           tenantId,
@@ -220,8 +225,9 @@ export class UsersService {
     this.userGuardService.assertNotSelf(actorUserId, id);
 
     const existing = await this.userGuardService.resolveUser(tenantId, id);
-    const role = await this.userGuardService.assertRoleBelongsToTenant(
+    const role = await this.userGuardService.assertActorCanAssignRole(
       tenantId,
+      actorUserId,
       dto.roleId,
     );
 
@@ -247,10 +253,8 @@ export class UsersService {
         actorUserId,
         id,
         {
-          previousRoleId: existing.role.id,
-          previousRoleName: existing.role.name,
+          oldRoleId: existing.role.id,
           newRoleId: role.id,
-          newRoleName: role.name,
         },
         tx,
       );

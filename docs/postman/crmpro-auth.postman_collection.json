@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "crmpro-auth-collection",
     "name": "CRMPro API — Complete",
-    "description": "CRMPro API — complete local development collection.\n\nImport with crmpro-local.postman_environment.json.\n\nBase URL: {{baseUrl}} = http://localhost:3000/api/v1\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Projects, Leads, Files, Import/Export Jobs, Analytics, Users, Roles, Notifications, Monitoring, Debug.\n\nStart: Auth → Login, then run module folders.",
+    "description": "CRMPro API — complete local development collection.\n\nImport with crmpro-local.postman_environment.json.\n\nBase URL: {{baseUrl}} = http://localhost:3000/api/v1\n\nFolders: Auth, Pipelines, Lead Sources, Developers, Projects, Leads, Leads Bulk Actions, Files, Import/Export Jobs, Analytics, Users, Roles, Audit, Notifications, Monitoring, Debug.\n\nStart: Auth → Login, then run module folders.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -50,12 +50,13 @@
           "}",
           "",
           "function saveTokens(json) {",
-          "  if (json.accessToken) {",
-          "    pm.environment.set('accessToken', json.accessToken);",
+          "  const data = json.data || {};",
+          "  if (data.accessToken) {",
+          "    pm.environment.set('accessToken', data.accessToken);",
           "  }",
-          "  if (json.refreshToken) {",
-          "    pm.environment.set('refreshToken', json.refreshToken);",
-          "    const sessionId = json.refreshToken.split('.')[0];",
+          "  if (data.refreshToken) {",
+          "    pm.environment.set('refreshToken', data.refreshToken);",
+          "    const sessionId = data.refreshToken.split('.')[0];",
           "    if (sessionId) {",
           "      pm.environment.set('sessionId', sessionId);",
           "    }",
@@ -77,7 +78,7 @@
           "  if (response.code === 200 || response.code === 201) {",
           "    const json = response.json();",
           "    saveTokens(json);",
-          "    return json.accessToken || null;",
+          "    return (json.data && json.data.accessToken) || null;",
           "  }",
           "",
           "  console.warn('Token refresh failed:', response.code);",
@@ -143,10 +144,11 @@
           "",
           "    if (refreshResponse.code === 200 || refreshResponse.code === 201) {",
           "      const json = refreshResponse.json();",
-          "      if (json.accessToken) pm.environment.set('accessToken', json.accessToken);",
-          "      if (json.refreshToken) {",
-          "        pm.environment.set('refreshToken', json.refreshToken);",
-          "        const sessionId = json.refreshToken.split('.')[0];",
+          "      const data = json.data || {};",
+          "      if (data.accessToken) pm.environment.set('accessToken', data.accessToken);",
+          "      if (data.refreshToken) {",
+          "        pm.environment.set('refreshToken', data.refreshToken);",
+          "        const sessionId = data.refreshToken.split('.')[0];",
           "        if (sessionId) pm.environment.set('sessionId', sessionId);",
           "      }",
           "      pm.variables.set('__retriedAfterRefresh', '1');",
@@ -177,31 +179,33 @@
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
                   "});",
                   "",
-                  "pm.test('Response has success flag', function () {",
+                  "pm.test('Response has auth data envelope', function () {",
                   "  const json = pm.response.json();",
                   "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.be.an('object');",
                   "});",
                   "",
                   "const json = pm.response.json();",
+                  "const data = json.data || {};",
                   "",
-                  "if (json.accessToken) {",
-                  "  pm.environment.set('accessToken', json.accessToken);",
+                  "if (data.accessToken) {",
+                  "  pm.environment.set('accessToken', data.accessToken);",
                   "  console.log('accessToken saved to environment');",
                   "} else {",
-                  "  console.log('No accessToken in response (expected for Chunk 2)');",
+                  "  console.log('No accessToken in response');",
                   "}",
                   "",
-                  "if (json.refreshToken) {",
-                  "  pm.environment.set('refreshToken', json.refreshToken);",
-                  "  const sessionId = json.refreshToken.split('.')[0];",
+                  "if (data.refreshToken) {",
+                  "  pm.environment.set('refreshToken', data.refreshToken);",
+                  "  const sessionId = data.refreshToken.split('.')[0];",
                   "  if (sessionId) {",
                   "    pm.environment.set('sessionId', sessionId);",
                   "  }",
                   "  console.log('refreshToken saved to environment');",
                   "}",
                   "",
-                  "if (json.user) {",
-                  "  console.log(`Logged in as ${json.user.email} (${json.user.role?.name})`);",
+                  "if (data.user) {",
+                  "  console.log(`Logged in as ${data.user.email} (${data.user.role?.name})`);",
                   "}"
                 ]
               }
@@ -251,15 +255,16 @@
                   "});",
                   "",
                   "const json = pm.response.json();",
+                  "const data = json.data || {};",
                   "",
-                  "if (json.accessToken) {",
-                  "  pm.environment.set('accessToken', json.accessToken);",
+                  "if (data.accessToken) {",
+                  "  pm.environment.set('accessToken', data.accessToken);",
                   "  console.log('accessToken updated');",
                   "}",
                   "",
-                  "if (json.refreshToken) {",
-                  "  pm.environment.set('refreshToken', json.refreshToken);",
-                  "  const sessionId = json.refreshToken.split('.')[0];",
+                  "if (data.refreshToken) {",
+                  "  pm.environment.set('refreshToken', data.refreshToken);",
+                  "  const sessionId = data.refreshToken.split('.')[0];",
                   "  if (sessionId) {",
                   "    pm.environment.set('sessionId', sessionId);",
                   "  }",
@@ -2121,6 +2126,122 @@
       ]
     },
     {
+      "name": "Leads Bulk Actions",
+      "description": "Batch lead assign and stage move. Requires lead.assign / lead.update. Max 500 leads per request.",
+      "item": [
+        {
+          "name": "Bulk Assign Leads",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has bulk counts', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('successCount');",
+                  "  pm.expect(json.data).to.have.property('failureCount');",
+                  "  pm.expect(json.data.failures).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadIds\": [\n    \"{{leadId}}\"\n  ],\n  \"userId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/bulk/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "bulk",
+                "assign"
+              ]
+            },
+            "description": "Assign up to 500 leads to a user. Set userId to null to bulk unassign. Partial success supported."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Move Lead Stage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has bulk counts', function () {",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data).to.have.property('successCount');",
+                  "  pm.expect(json.data).to.have.property('failureCount');",
+                  "  pm.expect(json.data.failures).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadIds\": [\n    \"{{leadId}}\"\n  ],\n  \"targetStageId\": \"{{targetStageId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/leads/bulk/move-stage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "bulk",
+                "move-stage"
+              ]
+            },
+            "description": "Move up to 500 leads to targetStageId within each lead's pipeline. Partial success supported."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Files",
       "description": "Signed S3 upload flow (Phase 1). Run Auth → Login first.",
       "item": [
@@ -3103,6 +3224,65 @@
               "raw": "{{baseUrl}}/roles/{{roleId}}/archive",
               "host": ["{{baseUrl}}"],
               "path": ["roles", "{{roleId}}", "archive"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Audit",
+      "description": "Business audit explorer. Requires audit.read (Owner/Manager).",
+      "item": [
+        {
+          "name": "List Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "if (json.data?.items?.length) {",
+                  "  pm.environment.set('auditId', json.data.items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audit?page=1&limit=20&actorUserId=&action=&entityType=&from=&to=",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "actorUserId", "value": "{{userId}}", "disabled": true },
+                { "key": "action", "value": "USER_CREATED", "disabled": true },
+                { "key": "entityType", "value": "User", "disabled": true },
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Audit Log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audit/{{auditId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit", "{{auditId}}"]
             }
           },
           "response": []

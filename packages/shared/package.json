@@ -24,6 +24,10 @@
     "./bootstrap": {
       "types": "./dist/bootstrap/index.d.ts",
       "default": "./dist/bootstrap/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "default": "./dist/errors/index.js"
     }
   },
   "scripts": {
@@ -38,7 +42,8 @@
       "auth": ["dist/auth/index.d.ts"],
       "auth/permissions": ["dist/auth/permissions.d.ts"],
       "leads": ["dist/leads/index.d.ts"],
-      "bootstrap": ["dist/bootstrap/index.d.ts"]
+      "bootstrap": ["dist/bootstrap/index.d.ts"],
+      "errors": ["dist/errors/index.d.ts"]
     }
   }
 }

@@ -88,7 +88,6 @@ export class LeadsService {
     actorUserId: string,
     dto: CreateLeadDto,
   ): Promise<LeadMutationResult> {
-    await this.quotaService.assertCanCreateLead(tenantId);
     await this.validateSource(dto.sourceId, tenantId);
     await this.validatePipelineAndStage(
       dto.pipelineId,
@@ -115,6 +114,8 @@ export class LeadsService {
     );
 
     const leadId = await this.prisma.$transaction(async (tx) => {
+      await this.quotaService.assertCanCreateLeadInTransaction(tx, tenantId);
+
       const lead = await tx.lead.create({
         data: {
           tenantId,
@@ -271,11 +272,16 @@ export class LeadsService {
       return { success: false, reason: 'Duplicate lead detected' };
     }
 
-    if (!(await this.quotaService.canCreateLead(tenantId))) {
-      return { success: false, reason: 'Lead quota exceeded' };
-    }
-
     const leadId = await this.prisma.$transaction(async (tx) => {
+      const allowed = await this.quotaService.canCreateLeadInTransaction(
+        tx,
+        tenantId,
+      );
+
+      if (!allowed) {
+        return null;
+      }
+
       const lead = await tx.lead.create({
         data: {
           tenantId,
@@ -323,6 +329,10 @@ export class LeadsService {
 
       return lead.id;
     });
+
+    if (leadId === null) {
+      return { success: false, reason: 'Lead quota exceeded' };
+    }
 
     return { success: true, leadId };
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JobStatus, Prisma } from '@crmpro/database';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
@@ -6,6 +6,7 @@ import { LoggingService } from '../../common/logging/logging.service';
 import { RequestContextService } from '../../common/logging/request-context.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { QueueService } from '../jobs/queues/queue.service';
 import {
   CLEANUP_CONFIG_KEYS,
   CleanupJobName,
@@ -15,14 +16,16 @@ import {
   DEFAULT_SESSION_RETENTION_DAYS,
   DEFAULT_UPLOAD_INTENT_TTL_MINUTES,
   S3_TENANT_PREFIX,
-  STALE_EXPORT_JOB_ERROR,
-  STALE_IMPORT_JOB_ERROR,
+  STALE_EXPORT_JOB_RECLAIMED,
+  STALE_IMPORT_JOB_RECLAIMED,
 } from './cleanup.constants';
 import { CleanupTaskResult } from './cleanup.types';
 import { CleanupHealthService } from './cleanup-health.service';
 
 @Injectable()
 export class CleanupService {
+  private readonly logger = new Logger(CleanupService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
@@ -31,6 +34,7 @@ export class CleanupService {
     private readonly loggingService: LoggingService,
     private readonly requestContext: RequestContextService,
     private readonly storageLoggingService: StorageLoggingService,
+    private readonly queueService: QueueService,
   ) {}
 
   async runCleanup(jobName: CleanupJobName): Promise<CleanupTaskResult> {
@@ -165,21 +169,35 @@ export class CleanupService {
         break;
       }
 
-      const result = await this.prisma.importJob.updateMany({
-        where: {
-          id: { in: batch.map((job) => job.id) },
-          status: JobStatus.PROCESSING,
-        },
-        data: {
-          status: JobStatus.FAILED,
-          completedAt: new Date(),
-          errorSummary: [
-            { row: 0, reason: STALE_IMPORT_JOB_ERROR },
-          ] as unknown as Prisma.InputJsonValue,
-        },
-      });
+      for (const job of batch) {
+        const reclaimed = await this.prisma.importJob.updateMany({
+          where: {
+            id: job.id,
+            status: JobStatus.PROCESSING,
+            updatedAt: { lt: cutoff },
+          },
+          data: {
+            status: JobStatus.PENDING,
+            processedRows: 0,
+            successfulRows: 0,
+            failedRows: 0,
+            totalRows: 0,
+            errorSummary: Prisma.DbNull,
+            completedAt: null,
+          },
+        });
 
-      updated += result.count;
+        if (reclaimed.count !== 1) {
+          continue;
+        }
+
+        await this.queueService.requeueImportJob(job.id);
+        updated += 1;
+
+        this.logger.warn(
+          `${STALE_IMPORT_JOB_RECLAIMED} jobId=${job.id}`,
+        );
+      }
 
       if (batch.length < batchSize) {
         break;
@@ -209,19 +227,34 @@ export class CleanupService {
         break;
       }
 
-      const result = await this.prisma.exportJob.updateMany({
-        where: {
-          id: { in: batch.map((job) => job.id) },
-          status: JobStatus.PROCESSING,
-        },
-        data: {
-          status: JobStatus.FAILED,
-          completedAt: new Date(),
-          errorMessage: STALE_EXPORT_JOB_ERROR,
-        },
-      });
+      for (const job of batch) {
+        const reclaimed = await this.prisma.exportJob.updateMany({
+          where: {
+            id: job.id,
+            status: JobStatus.PROCESSING,
+            updatedAt: { lt: cutoff },
+          },
+          data: {
+            status: JobStatus.PENDING,
+            progress: 0,
+            rowCount: null,
+            fileAssetId: null,
+            errorMessage: null,
+            completedAt: null,
+          },
+        });
 
-      updated += result.count;
+        if (reclaimed.count !== 1) {
+          continue;
+        }
+
+        await this.queueService.requeueExportJob(job.id);
+        updated += 1;
+
+        this.logger.warn(
+          `${STALE_EXPORT_JOB_RECLAIMED} jobId=${job.id}`,
+        );
+      }
 
       if (batch.length < batchSize) {
         break;
