@@ -1,0 +1,604 @@
+{
+  "info": {
+    "_postman_id": "crmpro-admin-auth-collection",
+    "name": "CRMPro Admin API",
+    "description": "CRMPro Admin API — auth and admins modules.\n\nBase URL: {{adminBaseUrl}} = http://localhost:3100/api/v1\n\nStart with Admin Auth → Login. Tokens are saved to adminAccessToken / adminRefreshToken / adminSessionId.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function getRequestPath() {",
+          "  const url = pm.request.url;",
+          "  if (typeof url.getPath === 'function') {",
+          "    const path = url.getPath();",
+          "    if (Array.isArray(path)) return path.filter(Boolean).join('/');",
+          "    if (typeof path === 'string') return path.replace(/^\\/+/, '').replace(/\\/+$/, '');",
+          "  }",
+          "  if (Array.isArray(url.path)) return url.path.filter(Boolean).join('/');",
+          "  return '';",
+          "}",
+          "",
+          "function isPublicAuthRoute() {",
+          "  return /(^|\\/)auth\\/(login|refresh)$/.test(getRequestPath());",
+          "}",
+          "",
+          "const token = pm.environment.get('adminAccessToken');",
+          "if (token && !isPublicAuthRoute()) {",
+          "  pm.request.headers.upsert({ key: 'Authorization', value: `Bearer ${token}` });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function saveAdminTokens(json) {",
+          "  if (json.accessToken) pm.environment.set('adminAccessToken', json.accessToken);",
+          "  if (json.refreshToken) {",
+          "    pm.environment.set('adminRefreshToken', json.refreshToken);",
+          "    const sessionId = json.refreshToken.split('.')[0];",
+          "    if (sessionId) pm.environment.set('adminSessionId', sessionId);",
+          "  }",
+          "}",
+          "",
+          "if (pm.response.code >= 200 && pm.response.code < 300) {",
+          "  try { saveAdminTokens(pm.response.json()); } catch (e) {}",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-device-fingerprint", "value": "postman-local-dev" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Permissions",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/auth/permissions"
+          }
+        },
+        {
+          "name": "Sessions",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/auth/sessions"
+          }
+        },
+        {
+          "name": "Revoke Session",
+          "request": {
+            "method": "DELETE",
+            "url": "{{adminBaseUrl}}/auth/sessions/{{adminSessionId}}"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Logout All",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/auth/logout-all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admins",
+      "item": [
+        {
+          "name": "List Admins",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{adminBaseUrl}}/admins?page=1&limit=20",
+              "host": ["{{adminBaseUrl}}"],
+              "path": ["admins"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "roleId", "value": "{{roleId}}", "disabled": true },
+                { "key": "isActive", "value": "true", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Admin",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}"
+          }
+        },
+        {
+          "name": "Create Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) {",
+                  "    pm.environment.set('targetAdminId', json.data.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"support2@crmpro.local\",\n  \"password\": \"StrongPass123!\",\n  \"fullName\": \"Support Admin\",\n  \"roleId\": \"{{roleId}}\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/admins"
+          }
+        },
+        {
+          "name": "Update Admin",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Support Admin Updated\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}"
+          }
+        },
+        {
+          "name": "Deactivate Admin",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}/deactivate"
+          }
+        },
+        {
+          "name": "Reactivate Admin",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}/reactivate"
+          }
+        },
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/admins/roles"
+          }
+        },
+        {
+          "name": "Get Role",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/admins/roles/{{roleId}}"
+          }
+        },
+        {
+          "name": "List Notes",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}/notes"
+          }
+        },
+        {
+          "name": "Create Note",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) {",
+                  "    pm.environment.set('noteId', json.data.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Needs approval before receiving production access.\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}/notes"
+          }
+        },
+        {
+          "name": "Update Note",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Approved for staging access only.\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/admin-notes/{{noteId}}"
+          }
+        },
+        {
+          "name": "Delete Note",
+          "request": {
+            "method": "DELETE",
+            "url": "{{adminBaseUrl}}/admin-notes/{{noteId}}"
+          }
+        },
+        {
+          "name": "Revoke Sessions",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}/revoke-sessions"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"NewStrongPassword123!\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/admins/{{targetAdminId}}/reset-password"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plans",
+      "item": [
+        {
+          "name": "List Plans",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{adminBaseUrl}}/plans?page=1&limit=20",
+              "host": ["{{adminBaseUrl}}"],
+              "path": ["plans"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "isActive", "value": "true", "disabled": true },
+                { "key": "currency", "value": "EGP", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Plan",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/plans/{{planId}}"
+          }
+        },
+        {
+          "name": "Create Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) {",
+                  "    pm.environment.set('planId', json.data.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Growth Plus\",\n  \"description\": \"Mid-market CRM plan with extended limits\",\n  \"defaultPrice\": 12000,\n  \"currency\": \"EGP\",\n  \"maxUsers\": 30,\n  \"maxLeads\": 15000,\n  \"maxProjects\": 150,\n  \"maxStorageBytes\": 64424509440,\n  \"featureFlags\": {\n    \"analytics\": true,\n    \"importExport\": true,\n    \"apiAccess\": false,\n    \"customBranding\": false,\n    \"prioritySupport\": true\n  }\n}"
+            },
+            "url": "{{adminBaseUrl}}/plans"
+          }
+        },
+        {
+          "name": "Update Plan",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated plan description\",\n  \"defaultPrice\": 12500\n}"
+            },
+            "url": "{{adminBaseUrl}}/plans/{{planId}}"
+          }
+        },
+        {
+          "name": "Archive Plan",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/plans/{{planId}}/archive"
+          }
+        },
+        {
+          "name": "Unarchive Plan",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/plans/{{planId}}/unarchive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contracts",
+      "item": [
+        {
+          "name": "List Contracts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{adminBaseUrl}}/contracts?page=1&limit=20",
+              "host": ["{{adminBaseUrl}}"],
+              "path": ["contracts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "DRAFT", "disabled": true },
+                { "key": "planId", "value": "{{planId}}", "disabled": true },
+                { "key": "currency", "value": "EGP", "disabled": true },
+                { "key": "paymentMethod", "value": "BANK_TRANSFER", "disabled": true },
+                { "key": "paymentFrequency", "value": "MONTHLY", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Contract",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/contracts/{{contractId}}"
+          }
+        },
+        {
+          "name": "Create Contract",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.id) {",
+                  "    pm.environment.set('contractId', json.data.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractName\": \"Sunrise Properties Growth Deal\",\n  \"planId\": \"{{planId}}\",\n  \"agreedPrice\": 7500,\n  \"currency\": \"EGP\",\n  \"paymentMethod\": \"BANK_TRANSFER\",\n  \"paymentFrequency\": \"MONTHLY\",\n  \"contractStartAt\": \"2026-08-01T00:00:00.000Z\",\n  \"contractEndAt\": \"2027-08-01T00:00:00.000Z\",\n  \"discountPercent\": 10,\n  \"gracePeriodDays\": 10,\n  \"autoRenew\": true,\n  \"notes\": \"Includes priority onboarding.\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/contracts"
+          }
+        },
+        {
+          "name": "Update Contract",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agreedPrice\": 7200,\n  \"notes\": \"Updated after negotiation.\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/contracts/{{contractId}}"
+          }
+        },
+        {
+          "name": "Activate Contract",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/contracts/{{contractId}}/activate"
+          }
+        },
+        {
+          "name": "Terminate Contract",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/contracts/{{contractId}}/terminate"
+          }
+        },
+        {
+          "name": "Archive Contract",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/contracts/{{contractId}}/archive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tenants",
+      "item": [
+        {
+          "name": "List Tenants",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{adminBaseUrl}}/tenants?page=1&limit=20",
+              "host": ["{{adminBaseUrl}}"],
+              "path": ["tenants"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "ACTIVE", "disabled": true },
+                { "key": "planId", "value": "{{planId}}", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Tenant",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}"
+          }
+        },
+        {
+          "name": "Create Tenant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.data && json.data.tenant && json.data.tenant.id) {",
+                  "    pm.environment.set('tenantId', json.data.tenant.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractId\": \"{{contractId}}\",\n  \"name\": \"Sunrise Properties\",\n  \"slug\": \"sunrise-properties-new\",\n  \"ownerFullName\": \"Ahmed Hassan\",\n  \"ownerEmail\": \"ceo@sunrise-properties.com\",\n  \"ownerPassword\": \"StrongPass123!\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/tenants"
+          }
+        },
+        {
+          "name": "Suspend Tenant",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/suspend"
+          }
+        },
+        {
+          "name": "Reactivate Tenant",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/reactivate"
+          }
+        },
+        {
+          "name": "Update Tenant Details",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Prime Estates Updated\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/details"
+          }
+        },
+        {
+          "name": "Update Owner",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ahmed Hassan Updated\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/owner"
+          }
+        },
+        {
+          "name": "Reset Owner Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"NewStrongPass123!\"\n}"
+            },
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/reset-owner-password"
+          }
+        },
+        {
+          "name": "Revoke Owner Sessions",
+          "request": {
+            "method": "POST",
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/revoke-owner-sessions"
+          }
+        },
+        {
+          "name": "Get Tenant Usage",
+          "request": {
+            "method": "GET",
+            "url": "{{adminBaseUrl}}/tenants/{{tenantId}}/usage"
+          }
+        }
+      ]
+    }
+  ]
+}

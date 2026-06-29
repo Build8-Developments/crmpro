@@ -10,6 +10,9 @@ import {
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
 import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import { PLAN_FEATURES } from '../../common/entitlements/entitlement.constants';
+import { RequirePlanFeature } from '../../common/entitlements/decorators/require-plan-feature.decorator';
+import { PlanEntitlementGuard } from '../../common/entitlements/guards/plan-entitlement.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
@@ -18,12 +21,13 @@ import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
 import { ImportJobsService } from './import-jobs.service';
 
 @Controller('import-jobs')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanEntitlementGuard)
 export class ImportJobsController {
   constructor(private readonly importJobsService: ImportJobsService) {}
 
   @Post('leads')
   @RequirePermission(PERMISSIONS.IMPORT_JOB_CREATE)
+  @RequirePlanFeature(PLAN_FEATURES.IMPORT_EXPORT)
   async createLeadImportJob(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateLeadImportJobDto,

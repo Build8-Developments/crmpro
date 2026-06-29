@@ -6,6 +6,7 @@ import {
   getPaginationParams,
   PaginatedResponse,
 } from '../../common/pagination';
+import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
 import { normalizeDisplayName } from '../../common/utils/name-normalization.util';
@@ -47,6 +48,7 @@ export class LeadsService {
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
     private readonly domainEventBus: DomainEventBus,
+    private readonly quotaService: QuotaService,
   ) {}
 
   async listLeads(
@@ -86,6 +88,7 @@ export class LeadsService {
     actorUserId: string,
     dto: CreateLeadDto,
   ): Promise<LeadMutationResult> {
+    await this.quotaService.assertCanCreateLead(tenantId);
     await this.validateSource(dto.sourceId, tenantId);
     await this.validatePipelineAndStage(
       dto.pipelineId,
@@ -266,6 +269,10 @@ export class LeadsService {
 
     if (duplicateWarning) {
       return { success: false, reason: 'Duplicate lead detected' };
+    }
+
+    if (!(await this.quotaService.canCreateLead(tenantId))) {
+      return { success: false, reason: 'Lead quota exceeded' };
     }
 
     const leadId = await this.prisma.$transaction(async (tx) => {

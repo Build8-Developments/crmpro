@@ -8,6 +8,8 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { PERMISSIONS } from '@crmpro/shared/auth';
+import { PermissionsGuard, RequirePermission } from '../../common/auth';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
@@ -16,11 +18,12 @@ import { RequestUploadDto } from './dto/request-upload.dto';
 import { FilesService } from './files.service';
 
 @Controller('files')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   @Post('request-upload')
+  @RequirePermission(PERMISSIONS.FILE_UPLOAD)
   async requestUpload(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: RequestUploadDto,
@@ -35,6 +38,7 @@ export class FilesController {
   }
 
   @Post('complete-upload')
+  @RequirePermission(PERMISSIONS.FILE_UPLOAD)
   async completeUpload(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CompleteUploadDto,
@@ -49,6 +53,7 @@ export class FilesController {
   }
 
   @Get(':id/download-url')
+  @RequirePermission(PERMISSIONS.FILE_READ)
   async getDownloadUrl(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -59,6 +64,7 @@ export class FilesController {
   }
 
   @Delete(':id')
+  @RequirePermission(PERMISSIONS.FILE_DELETE)
   async deleteFile(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

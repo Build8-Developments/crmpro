@@ -9,6 +9,7 @@ import {
   getPaginationParams,
   PaginatedResponse,
 } from '../../common/pagination';
+import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   buildOrderBy,
@@ -54,7 +55,10 @@ type ProjectRecord = Prisma.ProjectGetPayload<{ select: typeof projectSelect }>;
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly quotaService: QuotaService,
+  ) {}
 
   async listProjects(
     tenantId: string,
@@ -92,6 +96,7 @@ export class ProjectsService {
     tenantId: string,
     dto: CreateProjectDto,
   ): Promise<ProjectResponse> {
+    await this.quotaService.assertCanCreateProject(tenantId);
     await this.getDeveloperOrThrow(dto.developerId, tenantId);
 
     const name = this.normalizeName(dto.name);

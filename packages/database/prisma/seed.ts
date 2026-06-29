@@ -16,6 +16,9 @@ import {
   NotificationPriority,
   NotificationStatus,
   NotificationPreferenceCategory,
+  ContractStatus,
+  PaymentMethod,
+  PaymentFrequency,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
 
@@ -26,6 +29,7 @@ const PLAN_IDS = {
   starter: '11111111-1111-4111-8111-111111111101',
   growth: '11111111-1111-4111-8111-111111111102',
   enterprise: '11111111-1111-4111-8111-111111111103',
+  custom: '11111111-1111-4111-8111-111111111104',
 } as const;
 
 const TENANT_ID = '22222222-2222-4222-8222-222222222201';
@@ -71,31 +75,77 @@ const SUBSCRIPTION_PLANS = [
     id: PLAN_IDS.starter,
     name: 'Starter',
     description: 'For small agencies getting started with CRMPro.',
+    isActive: true,
+    defaultPrice: 3000,
+    currency: 'EGP',
     maxUsers: 5,
     maxStorageBytes: 5n * GB,
-    maxLeads: 500,
-    maxProjects: 20,
-    featureFlags: { exportsEnabled: false, aiEnabled: false },
+    maxLeads: 1000,
+    maxProjects: 10,
+    featureFlags: {
+      analytics: false,
+      importExport: false,
+      apiAccess: false,
+      customBranding: false,
+      prioritySupport: false,
+    },
   },
   {
     id: PLAN_IDS.growth,
     name: 'Growth',
     description: 'For growing agencies that need more capacity and exports.',
-    maxUsers: 25,
+    isActive: true,
+    defaultPrice: 8000,
+    currency: 'EGP',
+    maxUsers: 20,
     maxStorageBytes: 50n * GB,
-    maxLeads: 5000,
-    maxProjects: 200,
-    featureFlags: { exportsEnabled: true, aiEnabled: false },
+    maxLeads: 10_000,
+    maxProjects: 100,
+    featureFlags: {
+      analytics: true,
+      importExport: true,
+      apiAccess: false,
+      customBranding: false,
+      prioritySupport: false,
+    },
   },
   {
     id: PLAN_IDS.enterprise,
     name: 'Enterprise',
     description: 'For large agencies with advanced needs and higher limits.',
-    maxUsers: 1000,
+    isActive: true,
+    defaultPrice: 25_000,
+    currency: 'EGP',
+    maxUsers: null,
     maxStorageBytes: 500n * GB,
-    maxLeads: 100_000,
-    maxProjects: 10_000,
-    featureFlags: { exportsEnabled: true, aiEnabled: true },
+    maxLeads: null,
+    maxProjects: null,
+    featureFlags: {
+      analytics: true,
+      importExport: true,
+      apiAccess: true,
+      customBranding: true,
+      prioritySupport: true,
+    },
+  },
+  {
+    id: PLAN_IDS.custom,
+    name: 'Custom',
+    description: 'Manually negotiated plan with custom limits and pricing.',
+    isActive: true,
+    defaultPrice: null,
+    currency: null,
+    maxUsers: null,
+    maxStorageBytes: null,
+    maxLeads: null,
+    maxProjects: null,
+    featureFlags: {
+      analytics: true,
+      importExport: true,
+      apiAccess: true,
+      customBranding: true,
+      prioritySupport: true,
+    },
   },
 ] as const;
 
@@ -146,6 +196,76 @@ const PERMISSIONS = [
   { key: 'notification.delete', description: 'Delete notifications' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
+] as const;
+
+const ADMIN_ROLE_IDS = {
+  superAdmin: '88888888-8888-4888-8888-888888888801',
+  support: '88888888-8888-4888-8888-888888888802',
+  billing: '88888888-8888-4888-8888-888888888803',
+  readonly: '88888888-8888-4888-8888-888888888804',
+} as const;
+
+const INITIAL_PLATFORM_ADMIN_ID = '99999999-9999-4999-8999-999999999901';
+
+const CONTRACT_IDS = {
+  primeEstatesGrowth: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01',
+  vipEnterprise: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02',
+} as const;
+
+const ADMIN_PERMISSIONS = [
+  { key: 'admin.manage', description: 'Manage platform administrators' },
+  { key: 'tenant.read', description: 'View tenants' },
+  { key: 'tenant.create', description: 'Create tenants' },
+  { key: 'tenant.update', description: 'Update tenants' },
+  { key: 'tenant.suspend', description: 'Suspend tenants' },
+  { key: 'plan.read', description: 'View subscription plans' },
+  { key: 'plan.create', description: 'Create subscription plans' },
+  { key: 'plan.update', description: 'Update subscription plans' },
+  { key: 'plan.delete', description: 'Delete subscription plans' },
+  { key: 'contract.read', description: 'View tenant contracts' },
+  { key: 'contract.create', description: 'Create tenant contracts' },
+  { key: 'contract.update', description: 'Update tenant contracts' },
+  { key: 'contract.terminate', description: 'Terminate tenant contracts' },
+  {
+    key: 'platform-analytics.read',
+    description: 'View platform analytics',
+  },
+  { key: 'audit.read', description: 'View admin audit logs' },
+  { key: 'support.access', description: 'Access support tools' },
+] as const;
+
+const ADMIN_ROLES = [
+  { id: ADMIN_ROLE_IDS.superAdmin, name: 'SUPER_ADMIN' },
+  { id: ADMIN_ROLE_IDS.support, name: 'SUPPORT' },
+  { id: ADMIN_ROLE_IDS.billing, name: 'BILLING' },
+  { id: ADMIN_ROLE_IDS.readonly, name: 'READONLY' },
+] as const;
+
+const SUPPORT_ADMIN_PERMISSION_KEYS = [
+  'tenant.read',
+  'plan.read',
+  'contract.read',
+  'audit.read',
+  'platform-analytics.read',
+  'support.access',
+] as const;
+
+const BILLING_ADMIN_PERMISSION_KEYS = [
+  'plan.read',
+  'plan.update',
+  'tenant.read',
+  'contract.read',
+  'contract.create',
+  'contract.update',
+  'contract.terminate',
+] as const;
+
+const READONLY_ADMIN_PERMISSION_KEYS = [
+  'tenant.read',
+  'plan.read',
+  'contract.read',
+  'audit.read',
+  'platform-analytics.read',
 ] as const;
 
 const TENANT_ROLES = [
@@ -382,6 +502,9 @@ async function seedSubscriptionPlans(): Promise<void> {
       update: {
         name: plan.name,
         description: plan.description,
+        isActive: plan.isActive,
+        defaultPrice: plan.defaultPrice,
+        currency: plan.currency,
         maxUsers: plan.maxUsers,
         maxStorageBytes: plan.maxStorageBytes,
         maxLeads: plan.maxLeads,
@@ -405,6 +528,160 @@ async function seedPermissions(): Promise<Map<string, string>> {
   }
 
   return permissionIds;
+}
+
+async function seedAdminPermissions(): Promise<Map<string, string>> {
+  const permissionIds = new Map<string, string>();
+
+  for (const permission of ADMIN_PERMISSIONS) {
+    const record = await prisma.adminPermission.upsert({
+      where: { key: permission.key },
+      create: permission,
+      update: { description: permission.description },
+    });
+    permissionIds.set(permission.key, record.id);
+  }
+
+  return permissionIds;
+}
+
+async function seedAdminRoles(): Promise<void> {
+  for (const role of ADMIN_ROLES) {
+    await prisma.adminRole.upsert({
+      where: { id: role.id },
+      create: {
+        id: role.id,
+        name: role.name,
+        isSystem: true,
+      },
+      update: {
+        name: role.name,
+        isSystem: true,
+      },
+    });
+  }
+}
+
+async function syncAdminRolePermissions(
+  roleId: string,
+  permissionKeys: readonly string[],
+  permissionIds: Map<string, string>,
+): Promise<void> {
+  const allowedPermissionIds = permissionKeys.map((key) => {
+    const id = permissionIds.get(key);
+    if (!id) {
+      throw new Error(`Unknown admin permission key: ${key}`);
+    }
+    return id;
+  });
+
+  for (const permissionId of allowedPermissionIds) {
+    await prisma.adminRolePermission.upsert({
+      where: {
+        roleId_permissionId: { roleId, permissionId },
+      },
+      create: { roleId, permissionId },
+      update: {},
+    });
+  }
+
+  await prisma.adminRolePermission.deleteMany({
+    where: {
+      roleId,
+      permissionId: { notIn: allowedPermissionIds },
+    },
+  });
+}
+
+async function seedAdminRolePermissions(
+  permissionIds: Map<string, string>,
+): Promise<void> {
+  const allAdminPermissionKeys = ADMIN_PERMISSIONS.map(
+    (permission) => permission.key,
+  );
+
+  await syncAdminRolePermissions(
+    ADMIN_ROLE_IDS.superAdmin,
+    allAdminPermissionKeys,
+    permissionIds,
+  );
+  await syncAdminRolePermissions(
+    ADMIN_ROLE_IDS.support,
+    SUPPORT_ADMIN_PERMISSION_KEYS,
+    permissionIds,
+  );
+  await syncAdminRolePermissions(
+    ADMIN_ROLE_IDS.billing,
+    BILLING_ADMIN_PERMISSION_KEYS,
+    permissionIds,
+  );
+  await syncAdminRolePermissions(
+    ADMIN_ROLE_IDS.readonly,
+    READONLY_ADMIN_PERMISSION_KEYS,
+    permissionIds,
+  );
+}
+
+async function seedInitialPlatformAdmin(passwordHash: string): Promise<void> {
+  await prisma.platformAdmin.upsert({
+    where: { email: 'admin@crmpro.local' },
+    create: {
+      id: INITIAL_PLATFORM_ADMIN_ID,
+      email: 'admin@crmpro.local',
+      passwordHash,
+      fullName: 'System Administrator',
+      roleId: ADMIN_ROLE_IDS.superAdmin,
+      isActive: true,
+    },
+    update: {
+      passwordHash,
+      fullName: 'System Administrator',
+      roleId: ADMIN_ROLE_IDS.superAdmin,
+      isActive: true,
+    },
+  });
+}
+
+async function seedTenantContracts(): Promise<void> {
+  const contracts = [
+    {
+      id: CONTRACT_IDS.primeEstatesGrowth,
+      contractName: 'Prime Estates Growth Contract',
+      planId: PLAN_IDS.growth,
+      tenantId: TENANT_ID,
+      agreedPrice: 7000,
+      currency: 'EGP',
+      paymentMethod: PaymentMethod.BANK_TRANSFER,
+      paymentFrequency: PaymentFrequency.MONTHLY,
+      contractStartAt: new Date('2026-07-01T00:00:00.000Z'),
+      contractEndAt: new Date('2027-07-01T00:00:00.000Z'),
+      autoRenew: true,
+      status: ContractStatus.ACTIVE,
+      createdByAdminId: INITIAL_PLATFORM_ADMIN_ID,
+    },
+    {
+      id: CONTRACT_IDS.vipEnterprise,
+      contractName: 'VIP Enterprise Contract',
+      planId: PLAN_IDS.enterprise,
+      agreedPrice: 42000,
+      currency: 'EGP',
+      paymentMethod: PaymentMethod.CHEQUE,
+      paymentFrequency: PaymentFrequency.QUARTERLY,
+      contractStartAt: new Date('2026-07-01T00:00:00.000Z'),
+      discountPercent: 15,
+      status: ContractStatus.DRAFT,
+      createdByAdminId: INITIAL_PLATFORM_ADMIN_ID,
+    },
+  ] as const;
+
+  for (const contract of contracts) {
+    const { id, ...data } = contract;
+    await prisma.tenantContract.upsert({
+      where: { id },
+      create: contract,
+      update: data,
+    });
+  }
 }
 
 async function seedTenants(): Promise<void> {
@@ -1288,12 +1565,16 @@ async function main(): Promise<void> {
   console.log('Seeding CRMPro database...\n');
 
   const passwordHash = await argon2.hash('Password123!');
+  const adminPasswordHash = await argon2.hash('Admin123!');
 
   await seedSubscriptionPlans();
   console.log('✓ Subscription plans');
 
   const permissionIds = await seedPermissions();
   console.log('✓ Permissions');
+
+  const adminPermissionIds = await seedAdminPermissions();
+  console.log('✓ Admin permissions');
 
   await seedTenants();
   console.log('✓ Tenants (prime-estates, sunrise-properties)');
@@ -1303,6 +1584,18 @@ async function main(): Promise<void> {
 
   await seedRolePermissions(permissionIds);
   console.log('✓ Role permissions');
+
+  await seedAdminRoles();
+  console.log('✓ Admin roles');
+
+  await seedAdminRolePermissions(adminPermissionIds);
+  console.log('✓ Admin role permissions');
+
+  await seedInitialPlatformAdmin(adminPasswordHash);
+  console.log('✓ Platform admin');
+
+  await seedTenantContracts();
+  console.log('✓ Tenant contracts');
 
   const userIds = await seedUsers(TENANT_ID, SAMPLE_USERS, passwordHash);
   console.log('✓ Users (fixed credentials)');
@@ -1326,6 +1619,8 @@ async function main(): Promise<void> {
   console.log('  owner@primeestates.com / Password123!');
   console.log('  manager@primeestates.com / Password123!');
   console.log('  agent@primeestates.com / Password123!');
+  console.log('\nLogin (admin-api):');
+  console.log('  admin@crmpro.local / Admin123!');
   console.log('\nStable sample IDs (prime-estates):');
   console.log(`  developerId (Palm Hills): ${DEVELOPER_IDS.palmHills}`);
   console.log(`  projectId (Palm Hills New Cairo): ${PROJECT_IDS.palmHillsNewCairo}`);

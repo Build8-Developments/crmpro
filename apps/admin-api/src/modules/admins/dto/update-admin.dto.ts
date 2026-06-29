@@ -1,0 +1,30 @@
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+export class UpdateAdminDto {
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(255)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  fullName?: string;
+
+  @IsOptional()
+  @IsUUID()
+  roleId?: string;
+}

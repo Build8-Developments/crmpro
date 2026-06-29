@@ -7,6 +7,9 @@ import {
 } from '@nestjs/swagger';
 import { PERMISSIONS } from '@crmpro/shared/auth';
 import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import { PLAN_FEATURES } from '../../common/entitlements/entitlement.constants';
+import { RequirePlanFeature } from '../../common/entitlements/decorators/require-plan-feature.decorator';
+import { PlanEntitlementGuard } from '../../common/entitlements/guards/plan-entitlement.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
@@ -18,8 +21,9 @@ import { parseAnalyticsDateRange } from './queries/analytics-date.util';
 @ApiTags('Analytics')
 @ApiBearerAuth()
 @Controller('analytics')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanEntitlementGuard)
 @RequirePermission(PERMISSIONS.ANALYTICS_READ)
+@RequirePlanFeature(PLAN_FEATURES.ANALYTICS)
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

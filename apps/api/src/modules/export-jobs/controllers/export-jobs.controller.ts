@@ -10,6 +10,9 @@ import {
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
 import { PermissionsGuard, RequirePermission } from '../../../common/auth';
+import { PLAN_FEATURES } from '../../../common/entitlements/entitlement.constants';
+import { RequirePlanFeature } from '../../../common/entitlements/decorators/require-plan-feature.decorator';
+import { PlanEntitlementGuard } from '../../../common/entitlements/guards/plan-entitlement.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../auth/types/jwt-payload.type';
@@ -18,12 +21,13 @@ import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
 import { ExportJobsService } from '../services/export-jobs.service';
 
 @Controller('export-jobs')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, PlanEntitlementGuard)
 export class ExportJobsController {
   constructor(private readonly exportJobsService: ExportJobsService) {}
 
   @Post('leads')
   @RequirePermission(PERMISSIONS.EXPORT_JOB_CREATE)
+  @RequirePlanFeature(PLAN_FEATURES.IMPORT_EXPORT)
   async createLeadExportJob(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateLeadExportDto,

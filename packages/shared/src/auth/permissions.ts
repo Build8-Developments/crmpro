@@ -60,8 +60,34 @@ export const PERMISSIONS = {
   BILLING_MANAGE: 'billing.manage',
 } as const;
 
+export const ADMIN_PERMISSIONS = {
+  ADMIN_MANAGE: 'admin.manage',
+
+  TENANT_READ: 'tenant.read',
+  TENANT_CREATE: 'tenant.create',
+  TENANT_UPDATE: 'tenant.update',
+  TENANT_SUSPEND: 'tenant.suspend',
+
+  PLAN_READ: 'plan.read',
+  PLAN_CREATE: 'plan.create',
+  PLAN_UPDATE: 'plan.update',
+  PLAN_DELETE: 'plan.delete',
+
+  CONTRACT_READ: 'contract.read',
+  CONTRACT_CREATE: 'contract.create',
+  CONTRACT_UPDATE: 'contract.update',
+  CONTRACT_TERMINATE: 'contract.terminate',
+
+  PLATFORM_ANALYTICS_READ: 'platform-analytics.read',
+  AUDIT_READ: 'audit.read',
+  SUPPORT_ACCESS: 'support.access',
+} as const;
+
 export type PermissionKey =
   (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+export type AdminPermissionKey =
+  (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS];
 
 export const PERMISSION_GROUPS = {
   LEADS: [
@@ -135,6 +161,29 @@ export const PERMISSION_GROUPS = {
   TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
+export const ADMIN_PERMISSION_GROUPS = {
+  ADMIN_PLATFORM: [
+    ADMIN_PERMISSIONS.ADMIN_MANAGE,
+    ADMIN_PERMISSIONS.TENANT_READ,
+    ADMIN_PERMISSIONS.TENANT_CREATE,
+    ADMIN_PERMISSIONS.TENANT_UPDATE,
+    ADMIN_PERMISSIONS.TENANT_SUSPEND,
+    ADMIN_PERMISSIONS.PLAN_READ,
+    ADMIN_PERMISSIONS.PLAN_CREATE,
+    ADMIN_PERMISSIONS.PLAN_UPDATE,
+    ADMIN_PERMISSIONS.PLAN_DELETE,
+    ADMIN_PERMISSIONS.PLATFORM_ANALYTICS_READ,
+    ADMIN_PERMISSIONS.AUDIT_READ,
+    ADMIN_PERMISSIONS.SUPPORT_ACCESS,
+  ],
+  CONTRACTS: [
+    ADMIN_PERMISSIONS.CONTRACT_READ,
+    ADMIN_PERMISSIONS.CONTRACT_CREATE,
+    ADMIN_PERMISSIONS.CONTRACT_UPDATE,
+    ADMIN_PERMISSIONS.CONTRACT_TERMINATE,
+  ],
+} as const satisfies Record<string, readonly AdminPermissionKey[]>;
+
 export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
 
 /** Display labels for role-editor section headers. */
@@ -154,6 +203,23 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   NOTIFICATIONS: 'Notifications',
   TENANT: 'Organization',
 };
+
+export type AdminPermissionGroupKey = keyof typeof ADMIN_PERMISSION_GROUPS;
+
+/** Display labels for admin role-editor section headers. */
+export const ADMIN_PERMISSION_GROUP_LABELS: Record<
+  AdminPermissionGroupKey,
+  string
+> = {
+  ADMIN_PLATFORM: 'Platform Admin',
+  CONTRACTS: 'Contracts',
+};
+
+/** Stable UI iteration order for admin permission groups. */
+export const ADMIN_PERMISSION_GROUP_ORDER = [
+  'ADMIN_PLATFORM',
+  'CONTRACTS',
+] as const satisfies readonly AdminPermissionGroupKey[];
 
 /** Stable UI iteration order for permission groups. */
 export const PERMISSION_GROUP_ORDER = [

@@ -131,19 +131,68 @@ enum NotificationPreferenceCategory {
   TASK_UPDATES
 }
 
+enum AdminActorType {
+  ADMIN
+  SYSTEM
+}
+
+enum AdminSecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  TOKEN_REFRESH
+  TOKEN_REUSE
+  SESSION_REVOKED
+  PASSWORD_CHANGED
+  SUSPICIOUS_LOGIN
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  INSTAPAY
+  OTHER
+}
+
+enum PaymentFrequency {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+  CUSTOM
+}
+
 model SubscriptionPlan {
   id              String   @id @default(uuid()) @db.Uuid
   name            String
   description     String?
-  maxUsers        Int
-  maxStorageBytes BigInt   @db.BigInt
-  maxLeads        Int
-  maxProjects     Int
+  isActive        Boolean  @default(true)
+  defaultPrice    Decimal? @db.Decimal(12, 2)
+  currency        String?
+  maxUsers        Int?
+  maxStorageBytes BigInt?  @db.BigInt
+  maxLeads        Int?
+  maxProjects     Int?
   featureFlags    Json     @default("{}")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tenants Tenant[]
+  tenants   Tenant[]
+  contracts TenantContract[]
 }
 
 model Tenant {
@@ -158,6 +207,7 @@ model Tenant {
   deletedAt          DateTime?
 
   subscriptionPlan SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+  contracts        TenantContract[]
   roles            Role[]
   users            User[]
   fileAssets       FileAsset[]
@@ -602,4 +652,165 @@ model NotificationPreference {
 
   @@unique([userId, category])
   @@index([tenantId, userId])
+}
+
+model PlatformAdmin {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  roleId       String    @db.Uuid
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  role            AdminRole            @relation(fields: [roleId], references: [id])
+  sessions        AdminSession[]
+  auditLogs       AdminAuditLog[]
+  securityEvents  AdminSecurityEvent[]
+  authoredNotes    AdminNote[]          @relation("AdminNoteAuthor")
+  receivedNotes    AdminNote[]          @relation("AdminNoteTarget")
+  createdContracts TenantContract[]
+
+  @@index([roleId])
+  @@index([isActive])
+}
+
+model AdminRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  isSystem  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  admins      PlatformAdmin[]
+  permissions AdminRolePermission[]
+}
+
+model AdminPermission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles AdminRolePermission[]
+}
+
+model AdminRolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       AdminRole       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission AdminPermission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AdminSession {
+  id                 String    @id @default(uuid()) @db.Uuid
+  adminId            String    @db.Uuid
+  hashedRefreshToken String
+  ipAddress          String?
+  userAgent          String?
+  deviceFingerprint  String?
+  deviceName         String?
+  country            String?
+  city               String?
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  admin PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model AdminAuditLog {
+  id            String         @id @default(uuid()) @db.Uuid
+  actorAdminId  String?        @db.Uuid
+  actorType     AdminActorType
+  action        String
+  entityType    String
+  entityId      String?        @db.Uuid
+  ipAddress     String?
+  userAgent     String?
+  fingerprint   String?
+  metadata      Json?
+  createdAt     DateTime       @default(now())
+
+  actorAdmin PlatformAdmin? @relation(fields: [actorAdminId], references: [id])
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorAdminId])
+  @@index([entityType, entityId])
+  @@index([action])
+}
+
+model AdminSecurityEvent {
+  id          String                 @id @default(uuid()) @db.Uuid
+  adminId     String?                @db.Uuid
+  eventType   AdminSecurityEventType
+  severity    SecuritySeverity
+  ipAddress   String?
+  userAgent   String?
+  fingerprint String?
+  metadata    Json?
+  createdAt   DateTime               @default(now())
+
+  admin PlatformAdmin? @relation(fields: [adminId], references: [id])
+
+  @@index([adminId, createdAt(sort: Desc)])
+  @@index([eventType, createdAt(sort: Desc)])
+  @@index([severity, createdAt(sort: Desc)])
+}
+
+model AdminNote {
+  id            String    @id @default(uuid()) @db.Uuid
+  targetAdminId String    @db.Uuid
+  authorAdminId String    @db.Uuid
+  content       String    @db.VarChar(5000)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  targetAdmin PlatformAdmin @relation("AdminNoteTarget", fields: [targetAdminId], references: [id], onDelete: Cascade)
+  authorAdmin PlatformAdmin @relation("AdminNoteAuthor", fields: [authorAdminId], references: [id], onDelete: Cascade)
+
+  @@index([targetAdminId, deletedAt])
+  @@index([authorAdminId])
+}
+
+model TenantContract {
+  id               String           @id @default(uuid()) @db.Uuid
+  tenantId         String?          @db.Uuid
+  planId           String           @db.Uuid
+  contractName     String?
+  agreedPrice      Decimal          @db.Decimal(12, 2)
+  currency         String
+  paymentMethod    PaymentMethod
+  paymentFrequency PaymentFrequency
+  contractStartAt  DateTime
+  contractEndAt    DateTime?
+  discountPercent  Int?
+  gracePeriodDays  Int?
+  autoRenew        Boolean          @default(false)
+  notes            String?          @db.VarChar(5000)
+  status           ContractStatus   @default(DRAFT)
+  createdByAdminId String           @db.Uuid
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  tenant         Tenant?          @relation(fields: [tenantId], references: [id])
+  plan           SubscriptionPlan @relation(fields: [planId], references: [id])
+  createdByAdmin PlatformAdmin    @relation(fields: [createdByAdminId], references: [id])
+
+  @@index([status])
+  @@index([planId])
+  @@index([tenantId])
+  @@index([deletedAt])
 }

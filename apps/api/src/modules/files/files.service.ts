@@ -396,7 +396,8 @@ export class FilesService {
     const projected =
       tenant.storageUsedBytes + BigInt(sizeBytes);
 
-    if (projected > tenant.subscriptionPlan.maxStorageBytes) {
+    const maxStorageBytes = tenant.subscriptionPlan.maxStorageBytes;
+    if (maxStorageBytes !== null && projected > maxStorageBytes) {
       throw new BadRequestException('Storage quota exceeded');
     }
   }

@@ -6,8 +6,9 @@ Local API testing collection for auth, CRM modules, analytics, notifications, an
 
 | File | Purpose |
 | --- | --- |
-| `crmpro-auth.postman_collection.json` | Requests, scripts, folder structure |
-| `crmpro-local.postman_environment.json` | Local dev variables |
+| `crmpro-auth.postman_collection.json` | Tenant API requests, scripts, folder structure |
+| `crmpro-admin-auth.postman_collection.json` | Admin API auth endpoints |
+| `crmpro-local.postman_environment.json` | Local dev variables (tenant + admin) |
 
 ## Import
 

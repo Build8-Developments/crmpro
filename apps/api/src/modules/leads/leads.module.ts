@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
+import { QuotaModule } from '../../common/quota/quota.module';
 import { LeadAttachmentModule } from '../lead-attachments/lead-attachment.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LeadNotesController } from './lead-notes.controller';
@@ -15,6 +16,7 @@ import { LeadTimelineService } from './services/lead-timeline.service';
 @Module({
   imports: [
     AuthRbacModule,
+    QuotaModule,
     NotificationsModule,
     LeadActivityModule,
     LeadAttachmentModule,
