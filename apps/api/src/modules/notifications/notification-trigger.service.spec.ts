@@ -56,6 +56,7 @@ describe('NotificationTriggerService', () => {
         tenantId: 'tenant-a',
         recipientUserId: 'user-a',
         type: NotificationType.LEAD_ASSIGNED,
+        dedupeKey: 'lead:lead-1:LEAD_ASSIGNED:user-a',
       }),
     );
   });

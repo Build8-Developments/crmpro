@@ -69,6 +69,7 @@ export class NotificationDeliveryService {
       priority: resolvePriority(payload.priority ?? template.priority),
       createdByUserId: payload.createdByUserId ?? null,
       expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
+      dedupeKey: payload.dedupeKey ?? null,
     };
 
     try {

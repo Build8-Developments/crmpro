@@ -632,12 +632,14 @@ model Notification {
   createdAt       DateTime             @default(now())
   expiresAt       DateTime?
   createdByUserId String?              @db.Uuid
+  dedupeKey       String?
   deletedAt       DateTime?
 
   tenant    Tenant @relation(fields: [tenantId], references: [id])
   recipient User   @relation("NotificationRecipient", fields: [recipientUserId], references: [id])
   createdBy User?  @relation("NotificationCreator", fields: [createdByUserId], references: [id])
 
+  @@unique([tenantId, dedupeKey])
   @@index([tenantId, recipientUserId, status, createdAt(sort: Desc)])
   @@index([tenantId, recipientUserId, deletedAt])
   @@index([recipientUserId, createdAt(sort: Desc)])

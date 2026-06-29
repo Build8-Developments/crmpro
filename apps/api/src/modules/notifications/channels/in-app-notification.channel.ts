@@ -15,19 +15,11 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const notification = await tx.notification.create({
-        data: {
-          tenantId: context.tenantId,
-          recipientUserId: context.recipientUserId,
-          type: context.type,
-          title: context.title,
-          message: context.message,
-          metadata: context.metadata,
-          priority: context.priority,
-          createdByUserId: context.createdByUserId ?? null,
-          expiresAt: context.expiresAt ?? null,
-        },
-      });
+      const notificationId = await this.createNotificationIfAbsent(tx, context);
+
+      if (!notificationId) {
+        return;
+      }
 
       await tx.auditLog.create({
         data: {
@@ -37,15 +29,62 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
             : AuditActorType.SYSTEM,
           actorUserId: context.createdByUserId ?? null,
           entityType: 'Notification',
-          entityId: notification.id,
+          entityId: notificationId,
           action: 'NOTIFICATION_CREATED',
           metadata: {
             type: context.type,
             recipientUserId: context.recipientUserId,
             channel: this.channelId,
+            dedupeKey: context.dedupeKey ?? null,
           } satisfies Prisma.InputJsonValue,
         },
       });
     });
+  }
+
+  private async createNotificationIfAbsent(
+    tx: Prisma.TransactionClient,
+    context: NotificationDeliveryContext,
+  ): Promise<string | null> {
+    const data = {
+      tenantId: context.tenantId,
+      recipientUserId: context.recipientUserId,
+      type: context.type,
+      title: context.title,
+      message: context.message,
+      metadata: context.metadata,
+      priority: context.priority,
+      createdByUserId: context.createdByUserId ?? null,
+      expiresAt: context.expiresAt ?? null,
+      dedupeKey: context.dedupeKey ?? null,
+    };
+
+    if (!context.dedupeKey) {
+      const notification = await tx.notification.create({
+        data,
+        select: { id: true },
+      });
+
+      return notification.id;
+    }
+
+    const created = await tx.notification.createMany({
+      data: [data],
+      skipDuplicates: true,
+    });
+
+    if (created.count === 0) {
+      return null;
+    }
+
+    const notification = await tx.notification.findFirst({
+      where: {
+        tenantId: context.tenantId,
+        dedupeKey: context.dedupeKey,
+      },
+      select: { id: true },
+    });
+
+    return notification?.id ?? null;
   }
 }

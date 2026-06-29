@@ -8,6 +8,7 @@ import { NotificationPreferencesService } from './notification-preferences.servi
 import { NotificationQueueService } from './notification-queue.service';
 import { TriggerNotificationInput } from './entities/notification.types';
 import { resolvePriority } from './mappers/notification.mapper';
+import { buildNotificationDedupeKey } from './utils/notification-dedupe.util';
 
 @Injectable()
 export class NotificationTriggerService {
@@ -35,6 +36,7 @@ export class NotificationTriggerService {
       priority: resolvePriority(input.priority),
       createdByUserId: input.createdByUserId ?? null,
       expiresAt: input.expiresAt?.toISOString() ?? null,
+      dedupeKey: input.dedupeKey ?? null,
     });
   }
 
@@ -50,6 +52,12 @@ export class NotificationTriggerService {
       recipientUserId: params.recipientUserId,
       type: NotificationType.LEAD_ASSIGNED,
       createdByUserId: params.actorUserId,
+      dedupeKey: buildNotificationDedupeKey({
+        entityType: 'lead',
+        entityId: params.leadId,
+        type: NotificationType.LEAD_ASSIGNED,
+        recipientUserId: params.recipientUserId,
+      }),
       metadata: {
         leadId: params.leadId,
         leadName: params.leadName,
@@ -69,6 +77,12 @@ export class NotificationTriggerService {
       tenantId: params.tenantId,
       recipientUserId: params.recipientUserId,
       type: NotificationType.IMPORT_COMPLETED,
+      dedupeKey: buildNotificationDedupeKey({
+        entityType: 'import',
+        entityId: params.importJobId,
+        type: NotificationType.IMPORT_COMPLETED,
+        recipientUserId: params.recipientUserId,
+      }),
       metadata: {
         importJobId: params.importJobId,
         successfulRows: params.successfulRows,
@@ -88,6 +102,12 @@ export class NotificationTriggerService {
       tenantId: params.tenantId,
       recipientUserId: params.recipientUserId,
       type: NotificationType.EXPORT_COMPLETED,
+      dedupeKey: buildNotificationDedupeKey({
+        entityType: 'export',
+        entityId: params.exportJobId,
+        type: NotificationType.EXPORT_COMPLETED,
+        recipientUserId: params.recipientUserId,
+      }),
       metadata: {
         exportJobId: params.exportJobId,
         rowCount: params.rowCount,
@@ -111,6 +131,13 @@ export class NotificationTriggerService {
       recipientUserId: params.recipientUserId,
       type: NotificationType.LEAD_STAGE_CHANGED,
       createdByUserId: params.actorUserId,
+      dedupeKey: buildNotificationDedupeKey({
+        entityType: 'lead',
+        entityId: params.leadId,
+        type: NotificationType.LEAD_STAGE_CHANGED,
+        recipientUserId: params.recipientUserId,
+        suffix: params.toStageName,
+      }),
       metadata: {
         leadId: params.leadId,
         leadName: params.leadName,
@@ -126,6 +153,12 @@ export class NotificationTriggerService {
         recipientUserId: params.recipientUserId,
         type: NotificationType.LEAD_WON,
         createdByUserId: params.actorUserId,
+        dedupeKey: buildNotificationDedupeKey({
+          entityType: 'lead',
+          entityId: params.leadId,
+          type: NotificationType.LEAD_WON,
+          recipientUserId: params.recipientUserId,
+        }),
         metadata: {
           leadId: params.leadId,
           leadName: params.leadName,
@@ -140,6 +173,12 @@ export class NotificationTriggerService {
         recipientUserId: params.recipientUserId,
         type: NotificationType.LEAD_LOST,
         createdByUserId: params.actorUserId,
+        dedupeKey: buildNotificationDedupeKey({
+          entityType: 'lead',
+          entityId: params.leadId,
+          type: NotificationType.LEAD_LOST,
+          recipientUserId: params.recipientUserId,
+        }),
         metadata: {
           leadId: params.leadId,
           leadName: params.leadName,
@@ -160,6 +199,12 @@ export class NotificationTriggerService {
       recipientUserId: params.recipientUserId,
       type: NotificationType.FILE_DELETED,
       createdByUserId: params.actorUserId,
+      dedupeKey: buildNotificationDedupeKey({
+        entityType: 'file',
+        entityId: params.fileId,
+        type: NotificationType.FILE_DELETED,
+        recipientUserId: params.recipientUserId,
+      }),
       metadata: {
         fileId: params.fileId,
         fileName: params.fileName,

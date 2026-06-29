@@ -14,6 +14,7 @@ export interface NotificationJobPayload {
   priority?: NotificationPriority;
   createdByUserId?: string | null;
   expiresAt?: string | null;
+  dedupeKey?: string | null;
   requestId?: string;
 }
 
@@ -49,6 +50,7 @@ export interface NotificationDeliveryContext {
   priority: NotificationPriority;
   createdByUserId?: string | null;
   expiresAt?: Date | null;
+  dedupeKey?: string | null;
 }
 
 export interface NotificationTemplateInput {
@@ -70,4 +72,5 @@ export interface TriggerNotificationInput {
   priority?: NotificationPriority;
   createdByUserId?: string | null;
   expiresAt?: Date | null;
+  dedupeKey?: string | null;
 }

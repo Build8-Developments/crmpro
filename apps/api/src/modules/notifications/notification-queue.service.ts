@@ -7,6 +7,7 @@ import { NOTIFICATION_JOB_NAME } from './notifications.constants';
 import { NotificationJobPayload } from './entities/notification.types';
 import { LoggingService } from '../../common/logging/logging.service';
 import { NotificationMetricsStore } from './metrics/notification-metrics.store';
+import { toNotificationJobId } from './utils/notification-dedupe.util';
 
 @Injectable()
 export class NotificationQueueService {
@@ -29,7 +30,9 @@ export class NotificationQueueService {
     await this.bullService
       .getQueue(NOTIFICATION_QUEUE)
       .add(NOTIFICATION_JOB_NAME, jobPayload, {
-        jobId: `notification-${payload.tenantId}-${payload.recipientUserId}-${Date.now()}`,
+        jobId: payload.dedupeKey
+          ? toNotificationJobId(payload.tenantId, payload.dedupeKey)
+          : `notification-${payload.tenantId}-${payload.recipientUserId}-${payload.type}-${Date.now()}`,
       });
 
     this.metricsStore.recordCreated();
