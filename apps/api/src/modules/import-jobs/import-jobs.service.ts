@@ -17,6 +17,10 @@ import {
   PaginatedResponse,
 } from '../../common/pagination';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import {
+  TenantInactiveException,
+  TenantStatusService,
+} from '../../common/tenant/tenant-status.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
@@ -84,6 +88,7 @@ export class ImportJobsService {
     private readonly queueService: QueueService,
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
+    private readonly tenantStatusService: TenantStatusService,
   ) {}
 
   async createLeadImportJob(
@@ -130,6 +135,17 @@ export class ImportJobsService {
       job.status === JobStatus.PARTIAL_SUCCESS
     ) {
       return;
+    }
+
+    try {
+      await this.tenantStatusService.assertTenantActive(job.tenantId);
+    } catch (error) {
+      if (error instanceof TenantInactiveException) {
+        await this.failImportJobIfActive(job.id, error.message);
+        return;
+      }
+
+      throw error;
     }
 
     const file = await this.validateImportFile(job.fileAssetId, job.tenantId);

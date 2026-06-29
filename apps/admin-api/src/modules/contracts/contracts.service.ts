@@ -15,6 +15,7 @@ import { CreateContractDto } from './dto/create-contract.dto';
 import { GetContractsQueryDto } from './dto/get-contracts-query.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
 import { ContractsAuditService } from './services/contracts-audit.service';
+import { ContractEntitlementSyncService } from './services/contract-entitlement-sync.service';
 import type { ContractDetail, ContractListItem } from './types/contract.types';
 import { toContractDetail, toContractListItem } from './utils/contract.mapper';
 
@@ -28,6 +29,7 @@ export class ContractsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: ContractsAuditService,
+    private readonly entitlementSyncService: ContractEntitlementSyncService,
   ) {}
 
   async listContracts(
@@ -145,43 +147,62 @@ export class ContractsService {
         : existing.contractEndAt?.toISOString();
     this.assertDateRange(startAt, endAt ?? undefined);
 
-    const contract = await this.prisma.tenantContract.update({
-      where: { id },
-      data: {
-        ...(dto.contractName !== undefined
-          ? { contractName: dto.contractName }
-          : {}),
-        ...(dto.planId !== undefined ? { planId: dto.planId } : {}),
-        ...(dto.agreedPrice !== undefined
-          ? { agreedPrice: dto.agreedPrice }
-          : {}),
-        ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
-        ...(dto.paymentMethod !== undefined
-          ? { paymentMethod: dto.paymentMethod }
-          : {}),
-        ...(dto.paymentFrequency !== undefined
-          ? { paymentFrequency: dto.paymentFrequency }
-          : {}),
-        ...(dto.contractStartAt !== undefined
-          ? { contractStartAt: new Date(dto.contractStartAt) }
-          : {}),
-        ...(dto.contractEndAt !== undefined
-          ? {
-              contractEndAt: dto.contractEndAt
-                ? new Date(dto.contractEndAt)
-                : null,
-            }
-          : {}),
-        ...(dto.discountPercent !== undefined
-          ? { discountPercent: dto.discountPercent }
-          : {}),
-        ...(dto.gracePeriodDays !== undefined
-          ? { gracePeriodDays: dto.gracePeriodDays }
-          : {}),
-        ...(dto.autoRenew !== undefined ? { autoRenew: dto.autoRenew } : {}),
-        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
-      },
-      include: contractInclude,
+    const contract = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.tenantContract.update({
+        where: { id },
+        data: {
+          ...(dto.contractName !== undefined
+            ? { contractName: dto.contractName }
+            : {}),
+          ...(dto.planId !== undefined ? { planId: dto.planId } : {}),
+          ...(dto.agreedPrice !== undefined
+            ? { agreedPrice: dto.agreedPrice }
+            : {}),
+          ...(dto.currency !== undefined ? { currency: dto.currency } : {}),
+          ...(dto.paymentMethod !== undefined
+            ? { paymentMethod: dto.paymentMethod }
+            : {}),
+          ...(dto.paymentFrequency !== undefined
+            ? { paymentFrequency: dto.paymentFrequency }
+            : {}),
+          ...(dto.contractStartAt !== undefined
+            ? { contractStartAt: new Date(dto.contractStartAt) }
+            : {}),
+          ...(dto.contractEndAt !== undefined
+            ? {
+                contractEndAt: dto.contractEndAt
+                  ? new Date(dto.contractEndAt)
+                  : null,
+              }
+            : {}),
+          ...(dto.discountPercent !== undefined
+            ? { discountPercent: dto.discountPercent }
+            : {}),
+          ...(dto.gracePeriodDays !== undefined
+            ? { gracePeriodDays: dto.gracePeriodDays }
+            : {}),
+          ...(dto.autoRenew !== undefined ? { autoRenew: dto.autoRenew } : {}),
+          ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+        },
+        include: contractInclude,
+      });
+
+      if (
+        updated.status === ContractStatus.ACTIVE &&
+        updated.tenantId !== null
+      ) {
+        await this.entitlementSyncService.syncTenantPlanFromContract(
+          tx,
+          updated.tenantId,
+          updated.planId,
+        );
+        await this.entitlementSyncService.assertTenantContractPlanConsistency(
+          updated.tenantId,
+          tx,
+        );
+      }
+
+      return updated;
     });
 
     const changes = this.collectChanges(existing, dto);
@@ -214,10 +235,26 @@ export class ContractsService {
       await this.assertTenantHasNoActiveContract(existing.tenantId, id);
     }
 
-    const contract = await this.prisma.tenantContract.update({
-      where: { id },
-      data: { status: ContractStatus.ACTIVE },
-      include: contractInclude,
+    const contract = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.tenantContract.update({
+        where: { id },
+        data: { status: ContractStatus.ACTIVE },
+        include: contractInclude,
+      });
+
+      if (updated.tenantId) {
+        await this.entitlementSyncService.syncTenantPlanFromContract(
+          tx,
+          updated.tenantId,
+          updated.planId,
+        );
+        await this.entitlementSyncService.assertTenantContractPlanConsistency(
+          updated.tenantId,
+          tx,
+        );
+      }
+
+      return updated;
     });
 
     await this.auditService.logContractActivated(actorAdminId, id, metadata);

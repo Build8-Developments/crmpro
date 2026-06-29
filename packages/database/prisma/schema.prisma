@@ -238,9 +238,10 @@ model Role {
   tenantId    String   @db.Uuid
   name        String
   description String?
-  isSystem    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isSystem    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
   tenant      Tenant           @relation(fields: [tenantId], references: [id])
   permissions RolePermission[]
@@ -248,6 +249,7 @@ model Role {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  @@index([tenantId, deletedAt])
 }
 
 model RolePermission {

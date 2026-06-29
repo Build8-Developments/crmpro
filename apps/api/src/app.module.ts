@@ -23,6 +23,8 @@ import { WorkersModule } from './modules/jobs/workers.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { UsersModule } from './modules/users/users.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -53,6 +55,8 @@ import { envValidationSchema } from './config/env.validation';
     MonitoringModule,
     AnalyticsModule,
     NotificationsModule,
+    UsersModule,
+    RolesModule,
   ],
   controllers: [],
   providers: [

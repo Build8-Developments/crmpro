@@ -21,6 +21,15 @@ import {
   PaymentFrequency,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
+import {
+  AGENT_PERMISSION_KEYS,
+  DEFAULT_LEAD_SOURCES,
+  DEFAULT_PIPELINE,
+  DEFAULT_PIPELINE_STAGES,
+  DEFAULT_TENANT_ROLES,
+  MANAGER_PERMISSION_KEYS,
+  OWNER_PERMISSION_KEYS,
+} from '@crmpro/shared/bootstrap';
 
 const GB = 1024n ** 3n;
 const MB = 1024n ** 2n;
@@ -179,10 +188,12 @@ const PERMISSIONS = [
   { key: 'user.read', description: 'View users' },
   { key: 'user.update', description: 'Update users' },
   { key: 'user.delete', description: 'Delete users' },
+  { key: 'user.manage', description: 'Reset passwords and revoke user sessions' },
   { key: 'role.create', description: 'Create custom roles' },
   { key: 'role.read', description: 'View roles' },
   { key: 'role.update', description: 'Update roles' },
   { key: 'role.delete', description: 'Delete roles' },
+  { key: 'role.manage', description: 'Manage custom roles and permissions' },
   { key: 'file.upload', description: 'Upload files' },
   { key: 'file.read', description: 'View and download files' },
   { key: 'file.delete', description: 'Delete files' },
@@ -269,43 +280,16 @@ const READONLY_ADMIN_PERMISSION_KEYS = [
 ] as const;
 
 const TENANT_ROLES = [
-  {
-    id: ROLE_IDS.owner,
-    name: 'Owner',
-    description: 'Full access to all tenant features and settings.',
-  },
-  {
-    id: ROLE_IDS.manager,
-    name: 'Manager',
-    description: 'Manages team operations without billing access.',
-  },
-  {
-    id: ROLE_IDS.agent,
-    name: 'Agent',
-    description: 'Day-to-day sales work on leads and projects.',
-  },
+  { id: ROLE_IDS.owner, ...DEFAULT_TENANT_ROLES[0] },
+  { id: ROLE_IDS.manager, ...DEFAULT_TENANT_ROLES[1] },
+  { id: ROLE_IDS.agent, ...DEFAULT_TENANT_ROLES[2] },
 ] as const;
 
-const AGENT_PERMISSION_KEYS = [
-  'lead.read',
-  'lead.create',
-  'lead.update',
-  'lead.assign',
-  'lead-note.create',
-  'lead-note.read',
-  'lead-note.update',
-  'lead-note.delete',
-  'lead-source.read',
-  'developer.read',
-  'project.read',
-  'pipeline.read',
-  'file.upload',
-  'file.read',
-  'import-job.read',
-  'export-job.read',
-  'analytics.read',
-  'notification.read',
-  'notification.update',
+/** Demo-only lead sources beyond bootstrap defaults (not used for provisioning). */
+const DEMO_EXTRA_LEAD_SOURCE_NAMES = [
+  'WhatsApp',
+  'Call Center',
+  'Walk-in',
 ] as const;
 
 const SAMPLE_USERS = [
@@ -329,35 +313,6 @@ const SAMPLE_USERS = [
     email: 'agent@primeestates.com',
     roleId: ROLE_IDS.agent,
   },
-] as const;
-
-const DEFAULT_STAGE_DEFS = [
-  { name: 'New Lead', color: '#94a3b8', isClosed: false, closeType: null },
-  { name: 'Contacted', color: '#60a5fa', isClosed: false, closeType: null },
-  { name: 'Qualified', color: '#818cf8', isClosed: false, closeType: null },
-  { name: 'Interested', color: '#a78bfa', isClosed: false, closeType: null },
-  { name: 'Negotiation', color: '#f59e0b', isClosed: false, closeType: null },
-  {
-    name: 'Won',
-    color: '#22c55e',
-    isClosed: true,
-    closeType: PipelineCloseType.WON,
-  },
-  {
-    name: 'Lost',
-    color: '#ef4444',
-    isClosed: true,
-    closeType: PipelineCloseType.LOST,
-  },
-] as const;
-
-const LEAD_SOURCE_NAMES = [
-  'Facebook Ads',
-  'Website',
-  'WhatsApp',
-  'Referral',
-  'Call Center',
-  'Walk-in',
 ] as const;
 
 const SAMPLE_DEVELOPERS = [
@@ -775,15 +730,14 @@ async function syncRolePermissions(
 async function seedRolePermissions(
   permissionIds: Map<string, string>,
 ): Promise<void> {
-  const allPermissionKeys = PERMISSIONS.map((permission) => permission.key);
-  const managerPermissionKeys = allPermissionKeys.filter(
-    (key) => key !== 'billing.manage' && key !== 'notification.delete',
+  await syncRolePermissions(
+    ROLE_IDS.owner,
+    [...OWNER_PERMISSION_KEYS],
+    permissionIds,
   );
-
-  await syncRolePermissions(ROLE_IDS.owner, allPermissionKeys, permissionIds);
   await syncRolePermissions(
     ROLE_IDS.manager,
-    managerPermissionKeys,
+    [...MANAGER_PERMISSION_KEYS],
     permissionIds,
   );
   await syncRolePermissions(
@@ -926,8 +880,9 @@ async function seedProjects(tenantId: string): Promise<string[]> {
 
 async function seedLeadSources(tenantId: string): Promise<string[]> {
   const ids: string[] = [];
+  const names = [...DEFAULT_LEAD_SOURCES, ...DEMO_EXTRA_LEAD_SOURCE_NAMES];
 
-  for (const name of LEAD_SOURCE_NAMES) {
+  for (const name of names) {
     const source = await prisma.leadSource.create({
       data: { tenantId, name },
     });
@@ -948,14 +903,14 @@ async function seedPipelines(tenantId: string): Promise<{
     data: {
       id: DEFAULT_PIPELINE_ID,
       tenantId,
-      name: 'Residential Sales',
-      isDefault: true,
+      name: DEFAULT_PIPELINE.name,
+      isDefault: DEFAULT_PIPELINE.isDefault,
     },
   });
 
   const stages: StageRecord[] = [];
-  for (let i = 0; i < DEFAULT_STAGE_DEFS.length; i++) {
-    const def = DEFAULT_STAGE_DEFS[i];
+  for (let i = 0; i < DEFAULT_PIPELINE_STAGES.length; i++) {
+    const def = DEFAULT_PIPELINE_STAGES[i];
     const stage = await prisma.pipelineStage.create({
       data: {
         tenantId,
@@ -963,9 +918,9 @@ async function seedPipelines(tenantId: string): Promise<{
         name: def.name,
         color: def.color,
         sortOrder: i + 1,
-        isSystem: def.name === 'Won' || def.name === 'Lost',
+        isSystem: def.isClosed,
         isClosed: def.isClosed,
-        closeType: def.closeType,
+        closeType: def.closeType as PipelineCloseType | null,
       },
     });
     stages.push({

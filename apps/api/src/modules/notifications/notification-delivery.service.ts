@@ -11,6 +11,9 @@ import { NotificationMetricsStore } from './metrics/notification-metrics.store';
 import { NotificationTemplateService } from './notification-template.service';
 import { normalizeMetadata, resolvePriority } from './mappers/notification.mapper';
 import { CacheService } from '../../common/cache/cache.service';
+import {
+  TenantStatusService,
+} from '../../common/tenant/tenant-status.service';
 
 @Injectable()
 export class NotificationDeliveryService {
@@ -22,11 +25,31 @@ export class NotificationDeliveryService {
     private readonly loggingService: LoggingService,
     private readonly metricsStore: NotificationMetricsStore,
     private readonly cacheService: CacheService,
+    private readonly tenantStatusService: TenantStatusService,
   ) {
     this.channels = [this.inAppChannel];
   }
 
   async deliver(payload: NotificationJobPayload): Promise<void> {
+    const tenantActive = await this.tenantStatusService.isTenantActive(
+      payload.tenantId,
+    );
+
+    if (!tenantActive) {
+      this.loggingService.info({
+        module: 'Notifications',
+        operation: 'deliver',
+        status: 'skipped',
+        metadata: {
+          reason: 'Tenant is inactive.',
+          type: payload.type,
+          recipientUserId: payload.recipientUserId,
+          tenantId: payload.tenantId,
+        },
+      });
+      return;
+    }
+
     const startedAt = Date.now();
     const metadata = normalizeMetadata(
       payload.metadata as Notification['metadata'],

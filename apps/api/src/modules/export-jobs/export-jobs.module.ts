@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { EntitlementsModule } from '../../common/entitlements/entitlements.module';
+import { TenantModule } from '../../common/tenant/tenant.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FilesModule } from '../files/files.module';
 import { LeadsModule } from '../leads/leads.module';
@@ -14,6 +15,7 @@ import { LeadExportService } from './services/lead-export.service';
   imports: [
     AuthRbacModule,
     EntitlementsModule,
+    TenantModule,
     NotificationsModule,
     LeadsModule,
     FilesModule,

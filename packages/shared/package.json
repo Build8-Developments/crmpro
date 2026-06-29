@@ -20,6 +20,10 @@
     "./leads": {
       "types": "./dist/leads/index.d.ts",
       "default": "./dist/leads/index.js"
+    },
+    "./bootstrap": {
+      "types": "./dist/bootstrap/index.d.ts",
+      "default": "./dist/bootstrap/index.js"
     }
   },
   "scripts": {
@@ -33,7 +37,8 @@
     "*": {
       "auth": ["dist/auth/index.d.ts"],
       "auth/permissions": ["dist/auth/permissions.d.ts"],
-      "leads": ["dist/leads/index.d.ts"]
+      "leads": ["dist/leads/index.d.ts"],
+      "bootstrap": ["dist/bootstrap/index.d.ts"]
     }
   }
 }

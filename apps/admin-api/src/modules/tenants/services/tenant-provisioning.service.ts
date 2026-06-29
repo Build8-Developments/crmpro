@@ -9,12 +9,12 @@ import { PasswordService } from '../../../common/security/password.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   AGENT_PERMISSION_KEYS,
-  DEFAULT_LEAD_SOURCE_NAMES,
-  DEFAULT_PIPELINE_NAME,
+  DEFAULT_LEAD_SOURCES,
+  DEFAULT_PIPELINE,
   DEFAULT_PIPELINE_STAGES,
+  DEFAULT_TENANT_ROLES,
   MANAGER_PERMISSION_KEYS,
-  TENANT_ROLE_DEFINITIONS,
-} from '../constants/tenant-provisioning.constants';
+} from '@crmpro/shared/bootstrap';
 import type { CreateTenantDto } from '../dto/create-tenant.dto';
 import type { ProvisionTenantResult } from '../types/tenant.types';
 import { TenantsAuditService } from './tenants-audit.service';
@@ -203,7 +203,7 @@ export class TenantProvisioningService {
     const agentRoleId = crypto.randomUUID();
 
     await tx.role.createMany({
-      data: TENANT_ROLE_DEFINITIONS.map((role, index) => ({
+      data: DEFAULT_TENANT_ROLES.map((role, index) => ({
         id: [ownerRoleId, managerRoleId, agentRoleId][index],
         tenantId,
         name: role.name,
@@ -301,7 +301,7 @@ export class TenantProvisioningService {
     tenantId: string,
   ): Promise<void> {
     await tx.leadSource.createMany({
-      data: DEFAULT_LEAD_SOURCE_NAMES.map((name) => ({ tenantId, name })),
+      data: DEFAULT_LEAD_SOURCES.map((name) => ({ tenantId, name })),
     });
   }
 
@@ -312,8 +312,8 @@ export class TenantProvisioningService {
     const pipeline = await tx.pipeline.create({
       data: {
         tenantId,
-        name: DEFAULT_PIPELINE_NAME,
-        isDefault: true,
+        name: DEFAULT_PIPELINE.name,
+        isDefault: DEFAULT_PIPELINE.isDefault,
       },
     });
 

@@ -1,0 +1,19 @@
+import { Transform } from 'class-transformer';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { normalizeDisplayName } from '../../../common/utils/name-normalization.util';
+
+export class CreateRoleDto {
+  @Transform(({ value }) => normalizeDisplayName(value))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  name: string;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() || undefined : value,
+  )
+  @IsString()
+  @MaxLength(255)
+  description?: string;
+}

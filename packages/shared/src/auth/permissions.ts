@@ -34,11 +34,13 @@ export const PERMISSIONS = {
   USER_READ: 'user.read',
   USER_UPDATE: 'user.update',
   USER_DELETE: 'user.delete',
+  USER_MANAGE: 'user.manage',
 
   ROLE_CREATE: 'role.create',
   ROLE_READ: 'role.read',
   ROLE_UPDATE: 'role.update',
   ROLE_DELETE: 'role.delete',
+  ROLE_MANAGE: 'role.manage',
 
   FILE_UPLOAD: 'file.upload',
   FILE_READ: 'file.read',
@@ -132,12 +134,14 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.USER_READ,
     PERMISSIONS.USER_UPDATE,
     PERMISSIONS.USER_DELETE,
+    PERMISSIONS.USER_MANAGE,
   ],
   ROLES: [
     PERMISSIONS.ROLE_CREATE,
     PERMISSIONS.ROLE_READ,
     PERMISSIONS.ROLE_UPDATE,
     PERMISSIONS.ROLE_DELETE,
+    PERMISSIONS.ROLE_MANAGE,
   ],
   FILES: [
     PERMISSIONS.FILE_UPLOAD,

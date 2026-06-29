@@ -1,0 +1,152 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { PERMISSIONS } from '@crmpro/shared/auth';
+import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
+import { CreateUserDto } from './dto/create-user.dto';
+import { GetUsersQueryDto } from './dto/get-users-query.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UsersService } from './users.service';
+
+@Controller('users')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get()
+  @RequirePermission(PERMISSIONS.USER_READ)
+  async listUsers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: GetUsersQueryDto,
+  ) {
+    const data = await this.usersService.listUsers(user.tenantId, query);
+    return { success: true, data };
+  }
+
+  @Get(':id')
+  @RequirePermission(PERMISSIONS.USER_READ)
+  async getUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.usersService.getUser(user.tenantId, id);
+    return { success: true, data };
+  }
+
+  @Post()
+  @RequirePermission(PERMISSIONS.USER_CREATE)
+  async createUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateUserDto,
+  ) {
+    const data = await this.usersService.createUser(
+      user.tenantId,
+      user.id,
+      dto,
+    );
+    return { success: true, data };
+  }
+
+  @Patch(':id')
+  @RequirePermission(PERMISSIONS.USER_UPDATE)
+  async updateUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    const data = await this.usersService.updateUser(
+      user.tenantId,
+      user.id,
+      id,
+      dto,
+    );
+    return { success: true, data };
+  }
+
+  @Patch(':id/role')
+  @RequirePermission(PERMISSIONS.USER_UPDATE)
+  async updateUserRole(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserRoleDto,
+  ) {
+    const data = await this.usersService.updateUserRole(
+      user.tenantId,
+      user.id,
+      id,
+      dto,
+    );
+    return { success: true, data };
+  }
+
+  @Post(':id/deactivate')
+  @RequirePermission(PERMISSIONS.USER_UPDATE)
+  async deactivateUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.usersService.deactivateUser(
+      user.tenantId,
+      user.id,
+      id,
+    );
+    return { success: true, data };
+  }
+
+  @Post(':id/reactivate')
+  @RequirePermission(PERMISSIONS.USER_UPDATE)
+  async reactivateUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.usersService.reactivateUser(
+      user.tenantId,
+      user.id,
+      id,
+    );
+    return { success: true, data };
+  }
+
+  @Post(':id/reset-password')
+  @RequirePermission(PERMISSIONS.USER_MANAGE)
+  async resetUserPassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResetUserPasswordDto,
+  ) {
+    const data = await this.usersService.resetUserPassword(
+      user.tenantId,
+      user.id,
+      id,
+      dto,
+    );
+    return { success: true, data };
+  }
+
+  @Post(':id/revoke-sessions')
+  @RequirePermission(PERMISSIONS.USER_MANAGE)
+  async revokeUserSessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.usersService.revokeUserSessions(
+      user.tenantId,
+      user.id,
+      id,
+    );
+    return { success: true, data };
+  }
+}

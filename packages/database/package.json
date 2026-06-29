@@ -22,6 +22,7 @@
     "prisma:seed": "dotenv -e ../../apps/api/.env -- prisma db seed"
   },
   "dependencies": {
+    "@crmpro/shared": "workspace:*",
     "@prisma/client": "^7.8.0"
   },
   "devDependencies": {

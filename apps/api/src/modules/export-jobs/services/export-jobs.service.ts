@@ -19,6 +19,10 @@ import {
 } from '../../../common/pagination';
 import { buildOrderBy, SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import {
+  TenantInactiveException,
+  TenantStatusService,
+} from '../../../common/tenant/tenant-status.service';
 import { FilesService } from '../../files/files.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { ExportCompletedEvent } from '../../../common/events/domain-event.types';
@@ -87,6 +91,7 @@ export class ExportJobsService {
     private readonly queueService: QueueService,
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
+    private readonly tenantStatusService: TenantStatusService,
   ) {}
 
   async createLeadExportJob(
@@ -151,6 +156,17 @@ export class ExportJobsService {
       job.status === JobStatus.FAILED
     ) {
       return;
+    }
+
+    try {
+      await this.tenantStatusService.assertTenantActive(job.tenantId);
+    } catch (error) {
+      if (error instanceof TenantInactiveException) {
+        await this.failExportJobIfActive(job.id, error.message);
+        return;
+      }
+
+      throw error;
     }
 
     await this.runExportJob(job.id, job.tenantId, job.createdByUserId);
