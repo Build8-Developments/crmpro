@@ -19,7 +19,8 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
-import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
+import { DomainEventBus } from '../../common/events/domain-event-bus.service';
+import { ImportCompletedEvent } from '../../common/events/domain-event.types';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
 import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
@@ -81,7 +82,7 @@ export class ImportJobsService {
     private readonly storageService: StorageService,
     private readonly leadsService: LeadsService,
     private readonly queueService: QueueService,
-    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
   ) {}
 
@@ -546,7 +547,9 @@ export class ImportJobsService {
       },
     });
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(
+      new ImportCompletedEvent(tenantId, jobId),
+    );
 
     if (
       status === JobStatus.COMPLETED ||

@@ -3,16 +3,16 @@ import { CleanupModule } from '../cleanup/cleanup.module';
 import { ExportJobsModule } from '../export-jobs/export-jobs.module';
 import { ImportJobsModule } from '../import-jobs/import-jobs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { BullModule } from './bull/bull.module';
-import { JobsHealthService } from './jobs-health.service';
+import { CleanupProcessor } from '../cleanup/workers/cleanup.processor';
+import { NotificationProcessor } from '../notifications/workers/notification.processor';
+import { JobsHealthProvider } from './jobs-health.provider';
+import { JobsCoreModule } from './jobs-core.module';
 import { ExportProcessor } from './processors/export.processor';
 import { ImportProcessor } from './processors/import.processor';
-import { QueueModule } from './queues/queue.module';
 
 @Module({
   imports: [
-    BullModule,
-    QueueModule,
+    JobsCoreModule,
     ImportJobsModule,
     ExportJobsModule,
     CleanupModule,
@@ -21,8 +21,10 @@ import { QueueModule } from './queues/queue.module';
   providers: [
     ImportProcessor,
     ExportProcessor,
-    JobsHealthService,
+    CleanupProcessor,
+    NotificationProcessor,
+    JobsHealthProvider,
   ],
-  exports: [QueueModule, JobsHealthService],
+  exports: [JobsHealthProvider],
 })
-export class JobsModule {}
+export class WorkersModule {}

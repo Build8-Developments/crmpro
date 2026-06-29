@@ -1,7 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { HttpMetricsStore } from '../../../common/logging/http-metrics.store';
-import { JobsHealthService } from '../../jobs/jobs-health.service';
-import { NotificationMetricsStore } from '../../notifications/metrics/notification-metrics.store';
+import {
+  JOBS_HEALTH_PROVIDER,
+  NOTIFICATION_METRICS_PROVIDER,
+} from '../../../common/health';
+import type {
+  JobsHealthProvider,
+  NotificationMetricsProvider,
+} from '../../../common/health';
 import { MetricsData } from '../monitoring.types';
 import { QueueMetricsService } from './queue-metrics.service';
 
@@ -10,17 +16,19 @@ export class MetricsService {
   constructor(
     private readonly httpMetricsStore: HttpMetricsStore,
     private readonly queueMetricsService: QueueMetricsService,
-    private readonly jobsHealthService: JobsHealthService,
-    private readonly notificationMetricsStore: NotificationMetricsStore,
+    @Inject(JOBS_HEALTH_PROVIDER)
+    private readonly jobsHealthProvider: JobsHealthProvider,
+    @Inject(NOTIFICATION_METRICS_PROVIDER)
+    private readonly notificationMetricsProvider: NotificationMetricsProvider,
   ) {}
 
   async getMetrics(): Promise<MetricsData> {
     const [queues, jobsHealth] = await Promise.all([
       this.queueMetricsService.getQueueMetrics(),
-      this.jobsHealthService.getHealth(),
+      this.jobsHealthProvider.getHealth(),
     ]);
 
-    const notificationMetrics = this.notificationMetricsStore.getSnapshot();
+    const notificationMetrics = this.notificationMetricsProvider.getSnapshot();
 
     return {
       http: this.httpMetricsStore.getSnapshot(),

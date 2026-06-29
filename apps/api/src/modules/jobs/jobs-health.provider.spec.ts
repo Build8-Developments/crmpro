@@ -1,18 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CleanupHealthService } from '../cleanup/cleanup-health.service';
 import { CleanupProcessor } from '../cleanup/workers/cleanup.processor';
 import { NotificationProcessor } from '../notifications/workers/notification.processor';
 import { BullService } from './bull/bull.service';
-import { JobsHealthService } from './jobs-health.service';
+import { JobsHealthProvider } from './jobs-health.provider';
 import { ExportProcessor } from './processors/export.processor';
 import { ImportProcessor } from './processors/import.processor';
 
-describe('JobsHealthService', () => {
+describe('JobsHealthProvider', () => {
   it('returns healthy status when redis, queues, and workers are up', async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        JobsHealthService,
-        CleanupHealthService,
+        JobsHealthProvider,
         {
           provide: BullService,
           useValue: {
@@ -39,8 +37,8 @@ describe('JobsHealthService', () => {
       ],
     }).compile();
 
-    const healthService = module.get(JobsHealthService);
-    await expect(healthService.getHealth()).resolves.toEqual({
+    const provider = module.get(JobsHealthProvider);
+    await expect(provider.getHealth()).resolves.toEqual({
       redis: 'up',
       queues: 'healthy',
       workers: {
@@ -49,18 +47,13 @@ describe('JobsHealthService', () => {
         cleanup: 'running',
         notification: 'running',
       },
-      cleanup: {
-        lastRun: null,
-        status: 'healthy',
-      },
     });
   });
 
   it('returns unhealthy status when redis is down', async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        JobsHealthService,
-        CleanupHealthService,
+        JobsHealthProvider,
         {
           provide: BullService,
           useValue: {
@@ -87,8 +80,8 @@ describe('JobsHealthService', () => {
       ],
     }).compile();
 
-    const healthService = module.get(JobsHealthService);
-    await expect(healthService.getHealth()).resolves.toEqual({
+    const provider = module.get(JobsHealthProvider);
+    await expect(provider.getHealth()).resolves.toEqual({
       redis: 'down',
       queues: 'healthy',
       workers: {
@@ -96,10 +89,6 @@ describe('JobsHealthService', () => {
         export: 'running',
         cleanup: 'running',
         notification: 'running',
-      },
-      cleanup: {
-        lastRun: null,
-        status: 'healthy',
       },
     });
   });

@@ -1,5 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { JobsHealthService } from '../jobs/jobs-health.service';
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  CLEANUP_HEALTH_PROVIDER,
+  JOBS_HEALTH_PROVIDER,
+} from '../../common/health';
+import type {
+  CleanupHealthProvider,
+  JobsHealthProvider,
+} from '../../common/health';
 import { GlobalHealthData, JobsHealthData, MetricsData } from './monitoring.types';
 import { HealthCheckService } from './health/health-check.service';
 import { MetricsService } from './metrics/metrics.service';
@@ -8,7 +15,10 @@ import { MetricsService } from './metrics/metrics.service';
 export class MonitoringService {
   constructor(
     private readonly healthCheckService: HealthCheckService,
-    private readonly jobsHealthService: JobsHealthService,
+    @Inject(JOBS_HEALTH_PROVIDER)
+    private readonly jobsHealthProvider: JobsHealthProvider,
+    @Inject(CLEANUP_HEALTH_PROVIDER)
+    private readonly cleanupHealthProvider: CleanupHealthProvider,
     private readonly metricsService: MetricsService,
   ) {}
 
@@ -16,8 +26,16 @@ export class MonitoringService {
     return this.healthCheckService.getGlobalHealth();
   }
 
-  getJobsHealth(): Promise<JobsHealthData> {
-    return this.jobsHealthService.getHealth();
+  async getJobsHealth(): Promise<JobsHealthData> {
+    const [jobs, cleanup] = await Promise.all([
+      this.jobsHealthProvider.getHealth(),
+      Promise.resolve(this.cleanupHealthProvider.getJobsHealthSummary()),
+    ]);
+
+    return {
+      ...jobs,
+      cleanup,
+    };
   }
 
   getMetrics(): Promise<MetricsData> {

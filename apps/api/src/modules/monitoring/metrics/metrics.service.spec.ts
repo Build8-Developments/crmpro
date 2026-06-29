@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import {
+  JOBS_HEALTH_PROVIDER,
+  NOTIFICATION_METRICS_PROVIDER,
+} from '../../../common/health';
 import { HttpMetricsStore } from '../../../common/logging/http-metrics.store';
-import { JobsHealthService } from '../../jobs/jobs-health.service';
-import { NotificationMetricsStore } from '../../notifications/metrics/notification-metrics.store';
 import { MetricsService } from './metrics.service';
 import { QueueMetricsService } from './queue-metrics.service';
 
@@ -33,17 +35,7 @@ describe('MetricsService', () => {
           },
         },
         {
-          provide: NotificationMetricsStore,
-          useValue: {
-            getSnapshot: jest.fn().mockReturnValue({
-              created: 3,
-              deliveryFailures: 0,
-              averageDeliveryTimeMs: 15,
-            }),
-          },
-        },
-        {
-          provide: JobsHealthService,
+          provide: JOBS_HEALTH_PROVIDER,
           useValue: {
             getHealth: jest.fn().mockResolvedValue({
               workers: {
@@ -52,6 +44,16 @@ describe('MetricsService', () => {
                 cleanup: 'running',
                 notification: 'running',
               },
+            }),
+          },
+        },
+        {
+          provide: NOTIFICATION_METRICS_PROVIDER,
+          useValue: {
+            getSnapshot: jest.fn().mockReturnValue({
+              created: 3,
+              deliveryFailures: 0,
+              averageDeliveryTimeMs: 15,
             }),
           },
         },

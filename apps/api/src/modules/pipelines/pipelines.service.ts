@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { PipelineCloseType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
+import { DomainEventBus } from '../../common/events/domain-event-bus.service';
+import { PipelineChangedEvent } from '../../common/events/domain-event.types';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -87,7 +88,7 @@ const pipelineInclude = {
 export class PipelinesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly domainEventBus: DomainEventBus,
   ) {}
 
   async listPipelines(
@@ -169,7 +170,9 @@ export class PipelinesService {
         });
       });
 
-      void this.analyticsInvalidation.invalidateTenant(tenantId);
+      void this.domainEventBus.publish(
+        new PipelineChangedEvent(tenantId, pipeline.id),
+      );
 
       return this.toPipelineResponse(pipeline);
     } catch (error) {
@@ -206,7 +209,9 @@ export class PipelinesService {
         });
       });
 
-      void this.analyticsInvalidation.invalidateTenant(tenantId);
+      void this.domainEventBus.publish(
+        new PipelineChangedEvent(tenantId, pipeline.id),
+      );
 
       return this.toPipelineResponse(updated);
     } catch (error) {
@@ -225,7 +230,7 @@ export class PipelinesService {
       where: { id: pipeline.id },
     });
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(new PipelineChangedEvent(tenantId, id));
 
     return { id: pipeline.id };
   }
@@ -271,7 +276,9 @@ export class PipelinesService {
         });
       }, STAGE_TRANSACTION_OPTIONS);
 
-      void this.analyticsInvalidation.invalidateTenant(tenantId);
+      void this.domainEventBus.publish(
+        new PipelineChangedEvent(tenantId, pipeline.id),
+      );
 
       return this.toStageResponse(stage);
     } catch (error) {
@@ -350,7 +357,9 @@ export class PipelinesService {
         });
       }, STAGE_TRANSACTION_OPTIONS);
 
-      void this.analyticsInvalidation.invalidateTenant(tenantId);
+      void this.domainEventBus.publish(
+        new PipelineChangedEvent(tenantId, pipelineId),
+      );
 
       return this.toStageResponse(updated);
     } catch (error) {
@@ -399,7 +408,9 @@ export class PipelinesService {
       );
     }, STAGE_TRANSACTION_OPTIONS);
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(
+      new PipelineChangedEvent(tenantId, pipelineId),
+    );
 
     return { id: stage.id };
   }

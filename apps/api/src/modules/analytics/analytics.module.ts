@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { AnalyticsController } from './analytics.controller';
+import { AnalyticsInvalidationListener } from './analytics-invalidation.listener';
 import { AnalyticsInvalidationService } from './analytics-invalidation.service';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryService } from './queries/analytics-query.service';
@@ -13,8 +14,8 @@ import { AnalyticsDateRangePipe } from './queries/analytics-date.util';
     AnalyticsService,
     AnalyticsQueryService,
     AnalyticsInvalidationService,
+    AnalyticsInvalidationListener,
     AnalyticsDateRangePipe,
   ],
-  exports: [AnalyticsInvalidationService],
 })
 export class AnalyticsModule {}

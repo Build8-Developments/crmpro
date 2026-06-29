@@ -9,7 +9,8 @@ import { AssignLeadDto } from '../dto/assign-lead.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';
 import { LeadWorkflowResult } from '../types/lead.types';
 import { LeadActivityService } from './lead-activity.service';
-import { AnalyticsInvalidationService } from '../../analytics/analytics-invalidation.service';
+import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
+import { LeadAssignedEvent } from '../../../common/events/domain-event.types';
 import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
 
 const workflowLeadSelect = {
@@ -34,7 +35,7 @@ export class LeadAssignmentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
-    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
   ) {}
 
@@ -96,7 +97,7 @@ export class LeadAssignmentService {
       throw new NotFoundException('Lead not found');
     }
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(new LeadAssignedEvent(tenantId, leadId));
 
     if (newUserId !== null) {
       void this.notificationTrigger.notifyLeadAssigned({

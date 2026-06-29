@@ -10,7 +10,6 @@ import { NotificationTemplateService } from './notification-template.service';
 import { NotificationTriggerService } from './notification-trigger.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
-import { NotificationProcessor } from './workers/notification.processor';
 
 @Module({
   imports: [AuthRbacModule],
@@ -24,8 +23,7 @@ import { NotificationProcessor } from './workers/notification.processor';
     NotificationTriggerService,
     NotificationMetricsStore,
     InAppNotificationChannel,
-    NotificationProcessor,
   ],
-  exports: [NotificationTriggerService, NotificationMetricsStore, NotificationProcessor],
+  exports: [NotificationTriggerService, NotificationMetricsStore],
 })
 export class NotificationsModule {}

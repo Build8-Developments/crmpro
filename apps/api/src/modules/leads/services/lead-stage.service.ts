@@ -9,7 +9,8 @@ import { MoveStageDto } from '../dto/move-stage.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';
 import { LeadWorkflowResult } from '../types/lead.types';
 import { LeadActivityService } from './lead-activity.service';
-import { AnalyticsInvalidationService } from '../../analytics/analytics-invalidation.service';
+import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
+import { LeadMovedStageEvent } from '../../../common/events/domain-event.types';
 import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
 
 const workflowLeadSelect = {
@@ -35,7 +36,7 @@ export class LeadStageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
-    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
   ) {}
 
@@ -109,7 +110,7 @@ export class LeadStageService {
       throw new NotFoundException('Lead not found');
     }
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(new LeadMovedStageEvent(tenantId, lead.id));
 
     if (updatedLead.assignedUser) {
       void this.notificationTrigger.notifyLeadStageChanged({

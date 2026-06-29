@@ -1,8 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { CLEANUP_SCHEDULER_HEALTH } from '../../../common/health';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { StorageService } from '../../../common/storage/storage.service';
-import { CleanupSchedulerService } from '../../cleanup/cleanup-scheduler.service';
 import { BullService } from '../../jobs/bull/bull.service';
 import { HealthCheckService } from './health-check.service';
 
@@ -27,8 +27,8 @@ describe('HealthCheckService', () => {
           useValue: { checkConnectivity: jest.fn().mockResolvedValue(true) },
         },
         {
-          provide: CleanupSchedulerService,
-          useValue: { isRegistered: jest.fn().mockReturnValue(true) },
+          provide: CLEANUP_SCHEDULER_HEALTH,
+          useValue: { getSchedulerStatus: jest.fn().mockReturnValue('up') },
         },
         {
           provide: ConfigService,

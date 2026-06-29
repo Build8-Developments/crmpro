@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  CLEANUP_SCHEDULER_HEALTH,
+} from '../../../common/health';
+import type { CleanupSchedulerHealthContributor } from '../../../common/health';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { StorageService } from '../../../common/storage/storage.service';
-import { CleanupSchedulerService } from '../../cleanup/cleanup-scheduler.service';
 import { BullService } from '../../jobs/bull/bull.service';
 import { APP_START_TIME } from '../monitoring.constants';
 import {
@@ -17,7 +20,8 @@ export class HealthCheckService {
     private readonly prisma: PrismaService,
     private readonly bullService: BullService,
     private readonly storageService: StorageService,
-    private readonly cleanupSchedulerService: CleanupSchedulerService,
+    @Inject(CLEANUP_SCHEDULER_HEALTH)
+    private readonly cleanupSchedulerHealth: CleanupSchedulerHealthContributor,
     private readonly configService: ConfigService,
   ) {}
 
@@ -31,8 +35,7 @@ export class HealthCheckService {
     const queues: QueueHealthStatus = this.bullService.areQueuesRegistered()
       ? 'healthy'
       : 'unhealthy';
-    const cleanupScheduler: HealthStatus =
-      this.cleanupSchedulerService.isRegistered() ? 'up' : 'down';
+    const cleanupScheduler = this.cleanupSchedulerHealth.getSchedulerStatus();
 
     return {
       api: 'up',

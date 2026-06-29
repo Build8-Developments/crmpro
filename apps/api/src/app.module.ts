@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpLoggingInterceptor } from './common/logging/interceptors/http-logging.interceptor';
 import { CacheModule } from './common/cache/cache.module';
+import { DomainEventsModule } from './common/events/domain-events.module';
 import { LoggingModule } from './common/logging/logging.module';
 import { RequestIdMiddleware } from './common/logging/middleware/request-id.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -17,7 +18,8 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { FilesModule } from './modules/files/files.module';
 import { ImportJobsModule } from './modules/import-jobs/import-jobs.module';
 import { ExportJobsModule } from './modules/export-jobs/export-jobs.module';
-import { JobsModule } from './modules/jobs/jobs.module';
+import { JobsCoreModule } from './modules/jobs/jobs-core.module';
+import { WorkersModule } from './modules/jobs/workers.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -32,6 +34,7 @@ import { envValidationSchema } from './config/env.validation';
       validationSchema: envValidationSchema,
     }),
     LoggingModule,
+    DomainEventsModule,
     CacheModule,
     PrismaModule,
     SecurityModule,
@@ -43,9 +46,10 @@ import { envValidationSchema } from './config/env.validation';
     DevelopersModule,
     ProjectsModule,
     FilesModule,
-    JobsModule,
+    JobsCoreModule,
     ImportJobsModule,
     ExportJobsModule,
+    WorkersModule,
     MonitoringModule,
     AnalyticsModule,
     NotificationsModule,

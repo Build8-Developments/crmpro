@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
-import { AnalyticsModule } from '../analytics/analytics.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FilesModule } from '../files/files.module';
 import { LeadsModule } from '../leads/leads.module';
@@ -11,7 +10,13 @@ import { ExportJobsService } from './services/export-jobs.service';
 import { LeadExportService } from './services/lead-export.service';
 
 @Module({
-  imports: [AuthRbacModule, AnalyticsModule, NotificationsModule, LeadsModule, FilesModule, QueueModule],
+  imports: [
+    AuthRbacModule,
+    NotificationsModule,
+    LeadsModule,
+    FilesModule,
+    QueueModule,
+  ],
   controllers: [ExportJobsController],
   providers: [ExportJobsService, LeadExportService, CsvExportService],
   exports: [ExportJobsService],

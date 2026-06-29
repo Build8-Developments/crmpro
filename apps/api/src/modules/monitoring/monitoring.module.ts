@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { StorageModule } from '../../common/storage/storage.module';
-import { CleanupModule } from '../cleanup/cleanup.module';
-import { JobsModule } from '../jobs/jobs.module';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { CleanupMonitoringModule } from '../cleanup/cleanup-monitoring.module';
+import { JobsMonitoringModule } from '../jobs/jobs-monitoring.module';
+import { NotificationsMonitoringModule } from '../notifications/notifications-monitoring.module';
 import { HealthCheckService } from './health/health-check.service';
 import { MetricsService } from './metrics/metrics.service';
 import { QueueMetricsService } from './metrics/queue-metrics.service';
@@ -16,9 +16,9 @@ import { MonitoringService } from './monitoring.service';
     AuthRbacModule,
     PrismaModule,
     StorageModule,
-    JobsModule,
-    CleanupModule,
-    NotificationsModule,
+    JobsMonitoringModule,
+    CleanupMonitoringModule,
+    NotificationsMonitoringModule,
   ],
   controllers: [MonitoringController],
   providers: [

@@ -5,7 +5,6 @@ import { QueueModule } from '../jobs/queues/queue.module';
 import { CleanupHealthService } from './cleanup-health.service';
 import { CleanupSchedulerService } from './cleanup-scheduler.service';
 import { CleanupService } from './cleanup.service';
-import { CleanupProcessor } from './workers/cleanup.processor';
 
 @Module({
   imports: [PrismaModule, StorageModule, QueueModule],
@@ -13,14 +12,11 @@ import { CleanupProcessor } from './workers/cleanup.processor';
     CleanupService,
     CleanupHealthService,
     CleanupSchedulerService,
-    CleanupProcessor,
   ],
   exports: [
     CleanupService,
     CleanupHealthService,
-    CleanupProcessor,
     CleanupSchedulerService,
-    QueueModule,
   ],
 })
 export class CleanupModule {}

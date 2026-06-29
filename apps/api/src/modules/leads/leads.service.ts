@@ -16,7 +16,8 @@ import { ProjectInterestDto } from './dto/project-interest.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { leadSelect, toLeadResponse } from './lead.mapper';
 import { LeadActivityService } from './services/lead-activity.service';
-import { AnalyticsInvalidationService } from '../analytics/analytics-invalidation.service';
+import { DomainEventBus } from '../../common/events/domain-event-bus.service';
+import { LeadCreatedEvent, LeadUpdatedEvent } from '../../common/events/domain-event.types';
 import {
   DefaultPipelinePlacement,
   DuplicateWarning,
@@ -45,7 +46,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadActivityService: LeadActivityService,
-    private readonly analyticsInvalidation: AnalyticsInvalidationService,
+    private readonly domainEventBus: DomainEventBus,
   ) {}
 
   async listLeads(
@@ -171,7 +172,7 @@ export class LeadsService {
 
     const lead = await this.getLeadOrThrow(leadId, tenantId);
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(new LeadCreatedEvent(tenantId, leadId));
 
     return {
       lead: toLeadResponse(lead),
@@ -412,7 +413,7 @@ export class LeadsService {
 
     const lead = await this.getLeadOrThrow(existing.id, tenantId);
 
-    void this.analyticsInvalidation.invalidateTenant(tenantId);
+    void this.domainEventBus.publish(new LeadUpdatedEvent(tenantId, existing.id));
 
     return {
       lead: toLeadResponse(lead),
