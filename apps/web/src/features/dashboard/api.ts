@@ -1,9 +1,12 @@
 import { apiClient } from "@/lib/api/client";
 import { serializeQueryParams } from "@/lib/query/query-params";
-import type { AnalyticsDateParams, DashboardOverviewData } from "./types";
+import type {
+  AnalyticsDashboardData,
+  DashboardQueryParams,
+} from "./types";
 
-export function getDashboardSummary(params?: AnalyticsDateParams) {
-  return apiClient.get<DashboardOverviewData>("/analytics/overview", {
+export function getDashboard(params?: DashboardQueryParams) {
+  return apiClient.get<AnalyticsDashboardData>("/analytics/dashboard", {
     query: serializeQueryParams(params ?? {}),
   });
 }

@@ -37,6 +37,18 @@ import {
   IconLock,
   IconAlertCircle,
   IconArrowRight,
+  IconChartBar,
+  IconClock,
+  IconPercentage,
+  IconProgress,
+  IconUserQuestion,
+  IconAlertTriangle,
+  IconTrendingUp,
+  IconActivity,
+  IconUserPlus,
+  IconArrowsExchange,
+  IconUpload,
+  IconDownload,
 } from "@tabler/icons-react";
 
 /**
@@ -87,6 +99,19 @@ export const AppIcons = {
   mail: IconMail,
   lock: IconLock,
   alertCircle: IconAlertCircle,
+  chartBar: IconChartBar,
+  clock: IconClock,
+  percentage: IconPercentage,
+  progress: IconProgress,
+  userQuestion: IconUserQuestion,
+  alertTriangle: IconAlertTriangle,
+  trendingUp: IconTrendingUp,
+  activity: IconActivity,
+  userPlus: IconUserPlus,
+  stageChange: IconArrowsExchange,
+  upload: IconUpload,
+  download: IconDownload,
+  team: IconUsersGroup,
 } satisfies Record<string, AppIcon>;
 
 export type AppIconName = keyof typeof AppIcons;

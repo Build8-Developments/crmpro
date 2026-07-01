@@ -1,4 +1,7 @@
-import type { AnalyticsDateParams } from "@/features/dashboard/types";
+import type {
+  AnalyticsDateParams,
+  DashboardQueryParams,
+} from "@/features/dashboard/types";
 import type { LeadsListParams } from "@/features/leads/types";
 import type { NotificationsListParams } from "@/features/notifications/types";
 import type { ListQueryParams } from "@/types/pagination";
@@ -12,7 +15,7 @@ export const queryKeys = {
 
   dashboard: {
     all: () => ["dashboard"] as const,
-    summary: (params?: AnalyticsDateParams) =>
+    summary: (params?: DashboardQueryParams | AnalyticsDateParams) =>
       ["dashboard", "summary", params ?? {}] as const,
     analytics: (scope: string, params?: AnalyticsDateParams) =>
       ["dashboard", "analytics", scope, params ?? {}] as const,

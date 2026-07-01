@@ -2,6 +2,13 @@
  * Dashboard / analytics types from CRM API `analytics.types.ts`.
  */
 
+export type DashboardRange = "7d" | "30d" | "90d";
+
+export interface DashboardQueryParams {
+  range?: DashboardRange;
+}
+
+/** @deprecated Use DashboardQueryParams with mega endpoint */
 export interface AnalyticsDateParams {
   from?: string;
   to?: string;
@@ -23,4 +30,58 @@ export interface DashboardOverviewData {
   developers: number;
   importsToday: number;
   exportsToday: number;
+  staleLeads: number;
+  unassignedLeads: number;
+}
+
+export interface PipelineStageSnapshot {
+  stageId: string;
+  name: string;
+  count: number;
+  avgDaysInStage: number | null;
+}
+
+export interface PipelineAnalyticsData {
+  pipelineId: string;
+  pipelineName: string;
+  stages: PipelineStageSnapshot[];
+}
+
+export interface TrendCountPoint {
+  date: string;
+  count: number;
+}
+
+export interface TrendAnalyticsData {
+  leadCreation: TrendCountPoint[];
+  leadClosing: TrendCountPoint[];
+}
+
+export interface TeamPerformerSnapshot {
+  userId: string;
+  name: string;
+  assignedLeads: number;
+  wonLeads: number;
+  conversionRate: number;
+}
+
+export interface TeamAnalyticsData {
+  topPerformers: TeamPerformerSnapshot[];
+}
+
+export interface ActivityFeedItem {
+  id: string;
+  type: string;
+  title: string;
+  occurredAt: string;
+  metadata: Record<string, unknown>;
+}
+
+/** Permission-aware dashboard payload — unauthorized sections are omitted. */
+export interface AnalyticsDashboardData {
+  overview?: DashboardOverviewData;
+  pipeline?: PipelineAnalyticsData;
+  trends?: TrendAnalyticsData;
+  team?: TeamAnalyticsData;
+  activity?: ActivityFeedItem[];
 }
