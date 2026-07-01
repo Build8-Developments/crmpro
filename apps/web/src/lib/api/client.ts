@@ -1,11 +1,12 @@
 import type { ApiResponse } from "@/types/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { getQueryClient } from "@/providers/query-provider";
 
 /**
- * Base URL for the CRM API (e.g. http://localhost:3001/api/v1).
+ * Base URL for the CRM API (e.g. http://localhost:3000/api/v1).
  */
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
 
 /**
  * Normalized API error thrown by the client for any non-success response.
@@ -31,18 +32,66 @@ export class ApiError extends Error {
 
 type QueryValue = string | number | boolean | null | undefined;
 
-interface RequestOptions {
+export interface RequestOptions {
   /** Query string params. */
   query?: Record<string, QueryValue>;
   /** Extra headers merged over defaults. */
   headers?: Record<string, string>;
   /** Abort signal. */
   signal?: AbortSignal;
+  /** Do not attach Authorization header. */
+  skipAuth?: boolean;
+  /** Do not attempt silent refresh on 401. */
+  skipRefresh?: boolean;
+  /** Internal retry guard after refresh. */
+  _isRetry?: boolean;
+}
+
+let refreshPromise: Promise<string> | null = null;
+
+export function handleAuthFailure(): void {
+  useAuthStore.getState().clearAuth();
+  getQueryClient()?.clear();
+
+  if (typeof window !== "undefined") {
+    const onLoginRoute = window.location.pathname.startsWith("/login");
+    if (!onLoginRoute) {
+      window.location.assign("/login");
+    }
+  }
+}
+
+async function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const accessToken = await executeRequest<{ accessToken: string }>(
+        "POST",
+        "/auth/refresh",
+        undefined,
+        { skipAuth: true, skipRefresh: true },
+      );
+
+      useAuthStore.getState().setAccessToken(accessToken.accessToken);
+      return accessToken.accessToken;
+    } catch (error) {
+      handleAuthFailure();
+      throw error;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
+  const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
   const url = new URL(
-    path.startsWith("/") ? path.slice(1) : path,
+    normalizedPath,
     BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`,
   );
   if (query) {
@@ -55,58 +104,15 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
-async function request<T>(
-  method: string,
-  path: string,
-  body?: unknown,
-  options: RequestOptions = {},
-): Promise<T> {
-  const accessToken = useAuthStore.getState().accessToken;
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...options.headers,
-  };
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
-  if (accessToken) {
-    headers["Authorization"] = `Bearer ${accessToken}`;
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(buildUrl(path, options.query), {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      // Send/receive the httpOnly refresh cookie.
-      credentials: "include",
-      signal: options.signal,
-    });
-  } catch (cause) {
-    throw new ApiError({
-      code: "NETWORK_ERROR",
-      message: "Unable to reach the server. Check your connection.",
-      status: 0,
-      details: cause,
-    });
-  }
-
-  // 204 No Content
+async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
-
-  // TODO(phase-2): on 401, attempt a single silent refresh via api/auth.ts
-  // (backend reads the httpOnly refresh cookie and rotates it), then retry the
-  // original request once. If refresh fails, clear auth and redirect to /login.
 
   let payload: ApiResponse<T> | null = null;
   try {
     payload = (await response.json()) as ApiResponse<T>;
   } catch {
-    // Non-JSON response — surface a generic normalized error.
     if (!response.ok) {
       throw new ApiError({
         code: "UNEXPECTED_RESPONSE",
@@ -129,6 +135,67 @@ async function request<T>(
   }
 
   return payload.data;
+}
+
+async function executeRequest<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  options: RequestOptions = {},
+): Promise<T> {
+  const accessToken = useAuthStore.getState().accessToken;
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...options.headers,
+  };
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (!options.skipAuth && accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, options.query), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: "include",
+      signal: options.signal,
+    });
+  } catch (cause) {
+    throw new ApiError({
+      code: "NETWORK_ERROR",
+      message: "Unable to reach the server. Check your connection.",
+      status: 0,
+      details: cause,
+    });
+  }
+
+  if (
+    response.status === 401 &&
+    !options.skipRefresh &&
+    !options._isRetry
+  ) {
+    await refreshAccessToken();
+    return executeRequest<T>(method, path, body, {
+      ...options,
+      _isRetry: true,
+    });
+  }
+
+  return parseResponse<T>(response);
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  options: RequestOptions = {},
+): Promise<T> {
+  return executeRequest<T>(method, path, body, options);
 }
 
 export const apiClient = {

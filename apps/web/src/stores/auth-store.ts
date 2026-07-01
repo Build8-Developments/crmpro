@@ -1,34 +1,38 @@
 import { create } from "zustand";
-import type { AuthUser } from "@/types/auth";
+import type { AuthStatus, AuthUser } from "@/types/auth";
 
-/**
- * Auth state.
- *
- * Phase 1 is scaffolding only — there is NO real auth logic here yet.
- * The access token is held in memory (never localStorage); the refresh token
- * lives in an httpOnly cookie managed by the backend.
- *
- * TODO(phase-2): wire login/logout/refresh through AuthProvider + api/auth.ts.
- */
 interface AuthState {
+  status: AuthStatus;
   accessToken: string | null;
   user: AuthUser | null;
-  isAuthenticated: boolean;
+  permissions: Set<string>;
 
-  setAuth: (payload: { accessToken: string; user: AuthUser }) => void;
+  setStatus: (status: AuthStatus) => void;
   setAccessToken: (accessToken: string | null) => void;
+  setUser: (user: AuthUser | null) => void;
+  setPermissions: (permissions: Set<string>) => void;
   clearAuth: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+const initialState = {
+  status: "bootstrapping" as AuthStatus,
   accessToken: null,
   user: null,
-  isAuthenticated: false,
+  permissions: new Set<string>(),
+};
 
-  setAuth: ({ accessToken, user }) =>
-    set({ accessToken, user, isAuthenticated: true }),
-  setAccessToken: (accessToken) =>
-    set({ accessToken, isAuthenticated: Boolean(accessToken) }),
+export const useAuthStore = create<AuthState>((set) => ({
+  ...initialState,
+
+  setStatus: (status) => set({ status }),
+  setAccessToken: (accessToken) => set({ accessToken }),
+  setUser: (user) => set({ user }),
+  setPermissions: (permissions) => set({ permissions }),
   clearAuth: () =>
-    set({ accessToken: null, user: null, isAuthenticated: false }),
+    set({
+      status: "unauthenticated",
+      accessToken: null,
+      user: null,
+      permissions: new Set<string>(),
+    }),
 }));

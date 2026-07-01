@@ -28,6 +28,9 @@ import {
   IconLayoutSidebarLeftExpand,
   IconSun,
   IconMoonStars,
+  IconCheck,
+  IconLoader2,
+  IconArrowLeft,
 } from "@tabler/icons-react";
 
 /**
@@ -69,6 +72,9 @@ export const AppIcons = {
   sidebarExpand: IconLayoutSidebarLeftExpand,
   lightMode: IconSun,
   darkMode: IconMoonStars,
+  check: IconCheck,
+  loader: IconLoader2,
+  arrowLeft: IconArrowLeft,
 } satisfies Record<string, AppIcon>;
 
 export type AppIconName = keyof typeof AppIcons;

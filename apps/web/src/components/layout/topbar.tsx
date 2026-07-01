@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { findRouteByPath } from "@/config/routes";
 import { quickActions } from "@/config/quick-actions";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useLogout } from "@/features/auth/hooks/use-auth-actions";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -476,9 +477,10 @@ function UserMenu({
 }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { logout, isLoggingOut } = useLogout();
 
   const name = user?.name ?? "CRM User";
-  const roleName = user?.roleName ?? "Member";
+  const roleName = user?.role.name ?? "Member";
   const initials = name
     .split(" ")
     .map((part) => part[0])
@@ -536,16 +538,16 @@ function UserMenu({
           Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {/* TODO(phase-2): call authApi.logout(), clear auth store, redirect. */}
         <DropdownMenuItem
           variant="destructive"
+          disabled={isLoggingOut}
           onSelect={() => {
             onOpenChange?.(false);
-            router.push("/login");
+            void logout();
           }}
         >
           <AppIcons.logout className="size-4" stroke={1.75} />
-          Logout
+          {isLoggingOut ? "Signing out..." : "Logout"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
