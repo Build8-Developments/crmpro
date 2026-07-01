@@ -17,28 +17,45 @@ export interface LoginResult {
   user: AuthUser;
 }
 
+export function lookupWorkspace(slug: string) {
+  return apiClient.get<WorkspaceLookupResult>(
+    `/public/workspaces/${encodeURIComponent(slug)}`,
+    { skipAuth: true, skipRefresh: true },
+  );
+}
+
+export function login(payload: LoginPayload) {
+  return apiClient.post<LoginResult>("/auth/login", payload, {
+    skipAuth: true,
+    skipRefresh: true,
+  });
+}
+
+export function refreshSession() {
+  return apiClient.post<{ accessToken: string }>("/auth/refresh", undefined, {
+    skipAuth: true,
+    skipRefresh: true,
+  });
+}
+
+export function logout() {
+  return apiClient.post<void>("/auth/logout");
+}
+
+export function getCurrentUser() {
+  return apiClient.get<AuthUser>("/auth/me");
+}
+
+export function getPermissions() {
+  return apiClient.get<UserAuthorization>("/auth/permissions");
+}
+
+/** @deprecated Prefer named exports — kept for existing auth action hooks. */
 export const authApi = {
-  lookupWorkspace: (slug: string) =>
-    apiClient.get<WorkspaceLookupResult>(`/public/workspaces/${encodeURIComponent(slug)}`, {
-      skipAuth: true,
-      skipRefresh: true,
-    }),
-
-  login: (payload: LoginPayload) =>
-    apiClient.post<LoginResult>("/auth/login", payload, {
-      skipAuth: true,
-      skipRefresh: true,
-    }),
-
-  refresh: () =>
-    apiClient.post<{ accessToken: string }>("/auth/refresh", undefined, {
-      skipAuth: true,
-      skipRefresh: true,
-    }),
-
-  me: () => apiClient.get<AuthUser>("/auth/me"),
-
-  permissions: () => apiClient.get<UserAuthorization>("/auth/permissions"),
-
-  logout: () => apiClient.post<void>("/auth/logout"),
+  lookupWorkspace,
+  login,
+  refresh: refreshSession,
+  logout,
+  me: getCurrentUser,
+  permissions: getPermissions,
 };

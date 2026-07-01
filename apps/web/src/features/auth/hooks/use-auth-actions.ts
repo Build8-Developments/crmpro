@@ -6,7 +6,7 @@ import { authApi } from "@/features/auth/api";
 import { hydrateAuthAfterLogin } from "@/features/auth/session";
 import { authToast } from "@/features/auth/utils/auth-toast";
 import { ApiError } from "@/lib/api/client";
-import { getQueryClient } from "@/providers/query-provider";
+import { getQueryClient } from "@/lib/query/query-client";
 import { useAuthStore } from "@/stores/auth-store";
 
 export function useLogout() {

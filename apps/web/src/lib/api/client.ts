@@ -1,6 +1,6 @@
 import type { ApiResponse } from "@/types/api";
 import { useAuthStore } from "@/stores/auth-store";
-import { getQueryClient } from "@/providers/query-provider";
+import { getQueryClient } from "@/lib/query/query-client";
 
 /**
  * Base URL for the CRM API (e.g. http://localhost:3000/api/v1).
