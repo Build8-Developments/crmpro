@@ -1,13 +1,28 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 import { toListResponseData } from '../../common/http/list-response';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
+import { REFRESH_COOKIE_NAME } from './constants/auth-cookie.constants';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedUser } from './types/jwt-payload.type';
+import {
+  clearRefreshCookie,
+  setRefreshCookie,
+  type RefreshCookieRuntimeConfig,
+} from './utils/auth-cookie.util';
 import { extractLoginSessionMetadata } from './utils/request-metadata.util';
 
 @Controller('auth')
@@ -15,44 +30,72 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly permissionsService: PermissionsService,
+    private readonly configService: ConfigService,
   ) {}
 
+  private getRefreshCookieConfig(): RefreshCookieRuntimeConfig {
+    return {
+      nodeEnv: this.configService.get<string>('app.nodeEnv') ?? 'development',
+      refreshTokenExpiration: this.configService.getOrThrow<string>(
+        'auth.refreshTokenExpiration',
+      ),
+    };
+  }
+
   @Post('login')
-  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(
       loginDto,
       extractLoginSessionMetadata(req, loginDto.deviceName),
     );
+
+    setRefreshCookie(res, result.refreshToken, this.getRefreshCookieConfig());
 
     return {
       success: true,
       message: 'Login successful',
       data: {
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
         user: result.user,
       },
     };
   }
 
   @Post('refresh')
-  async refresh(@Body() refreshDto: RefreshDto) {
-    const result = await this.authService.refresh(refreshDto.refreshToken);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const result = await this.authService.refresh(refreshToken);
+
+    setRefreshCookie(res, result.refreshToken, this.getRefreshCookieConfig());
 
     return {
       success: true,
       message: 'Token refreshed successfully',
       data: {
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
       },
     };
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@CurrentUser() user: AuthenticatedUser) {
+  async logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     await this.authService.logout(user);
+    clearRefreshCookie(res, this.getRefreshCookieConfig());
 
     return {
       success: true,
@@ -62,8 +105,12 @@ export class AuthController {
 
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
-  async logoutAll(@CurrentUser() user: AuthenticatedUser) {
+  async logoutAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const revokedSessions = await this.authService.logoutAll(user);
+    clearRefreshCookie(res, this.getRefreshCookieConfig());
 
     return {
       success: true,

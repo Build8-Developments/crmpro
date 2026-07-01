@@ -37,7 +37,7 @@ Both **CRM API** (`apps/api`) and **Admin API** (`apps/admin-api`) return errors
 
 `details` is optional and usually `null` except for validation failures.
 
-Success responses use `{ success: true, data: ... }`. Auth login and refresh wrap tokens under `data`:
+Success responses use `{ success: true, data: ... }`. Auth login returns the access token and user under `data`; the refresh token is set as an httpOnly cookie (`crm_refresh`):
 
 ```json
 {
@@ -45,13 +45,12 @@ Success responses use `{ success: true, data: ... }`. Auth login and refresh wra
   "message": "Login successful",
   "data": {
     "accessToken": "...",
-    "refreshToken": "...",
     "user": {}
   }
 }
 ```
 
-Refresh returns `data.accessToken` and `data.refreshToken` only (no `user`).
+Refresh returns `data.accessToken` only (no `user`, no `refreshToken` in body). Postman stores the refresh cookie automatically in its cookie jar.
 
 ### Error codes
 
@@ -118,9 +117,8 @@ Duplicate email (Prisma unique constraint):
 | `tenantSlug` | `prime-estates` | Seeded tenant |
 | `email` | `owner@primeestates.com` | Seeded owner user |
 | `password` | `Password123!` | Seeded password |
-| `accessToken` | *(empty)* | Auto-filled after login (Chunk 3+) |
-| `refreshToken` | *(empty)* | Auto-filled after login (Chunk 3+) |
-| `sessionId` | *(empty)* | Auto-filled when returned (Chunk 3+) |
+| `accessToken` | *(empty)* | Auto-filled after login |
+| `sessionId` | *(empty)* | Derived from access token JWT after login |
 | `pipelineId` | `4444...4402` (Commercial Leasing) | Seeded non-default pipeline; updated by **List Pipelines** |
 | `stageId` | *(empty)* | Auto-filled by **List Pipelines** or **Create Stage** |
 | `leadSourceId` | *(empty)* | Auto-filled by **List Lead Sources** or **Create Lead Source** |
@@ -345,21 +343,22 @@ Jobs health reports import, export, cleanup, and notification worker status. Met
 
 - Asserts a successful status code (200 or 201)
 - Parses JSON response
-- Saves `data.accessToken`, `data.refreshToken`, and derived `sessionId` when present
+- Saves `data.accessToken` and derives `sessionId` from the JWT when present
+- Asserts the `crm_refresh` httpOnly cookie is set (Postman cookie jar)
 
-Login and refresh return tokens under `data` — both auto-save to the environment.
+Refresh rotates the cookie automatically; only `data.accessToken` is returned in the body.
 
 ## Bearer token injection and auto-refresh
 
 Collection **pre-request script**:
 
-- If the access token is missing or expired (default 15m, 30s buffer), calls `POST /auth/refresh` with `{{refreshToken}}` and saves the new tokens
+- If the access token is missing or expired (default 15m, 30s buffer), calls `POST /auth/refresh` (refresh cookie sent from Postman cookie jar) and saves the new access token
 - Skips refresh on `POST /auth/login` and `POST /auth/refresh`
 - If `accessToken` is set → adds `Authorization: Bearer {{accessToken}}` on protected routes
 
 Collection **test script** (Collection Runner):
 
-- On `401 Unauthorized`, attempts one token refresh and re-runs the same request
+- On `401 Unauthorized`, attempts one cookie-based token refresh and re-runs the same request
 
 After login, protected routes stay authenticated without manually running **Refresh Token**. Re-import the collection if you already had an older version loaded in Postman.
 
@@ -414,4 +413,4 @@ Single-resource endpoints return `data` as the object directly.
 
 ## Clear auth state
 
-**Debug → Clear Auth Tokens** wipes `accessToken`, `refreshToken`, and `sessionId` from the environment.
+**Debug → Clear Auth Tokens** wipes `accessToken` and `sessionId` from the environment.

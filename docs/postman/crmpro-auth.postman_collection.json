@@ -49,35 +49,28 @@
           "  return Date.now() >= payload.exp * 1000 - bufferSeconds * 1000;",
           "}",
           "",
-          "function saveTokens(json) {",
+          "function saveAccessToken(json) {",
           "  const data = json.data || {};",
           "  if (data.accessToken) {",
           "    pm.environment.set('accessToken', data.accessToken);",
-          "  }",
-          "  if (data.refreshToken) {",
-          "    pm.environment.set('refreshToken', data.refreshToken);",
-          "    const sessionId = data.refreshToken.split('.')[0];",
-          "    if (sessionId) {",
-          "      pm.environment.set('sessionId', sessionId);",
+          "    const payload = parseJwtPayload(data.accessToken);",
+          "    if (payload && payload.sessionId) {",
+          "      pm.environment.set('sessionId', payload.sessionId);",
           "    }",
           "  }",
           "}",
           "",
-          "function refreshAccessToken(refreshToken) {",
+          "function refreshAccessToken() {",
           "  const baseUrl = pm.environment.get('baseUrl');",
           "  const response = pm.sendRequest({",
           "    url: `${baseUrl}/auth/refresh`,",
           "    method: 'POST',",
           "    header: { 'Content-Type': 'application/json' },",
-          "    body: {",
-          "      mode: 'raw',",
-          "      raw: JSON.stringify({ refreshToken }),",
-          "    },",
           "  });",
           "",
           "  if (response.code === 200 || response.code === 201) {",
           "    const json = response.json();",
-          "    saveTokens(json);",
+          "    saveAccessToken(json);",
           "    return (json.data && json.data.accessToken) || null;",
           "  }",
           "",
@@ -86,11 +79,10 @@
           "}",
           "",
           "let accessToken = pm.environment.get('accessToken');",
-          "const refreshToken = pm.environment.get('refreshToken');",
           "",
-          "if (!isPublicAuthRoute() && refreshToken && (!accessToken || isAccessTokenExpired(accessToken))) {",
-          "  console.log('Access token missing or expired — refreshing...');",
-          "  const newToken = refreshAccessToken(refreshToken);",
+          "if (!isPublicAuthRoute() && (!accessToken || isAccessTokenExpired(accessToken))) {",
+          "  console.log('Access token missing or expired — refreshing via cookie...');",
+          "  const newToken = refreshAccessToken();",
           "  if (newToken) {",
           "    accessToken = newToken;",
           "    console.log('Access token refreshed');",
@@ -129,28 +121,20 @@
           "}",
           "",
           "if (pm.response.code === 401 && !/(^|\\/)auth\\/(login|refresh)$/.test(getRequestPath())) {",
-          "  const refreshToken = pm.environment.get('refreshToken');",
-          "  if (refreshToken && !pm.variables.get('__retriedAfterRefresh')) {",
+          "  if (!pm.variables.get('__retriedAfterRefresh')) {",
           "    const baseUrl = pm.environment.get('baseUrl');",
           "    const refreshResponse = pm.sendRequest({",
           "      url: `${baseUrl}/auth/refresh`,",
           "      method: 'POST',",
           "      header: { 'Content-Type': 'application/json' },",
-          "      body: {",
-          "        mode: 'raw',",
-          "        raw: JSON.stringify({ refreshToken }),",
-          "      },",
           "    });",
           "",
           "    if (refreshResponse.code === 200 || refreshResponse.code === 201) {",
           "      const json = refreshResponse.json();",
           "      const data = json.data || {};",
           "      if (data.accessToken) pm.environment.set('accessToken', data.accessToken);",
-          "      if (data.refreshToken) {",
-          "        pm.environment.set('refreshToken', data.refreshToken);",
-          "        const sessionId = data.refreshToken.split('.')[0];",
-          "        if (sessionId) pm.environment.set('sessionId', sessionId);",
-          "      }",
+          "      const payload = parseJwtPayload(data.accessToken);",
+          "      if (payload && payload.sessionId) pm.environment.set('sessionId', payload.sessionId);",
           "      pm.variables.set('__retriedAfterRefresh', '1');",
           "      postman.setNextRequest(pm.info.requestName);",
           "    }",
@@ -185,23 +169,34 @@
                   "  pm.expect(json.data).to.be.an('object');",
                   "});",
                   "",
+                  "pm.test('Response does not include refreshToken in body', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.refreshToken).to.be.undefined;",
+                  "});",
+                  "",
+                  "pm.test('Sets httpOnly refresh cookie', function () {",
+                  "  pm.response.to.have.header('Set-Cookie');",
+                  "  const setCookie = pm.response.headers.get('Set-Cookie');",
+                  "  pm.expect(setCookie).to.include('crm_refresh');",
+                  "  pm.expect(setCookie.toLowerCase()).to.include('httponly');",
+                  "});",
+                  "",
                   "const json = pm.response.json();",
                   "const data = json.data || {};",
                   "",
                   "if (data.accessToken) {",
                   "  pm.environment.set('accessToken', data.accessToken);",
+                  "  const parts = data.accessToken.split('.');",
+                  "  if (parts.length === 3) {",
+                  "    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "    const payload = JSON.parse(atob(base64));",
+                  "    if (payload.sessionId) {",
+                  "      pm.environment.set('sessionId', payload.sessionId);",
+                  "    }",
+                  "  }",
                   "  console.log('accessToken saved to environment');",
                   "} else {",
                   "  console.log('No accessToken in response');",
-                  "}",
-                  "",
-                  "if (data.refreshToken) {",
-                  "  pm.environment.set('refreshToken', data.refreshToken);",
-                  "  const sessionId = data.refreshToken.split('.')[0];",
-                  "  if (sessionId) {",
-                  "    pm.environment.set('sessionId', sessionId);",
-                  "  }",
-                  "  console.log('refreshToken saved to environment');",
                   "}",
                   "",
                   "if (data.user) {",
@@ -238,7 +233,7 @@
                 "login"
               ]
             },
-            "description": "Login and receive access + refresh tokens. Tokens auto-save to environment."
+            "description": "Login and receive access token in body; refresh token is set as httpOnly cookie."
           },
           "response": []
         },
@@ -254,21 +249,24 @@
                   "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
                   "});",
                   "",
+                  "pm.test('Response does not include refreshToken in body', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.data.refreshToken).to.be.undefined;",
+                  "});",
+                  "",
+                  "pm.test('Rotates httpOnly refresh cookie', function () {",
+                  "  pm.response.to.have.header('Set-Cookie');",
+                  "  const setCookie = pm.response.headers.get('Set-Cookie');",
+                  "  pm.expect(setCookie).to.include('crm_refresh');",
+                  "  pm.expect(setCookie.toLowerCase()).to.include('httponly');",
+                  "});",
+                  "",
                   "const json = pm.response.json();",
                   "const data = json.data || {};",
                   "",
                   "if (data.accessToken) {",
                   "  pm.environment.set('accessToken', data.accessToken);",
                   "  console.log('accessToken updated');",
-                  "}",
-                  "",
-                  "if (data.refreshToken) {",
-                  "  pm.environment.set('refreshToken', data.refreshToken);",
-                  "  const sessionId = data.refreshToken.split('.')[0];",
-                  "  if (sessionId) {",
-                  "    pm.environment.set('sessionId', sessionId);",
-                  "  }",
-                  "  console.log('refreshToken rotated');",
                   "}"
                 ]
               }
@@ -276,21 +274,7 @@
           ],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/refresh",
               "host": [
@@ -301,7 +285,7 @@
                 "refresh"
               ]
             },
-            "description": "Rotate refresh token and issue new access token. No Bearer auth required."
+            "description": "Rotate refresh cookie and issue new access token. Requires crm_refresh cookie from Login. No Bearer auth or request body."
           },
           "response": []
         },
@@ -318,7 +302,7 @@
                   "});",
                   "",
                   "pm.environment.set('accessToken', '');",
-                  "pm.environment.set('refreshToken', '');",
+                  "pm.environment.set('sessionId', '');",
                   "console.log('Cleared local tokens after logout');"
                 ]
               }
@@ -354,7 +338,7 @@
                   "});",
                   "",
                   "pm.environment.set('accessToken', '');",
-                  "pm.environment.set('refreshToken', '');",
+                  "pm.environment.set('sessionId', '');",
                   "console.log('Cleared local tokens after logout-all');"
                 ]
               }
@@ -3564,9 +3548,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.environment.set('accessToken', '');",
-                  "pm.environment.set('refreshToken', '');",
                   "pm.environment.set('sessionId', '');",
-                  "console.log('Cleared accessToken, refreshToken, sessionId');"
+                  "console.log('Cleared accessToken and sessionId');"
                 ]
               }
             }
