@@ -5,6 +5,11 @@ export interface AnalyticsDateRange {
   to?: Date;
 }
 
+export type DashboardOverviewBaseData = Omit<
+  DashboardOverviewData,
+  'staleLeads' | 'unassignedLeads'
+>;
+
 export interface DashboardOverviewData {
   totalLeads: number;
   openLeads: number;
@@ -21,7 +26,60 @@ export interface DashboardOverviewData {
   developers: number;
   importsToday: number;
   exportsToday: number;
+  staleLeads: number;
+  unassignedLeads: number;
 }
+
+export interface PipelineStageSnapshot {
+  stageId: string;
+  name: string;
+  count: number;
+  avgDaysInStage: number | null;
+}
+
+export interface PipelineAnalyticsData {
+  pipelineId: string;
+  pipelineName: string;
+  stages: PipelineStageSnapshot[];
+}
+
+export interface TrendCountPoint {
+  date: string;
+  count: number;
+}
+
+export interface TrendAnalyticsData {
+  leadCreation: TrendCountPoint[];
+  leadClosing: TrendCountPoint[];
+}
+
+export interface TeamPerformerSnapshot {
+  userId: string;
+  name: string;
+  assignedLeads: number;
+  wonLeads: number;
+  conversionRate: number;
+}
+
+export interface TeamAnalyticsData {
+  topPerformers: TeamPerformerSnapshot[];
+}
+
+export interface ActivityFeedItem {
+  id: string;
+  type: string;
+  title: string;
+  occurredAt: string;
+  metadata: Record<string, unknown>;
+}
+
+export type AnalyticsDashboardData = {
+  overview?: DashboardOverviewData;
+  pipeline?: PipelineAnalyticsData;
+  trends?: TrendAnalyticsData;
+  team?: TeamAnalyticsData;
+  activity?: ActivityFeedItem[];
+};
 
 export interface PipelineStageAnalytics {
   stageId: string;

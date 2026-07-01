@@ -6,16 +6,25 @@ import {
   AgentPerformanceAnalytics,
   AnalyticsCacheResult,
   AnalyticsDateRange,
+  ActivityFeedItem,
   DashboardOverviewData,
   DeveloperPerformanceAnalytics,
   LeadSourceAnalytics,
   LeadStatusDistribution,
   LeadTrendPoint,
+  PipelineAnalyticsData,
   PipelineFunnelAnalytics,
   ProjectPerformanceAnalytics,
   RecentActivityResult,
+  TeamAnalyticsData,
+  TrendAnalyticsData,
 } from './analytics.types';
 import { AnalyticsQueryService } from './queries/analytics-query.service';
+import { OverviewAnalyticsService } from './services/overview-analytics.service';
+import { PipelineAnalyticsService } from './services/pipeline-analytics.service';
+import { TrendAnalyticsService } from './services/trend-analytics.service';
+import { TeamAnalyticsService } from './services/team-analytics.service';
+import { ActivityAnalyticsService } from './services/activity-analytics.service';
 
 type AnalyticsHandler<T> = () => Promise<T>;
 
@@ -23,6 +32,11 @@ type AnalyticsHandler<T> = () => Promise<T>;
 export class AnalyticsService {
   constructor(
     private readonly queryService: AnalyticsQueryService,
+    private readonly overviewService: OverviewAnalyticsService,
+    private readonly pipelineService: PipelineAnalyticsService,
+    private readonly trendService: TrendAnalyticsService,
+    private readonly teamService: TeamAnalyticsService,
+    private readonly activityService: ActivityAnalyticsService,
     private readonly cacheService: CacheService,
     private readonly loggingService: LoggingService,
   ) {}
@@ -35,7 +49,54 @@ export class AnalyticsService {
       tenantId,
       ANALYTICS_ENDPOINTS.overview,
       range,
-      () => this.queryService.getOverview(tenantId, range),
+      () => this.overviewService.getOverview(tenantId, range),
+    );
+  }
+
+  getPipelineAnalytics(
+    tenantId: string,
+  ): Promise<AnalyticsCacheResult<PipelineAnalyticsData>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.pipeline,
+      {},
+      () => this.pipelineService.getPipeline(tenantId),
+    );
+  }
+
+  getTrendAnalytics(
+    tenantId: string,
+    range: AnalyticsDateRange,
+  ): Promise<AnalyticsCacheResult<TrendAnalyticsData>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.trends,
+      range,
+      () => this.trendService.getTrends(tenantId, range),
+    );
+  }
+
+  getTeamAnalytics(
+    tenantId: string,
+  ): Promise<AnalyticsCacheResult<TeamAnalyticsData>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.team,
+      {},
+      () => this.teamService.getTeam(tenantId),
+    );
+  }
+
+  getActivityFeed(
+    tenantId: string,
+    includeAudit: boolean,
+  ): Promise<AnalyticsCacheResult<ActivityFeedItem[]>> {
+    return this.withCache(
+      tenantId,
+      ANALYTICS_ENDPOINTS.activity,
+      {},
+      () => this.activityService.getActivity(tenantId, { includeAudit }),
+      includeAudit ? 'audit' : 'lead',
     );
   }
 

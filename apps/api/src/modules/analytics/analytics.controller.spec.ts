@@ -1,11 +1,14 @@
 import { CanActivate, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
+import { PERMISSIONS } from '@crmpro/shared/auth';
 import { PermissionsGuard } from '../../common/auth/guards/permissions.guard';
+import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { PlanEntitlementGuard } from '../../common/entitlements/guards/plan-entitlement.guard';
 import { PlanEntitlementService } from '../../common/entitlements/plan-entitlement.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
+import { AnalyticsAggregatorService } from './analytics-aggregator.service';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
 
@@ -16,7 +19,12 @@ describe('AnalyticsController', () => {
   let analyticsService: {
     getOverview: jest.Mock;
     getRecentActivity: jest.Mock;
+    getTrendAnalytics: jest.Mock;
+    getTeamAnalytics: jest.Mock;
+    getActivityFeed: jest.Mock;
   };
+  let aggregatorService: { getDashboard: jest.Mock };
+  let permissionsService: { getPermissionKeysForUser: jest.Mock };
   let planEntitlementService: { assertFeatureEnabled: jest.Mock };
 
   const user = {
@@ -40,6 +48,32 @@ describe('AnalyticsController', () => {
         },
         cacheHit: true,
       }),
+      getTrendAnalytics: jest.fn().mockResolvedValue({
+        data: {
+          leadCreation: [],
+          leadClosing: [],
+        },
+        cacheHit: false,
+      }),
+      getTeamAnalytics: jest.fn().mockResolvedValue({
+        data: { topPerformers: [] },
+        cacheHit: false,
+      }),
+      getActivityFeed: jest.fn().mockResolvedValue({
+        data: [],
+        cacheHit: false,
+      }),
+    };
+    aggregatorService = {
+      getDashboard: jest.fn().mockResolvedValue({
+        overview: { totalLeads: 5 },
+        pipeline: { stages: [] },
+      }),
+    };
+    permissionsService = {
+      getPermissionKeysForUser: jest
+        .fn()
+        .mockResolvedValue(new Set([PERMISSIONS.LEAD_READ])),
     };
     planEntitlementService = {
       assertFeatureEnabled: jest.fn().mockResolvedValue(undefined),
@@ -49,6 +83,8 @@ describe('AnalyticsController', () => {
       controllers: [AnalyticsController],
       providers: [
         { provide: AnalyticsService, useValue: analyticsService },
+        { provide: AnalyticsAggregatorService, useValue: aggregatorService },
+        { provide: PermissionsService, useValue: permissionsService },
         {
           provide: PlanEntitlementService,
           useValue: planEntitlementService,
@@ -79,6 +115,24 @@ describe('AnalyticsController', () => {
     });
   });
 
+  it('returns permission-aware dashboard payload', async () => {
+    await expect(
+      controller.getDashboard(user, { range: '30d' }),
+    ).resolves.toEqual({
+      success: true,
+      data: {
+        overview: { totalLeads: 5 },
+        pipeline: { stages: [] },
+      },
+    });
+
+    expect(aggregatorService.getDashboard).toHaveBeenCalledWith(
+      'user-1',
+      'tenant-1',
+      '30d',
+    );
+  });
+
   it('passes pagination params for recent activity', async () => {
     await expect(
       controller.getRecentActivity(user, {
@@ -95,6 +149,49 @@ describe('AnalyticsController', () => {
       { from: undefined, to: undefined },
       2,
       10,
+    );
+  });
+
+  it('validates trends range via analytics service', async () => {
+    await controller.getTrends(user, { range: '7d' });
+
+    expect(analyticsService.getTrendAnalytics).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        from: expect.any(Date),
+        to: expect.any(Date),
+      }),
+    );
+  });
+
+  it('returns team analytics for authorized users', async () => {
+    await expect(controller.getTeam(user)).resolves.toEqual({
+      success: true,
+      data: { topPerformers: [] },
+    });
+
+    expect(analyticsService.getTeamAnalytics).toHaveBeenCalledWith('tenant-1');
+  });
+
+  it('blocks activity endpoint without audit.read or lead.read', async () => {
+    permissionsService.getPermissionKeysForUser.mockResolvedValue(
+      new Set([PERMISSIONS.USER_READ]),
+    );
+
+    await expect(controller.getActivity(user, {})).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('returns activity feed when lead.read is granted', async () => {
+    await expect(controller.getActivity(user, {})).resolves.toEqual({
+      success: true,
+      data: [],
+    });
+
+    expect(analyticsService.getActivityFeed).toHaveBeenCalledWith(
+      'tenant-1',
+      false,
     );
   });
 });

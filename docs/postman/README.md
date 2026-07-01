@@ -296,21 +296,36 @@ GET /leads?page=1&limit=20&search=ahmed&pipelineId=...&stageId=...&status=OPEN&s
 
 ## Analytics endpoints
 
-Requires `analytics.read`.
+Requires plan feature `analytics`. Permissions vary by endpoint.
 
-| Request | Method |
+| Request | Method | Permission |
+| --- | --- | --- |
+| Dashboard | `GET /analytics/dashboard?range=30d` | Section-aware (see below) |
+| Overview | `GET /analytics/overview` | `analytics.read` |
+| Pipeline | `GET /analytics/pipeline` | `pipeline.read` |
+| Trends | `GET /analytics/trends?range=30d` | `analytics.read` |
+| Team | `GET /analytics/team` | `user.read` |
+| Activity | `GET /analytics/activity` | `audit.read` OR `lead.read` |
+| Lead Sources | `GET /analytics/sources` | `analytics.read` |
+| Agent Performance | `GET /analytics/agents` | `analytics.read` |
+| Project Performance | `GET /analytics/projects` | `analytics.read` |
+| Developer Performance | `GET /analytics/developers` | `analytics.read` |
+| Status Distribution | `GET /analytics/status` | `analytics.read` |
+| Recent Activity (legacy) | `GET /analytics/recent-activity` | `analytics.read` |
+
+**Dashboard** (`GET /analytics/dashboard`) returns only sections the user may view. Unauthorized sections are omitted entirely.
+
+| Section | Permission |
 | --- | --- |
-| Overview | `GET /analytics/overview` |
-| Pipeline Funnel | `GET /analytics/pipeline` |
-| Lead Sources | `GET /analytics/sources` |
-| Agent Performance | `GET /analytics/agents` |
-| Project Performance | `GET /analytics/projects` |
-| Developer Performance | `GET /analytics/developers` |
-| Lead Trends | `GET /analytics/trends` |
-| Status Distribution | `GET /analytics/status` |
-| Recent Activity | `GET /analytics/recent-activity` |
+| `overview` | `analytics.read` |
+| `pipeline` | `pipeline.read` |
+| `trends` | `analytics.read` |
+| `team` | `user.read` |
+| `activity` | `audit.read` OR `lead.read` |
 
-Optional date range: `?from=2026-01-01&to=2026-12-31`.
+**Range query** (dashboard, trends): `?range=7d` | `30d` | `90d` (default `30d`).
+
+**Date range** (overview, sources, agents, projects, developers, status, recent-activity): optional `?from=2026-01-01&to=2026-12-31`.
 
 ## Notification endpoints
 

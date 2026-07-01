@@ -16,6 +16,7 @@ import {
   AgentPerformanceAnalytics,
   AnalyticsDateRange,
   DashboardOverviewData,
+  DashboardOverviewBaseData,
   DeveloperPerformanceAnalytics,
   LeadSourceAnalytics,
   LeadStatusDistribution,
@@ -65,7 +66,7 @@ export class AnalyticsQueryService {
   async getOverview(
     tenantId: string,
     range: AnalyticsDateRange,
-  ): Promise<DashboardOverviewData> {
+  ): Promise<DashboardOverviewBaseData> {
     const baseWhere = this.baseLeadWhere(tenantId, range);
     const now = new Date();
     const todayStart = startOfUtcDay(now);

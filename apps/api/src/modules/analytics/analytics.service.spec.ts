@@ -4,9 +4,15 @@ import { LoggingService } from '../../common/logging/logging.service';
 import { ANALYTICS_ENDPOINTS } from './analytics.constants';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryService } from './queries/analytics-query.service';
+import { OverviewAnalyticsService } from './services/overview-analytics.service';
+import { PipelineAnalyticsService } from './services/pipeline-analytics.service';
+import { TrendAnalyticsService } from './services/trend-analytics.service';
+import { TeamAnalyticsService } from './services/team-analytics.service';
+import { ActivityAnalyticsService } from './services/activity-analytics.service';
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService;
+  let overviewService: { getOverview: jest.Mock };
   let queryService: { getOverview: jest.Mock };
   let cacheService: {
     buildAnalyticsKey: jest.Mock;
@@ -32,9 +38,14 @@ describe('AnalyticsService', () => {
     developers: 3,
     importsToday: 0,
     exportsToday: 0,
+    staleLeads: 0,
+    unassignedLeads: 0,
   };
 
   beforeEach(async () => {
+    overviewService = {
+      getOverview: jest.fn().mockResolvedValue(overview),
+    };
     queryService = {
       getOverview: jest.fn().mockResolvedValue(overview),
     };
@@ -56,6 +67,23 @@ describe('AnalyticsService', () => {
       providers: [
         AnalyticsService,
         { provide: AnalyticsQueryService, useValue: queryService },
+        { provide: OverviewAnalyticsService, useValue: overviewService },
+        {
+          provide: PipelineAnalyticsService,
+          useValue: { getPipeline: jest.fn() },
+        },
+        {
+          provide: TrendAnalyticsService,
+          useValue: { getTrends: jest.fn() },
+        },
+        {
+          provide: TeamAnalyticsService,
+          useValue: { getTeam: jest.fn() },
+        },
+        {
+          provide: ActivityAnalyticsService,
+          useValue: { getActivity: jest.fn() },
+        },
         { provide: CacheService, useValue: cacheService },
         { provide: LoggingService, useValue: loggingService },
       ],
@@ -72,6 +100,7 @@ describe('AnalyticsService', () => {
     expect(result.cacheHit).toBe(true);
     expect(result.data).toEqual(overview);
     expect(queryService.getOverview).not.toHaveBeenCalled();
+    expect(overviewService.getOverview).not.toHaveBeenCalled();
     expect(loggingService.info).toHaveBeenCalledWith(
       expect.objectContaining({
         module: 'Analytics',
@@ -91,7 +120,8 @@ describe('AnalyticsService', () => {
 
     expect(result.cacheHit).toBe(false);
     expect(result.data).toEqual(overview);
-    expect(queryService.getOverview).toHaveBeenCalledWith('tenant-1', range);
+    expect(overviewService.getOverview).toHaveBeenCalledWith('tenant-1', range);
+    expect(queryService.getOverview).not.toHaveBeenCalled();
     expect(cacheService.set).toHaveBeenCalledWith(
       'analytics:tenant-1:overview:all:all',
       overview,

@@ -2624,8 +2624,34 @@
     },
     {
       "name": "Analytics",
-      "description": "Analytics dashboard endpoints. Requires analytics.read.",
+      "description": "Analytics V2 dashboard and section endpoints. Requires plan feature `analytics`.\n\nPermissions per endpoint:\n- Dashboard: permission-aware sections (no single permission)\n- Overview / Trends / legacy reports: `analytics.read`\n- Pipeline: `pipeline.read`\n- Team: `user.read`\n- Activity: `audit.read` OR `lead.read`\n- Recent Activity (legacy): `analytics.read`",
       "item": [
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/dashboard?range=30d",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "range",
+                  "value": "30d",
+                  "description": "7d | 30d | 90d (default: 30d)"
+                }
+              ]
+            },
+            "description": "Permission-aware mega endpoint. Returns only sections the caller may view: overview, pipeline, trends, team, activity. Unauthorized sections are omitted (not null)."
+          },
+          "response": []
+        },
         {
           "name": "Overview",
           "request": {
@@ -2657,7 +2683,90 @@
           "response": []
         },
         {
-          "name": "Recent Activity",
+          "name": "Pipeline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/pipeline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "pipeline"
+              ]
+            },
+            "description": "Funnel snapshot for the tenant default pipeline (or first pipeline by name if none is default). Requires `pipeline.read`.\n\nResponse: `{ stages: [{ stageId, name, count, avgDaysInStage }] }`"
+          },
+          "response": []
+        },
+        {
+          "name": "Trends",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/trends?range=30d",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "trends"
+              ],
+              "query": [
+                {
+                  "key": "range",
+                  "value": "30d",
+                  "description": "7d | 30d | 90d (default: 30d)"
+                }
+              ]
+            },
+            "description": "Daily lead creation and won closing trends. Requires `analytics.read`.\n\nResponse: `{ leadCreation: [{ date, count }], leadClosing: [{ date, count }] }`"
+          },
+          "response": []
+        },
+        {
+          "name": "Team",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/team",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "team"
+              ]
+            },
+            "description": "Top 5 performers by assigned leads. Requires `user.read`.\n\nResponse: `{ topPerformers: [{ userId, name, assignedLeads, wonLeads, conversionRate }] }`"
+          },
+          "response": []
+        },
+        {
+          "name": "Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "analytics",
+                "activity"
+              ]
+            },
+            "description": "Latest 20 CRM events (lead activities, import/export jobs, audit logs when `audit.read` is granted). Requires `audit.read` OR `lead.read`.\n\nResponse: array of `{ id, type, title, occurredAt, metadata }` newest first."
+          },
+          "response": []
+        },
+        {
+          "name": "Recent Activity (Legacy)",
           "request": {
             "method": "GET",
             "header": [],
@@ -2681,37 +2790,6 @@
                 }
               ]
             }
-          },
-          "response": []
-        },
-        {
-          "name": "Pipeline Funnel",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/analytics/pipeline?from=2026-01-01&to=2026-12-31",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "analytics",
-                "pipeline"
-              ],
-              "query": [
-                {
-                  "key": "from",
-                  "value": "2026-01-01",
-                  "disabled": true
-                },
-                {
-                  "key": "to",
-                  "value": "2026-12-31",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": ""
           },
           "response": []
         },
@@ -2821,37 +2899,6 @@
               "path": [
                 "analytics",
                 "developers"
-              ],
-              "query": [
-                {
-                  "key": "from",
-                  "value": "2026-01-01",
-                  "disabled": true
-                },
-                {
-                  "key": "to",
-                  "value": "2026-12-31",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": ""
-          },
-          "response": []
-        },
-        {
-          "name": "Lead Trends",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/analytics/trends?from=2026-01-01&to=2026-12-31",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "analytics",
-                "trends"
               ],
               "query": [
                 {
