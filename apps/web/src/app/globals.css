@@ -189,3 +189,241 @@
     letter-spacing: var(--tracking-normal);
   }
 }
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select,
+  [data-slot="dropdown-menu-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-checkbox-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-radio-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-sub-trigger"]:not([data-disabled]),
+  [data-slot="command-item"]:not([data-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled],
+  [data-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Theme switching should feel smooth without making every interaction sluggish.
+ * The `.theme-transition` class is added only while the user toggles theme.
+ */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition-property:
+    background-color, border-color, color, fill, stroke, box-shadow, opacity;
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-spring);
+}
+
+/*
+ * Motion system
+ * Rule: fast = 150ms, medium = 200ms, large = 300ms
+ * Easing: spring-like cubic-bezier(0.16, 1, 0.3, 1)
+ */
+:root {
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-medium: 200ms;
+  --duration-large: 300ms;
+}
+
+@keyframes crm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes crm-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes crm-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes crm-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes crm-dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes crm-dialog-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes crm-command-in {
+  from {
+    opacity: 0;
+    translate: -50% calc(-50% - 6px);
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    translate: -50% -50%;
+    scale: 1;
+  }
+}
+
+@keyframes crm-command-out {
+  from {
+    opacity: 1;
+    translate: -50% -50%;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: -50% calc(-50% - 6px);
+    scale: 0.98;
+  }
+}
+
+@keyframes crm-mobile-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.985;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes crm-mobile-panel-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.985;
+  }
+}
+
+/* ── Dropdowns & menus — 200ms spring ── */
+[data-slot="dropdown-menu-content"][data-state="open"],
+[data-slot="dropdown-menu-sub-content"][data-state="open"] {
+  animation: crm-menu-in var(--duration-medium) var(--ease-spring) both;
+}
+
+[data-slot="dropdown-menu-content"][data-state="closed"],
+[data-slot="dropdown-menu-sub-content"][data-state="closed"] {
+  animation: crm-menu-out 140ms ease-in both;
+}
+
+.mobile-notification-panel[data-state="open"] {
+  animation: crm-mobile-panel-in var(--duration-medium) var(--ease-spring) both;
+}
+
+.mobile-notification-panel[data-state="closed"] {
+  animation: crm-mobile-panel-out 140ms ease-in both;
+}
+
+/* ── Tooltips — quick fade ── */
+[data-slot="tooltip-content"][data-state="delayed-open"],
+[data-slot="tooltip-content"][data-state="instant-open"] {
+  animation: crm-menu-in var(--duration-fast) var(--ease-spring) both;
+}
+
+/* ── Dialogs & sheets — 300ms spring ── */
+[data-slot="dialog-overlay"][data-state="open"] {
+  animation: crm-fade-in var(--duration-large) var(--ease-spring) both;
+}
+
+[data-slot="dialog-overlay"][data-state="closed"] {
+  animation: crm-fade-out 180ms ease-in both;
+}
+
+[data-slot="dialog-content"][data-state="open"]:not(.cmd-palette-content),
+[data-slot="sheet-content"][data-state="open"] {
+  animation: crm-dialog-in var(--duration-large) var(--ease-spring) both;
+}
+
+[data-slot="dialog-content"][data-state="closed"]:not(.cmd-palette-content),
+[data-slot="sheet-content"][data-state="closed"] {
+  animation: crm-dialog-out 180ms ease-in both;
+}
+
+/*
+ * Command palette dialog override.
+ * Keeps the palette exactly centered while allowing the animation to use
+ * translate/scale without fighting the Dialog primitive transform classes.
+ */
+.cmd-palette-content {
+  top: 50% !important;
+  left: 50% !important;
+  translate: -50% -50%;
+  transform: none !important;
+  max-width: min(640px, calc(100vw - 2rem)) !important;
+}
+
+.cmd-palette-content[data-state="open"] {
+  animation: crm-command-in var(--duration-large) var(--ease-spring) both;
+}
+
+.cmd-palette-content[data-state="closed"] {
+  animation: crm-command-out 180ms ease-in both;
+}
