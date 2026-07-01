@@ -60,6 +60,13 @@
   --shadow-2xl: 0px 2px 10px 0px hsl(0 0 0 / 0.13);
   --tracking-normal: -0.01em;
   --spacing: 0.25rem;
+
+  /* Scrollbars — slim, theme-aware */
+  --scrollbar-size: 7px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklch, var(--border) 55%, var(--muted-foreground) 45%);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--primary) 50%, var(--muted-foreground) 50%);
+  --scrollbar-thumb-active: var(--primary);
 }
 
 .dark {
@@ -118,6 +125,10 @@
   --shadow-xl:
     0px 4px 15px 0px hsl(0 0 0 / 0.2), 0px 8px 10px -1px hsl(0 0 0 / 0.2);
   --shadow-2xl: 0px 4px 15px 0px hsl(0 0 0 / 0.5);
+
+  --scrollbar-thumb: color-mix(in oklch, var(--border) 40%, var(--muted-foreground) 60%);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--primary) 45%, var(--muted-foreground) 55%);
+  --scrollbar-thumb-active: color-mix(in oklch, var(--primary) 70%, var(--foreground) 30%);
 }
 
 @theme inline {
@@ -183,9 +194,54 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
+
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+    transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: var(--scrollbar-thumb-active);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 }

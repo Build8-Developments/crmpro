@@ -21,6 +21,7 @@ export interface LeadStageSummary {
   name: string;
   isClosed: boolean;
   closeType: PipelineCloseType;
+  color: string | null;
 }
 
 export interface LeadAssigneeSummary {

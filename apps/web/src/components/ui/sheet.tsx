@@ -6,6 +6,32 @@ import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+/** Radix Select/Dropdown portals sit outside the sheet DOM — ignore those dismiss events. */
+function isInsidePortaledOverlay(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false
+  }
+
+  return Boolean(
+    target.closest('[data-slot="select-content"]') ||
+      target.closest('[data-slot="dropdown-menu-content"]') ||
+      target.closest('[data-slot="popover-content"]') ||
+      target.closest('[role="listbox"]') ||
+      target.closest("[data-radix-popper-content-wrapper]")
+  )
+}
+
+function preventDismissOnPortaledOverlay(
+  event: CustomEvent<{ originalEvent: PointerEvent | FocusEvent }>,
+) {
+  const target =
+    event.detail?.originalEvent?.target ?? event.target ?? null
+
+  if (isInsidePortaledOverlay(target)) {
+    event.preventDefault()
+  }
+}
+
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
@@ -59,6 +85,9 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        onPointerDownOutside={preventDismissOnPortaledOverlay}
+        onFocusOutside={preventDismissOnPortaledOverlay}
+        onInteractOutside={preventDismissOnPortaledOverlay}
         className={cn(
           "fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
           side === "right" &&

@@ -49,6 +49,10 @@ import {
   IconArrowsExchange,
   IconUpload,
   IconDownload,
+  IconFilter,
+  IconDotsVertical,
+  IconCopy,
+  IconPhone,
 } from "@tabler/icons-react";
 
 /**
@@ -111,6 +115,10 @@ export const AppIcons = {
   stageChange: IconArrowsExchange,
   upload: IconUpload,
   download: IconDownload,
+  filter: IconFilter,
+  moreVertical: IconDotsVertical,
+  copy: IconCopy,
+  phone: IconPhone,
   team: IconUsersGroup,
 } satisfies Record<string, AppIcon>;
 

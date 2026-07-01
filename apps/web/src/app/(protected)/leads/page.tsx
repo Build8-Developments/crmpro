@@ -1,13 +1,5 @@
-import { PagePlaceholder } from "@/components/crm/page-placeholder";
-import { getRoute } from "@/config/routes";
+import { LeadsPage } from "@/features/leads/components/leads-page";
 
-export default function LeadsPage() {
-  const route = getRoute("/leads");
-  return (
-    <PagePlaceholder
-      title={route?.label ?? "Leads"}
-      subtitle={route?.subtitle}
-      icon={route?.icon}
-    />
-  );
+export default function LeadsRoutePage() {
+  return <LeadsPage />;
 }

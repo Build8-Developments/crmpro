@@ -29,6 +29,7 @@ export const leadSelect = {
     select: {
       id: true,
       name: true,
+      color: true,
       isClosed: true,
       closeType: true,
     },
@@ -71,6 +72,7 @@ export function toLeadResponse(lead: LeadRecord): LeadResponse {
     stage: {
       id: lead.pipelineStage.id,
       name: lead.pipelineStage.name,
+      color: lead.pipelineStage.color,
       isClosed: lead.pipelineStage.isClosed,
       closeType: lead.pipelineStage.closeType,
     },
