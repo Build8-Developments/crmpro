@@ -31,6 +31,12 @@ import {
   IconCheck,
   IconLoader2,
   IconArrowLeft,
+  IconBuilding,
+  IconBuildingOff,
+  IconMail,
+  IconLock,
+  IconAlertCircle,
+  IconArrowRight,
 } from "@tabler/icons-react";
 
 /**
@@ -75,6 +81,12 @@ export const AppIcons = {
   check: IconCheck,
   loader: IconLoader2,
   arrowLeft: IconArrowLeft,
+  arrowRight: IconArrowRight,
+  building: IconBuilding,
+  buildingOff: IconBuildingOff,
+  mail: IconMail,
+  lock: IconLock,
+  alertCircle: IconAlertCircle,
 } satisfies Record<string, AppIcon>;
 
 export type AppIconName = keyof typeof AppIcons;

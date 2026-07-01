@@ -15,7 +15,6 @@ interface CredentialsStepProps {
   onBack: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
-  errorMessage: string | null;
 }
 
 export function CredentialsStep({
@@ -27,7 +26,6 @@ export function CredentialsStep({
   onBack,
   onSubmit,
   isSubmitting,
-  errorMessage,
 }: CredentialsStepProps) {
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
 
@@ -54,58 +52,80 @@ export function CredentialsStep({
           Back
         </Button>
 
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{workspace.name}</p>
-          <h1 className="text-xl font-semibold tracking-tight">Sign in to your workspace</h1>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <AppIcons.building className="size-4" stroke={1.75} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{workspace.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{workspace.slug}</p>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-xl font-semibold tracking-tight">Sign in to your workspace</h1>
+            <p className="text-sm text-muted-foreground">
+              Enter your account credentials to continue.
+            </p>
+          </div>
         </div>
       </div>
-
-      {errorMessage && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive"
-        >
-          {errorMessage}
-        </div>
-      )}
 
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => onEmailChange(event.target.value)}
-            placeholder="you@company.com"
-            autoComplete="email"
-            autoFocus
-            disabled={isSubmitting}
-          />
+          <div className="relative">
+            <AppIcons.mail
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              stroke={1.75}
+            />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => onEmailChange(event.target.value)}
+              placeholder="you@company.com"
+              autoComplete="email"
+              autoFocus
+              disabled={isSubmitting}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => onPasswordChange(event.target.value)}
-            placeholder="Enter your password"
-            autoComplete="current-password"
-            disabled={isSubmitting}
-          />
+          <div className="relative">
+            <AppIcons.lock
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              stroke={1.75}
+            />
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => onPasswordChange(event.target.value)}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              disabled={isSubmitting}
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 
       <Button type="submit" className="w-full" disabled={!canSubmit}>
         {isSubmitting ? (
-          <span className="flex items-center gap-2">
+          <>
             <AppIcons.loader className="size-4 animate-spin" stroke={2} />
             Signing in...
-          </span>
+          </>
         ) : (
-          "Sign in"
+          <>
+            Sign in
+            <AppIcons.arrowRight className="size-4" stroke={2} />
+          </>
         )}
       </Button>
     </form>

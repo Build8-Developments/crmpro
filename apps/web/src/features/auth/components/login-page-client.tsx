@@ -27,11 +27,14 @@ export function LoginPageClient() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-[400px] rounded-xl border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-xs">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-xs">
             C
           </div>
-          <span className="text-lg font-semibold tracking-tight">CRMPro</span>
+          <div>
+            <span className="text-lg font-semibold tracking-tight">CRMPro</span>
+            <p className="text-xs text-muted-foreground">Sign in to your workspace</p>
+          </div>
         </div>
 
         <LoginFlow />

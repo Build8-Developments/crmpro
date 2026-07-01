@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/features/auth/api";
 import { hydrateAuthAfterLogin } from "@/features/auth/session";
+import { authToast } from "@/features/auth/utils/auth-toast";
 import { ApiError } from "@/lib/api/client";
 import { getQueryClient } from "@/providers/query-provider";
 import { useAuthStore } from "@/stores/auth-store";
@@ -23,6 +24,7 @@ export function useLogout() {
       clearAuth();
       getQueryClient()?.clear();
       setIsLoggingOut(false);
+      authToast.signedOut();
       router.replace("/login");
     }
   }, [clearAuth, router]);
@@ -33,7 +35,6 @@ export function useLogout() {
 export function useLogin() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const login = useCallback(
     async (payload: {
@@ -42,7 +43,7 @@ export function useLogin() {
       password: string;
     }) => {
       setIsSubmitting(true);
-      setErrorMessage(null);
+      authToast.dismissSignIn();
 
       try {
         const result = await authApi.login({
@@ -50,13 +51,14 @@ export function useLogin() {
           deviceName: "CRM Web",
         });
         await hydrateAuthAfterLogin(result.accessToken);
+        authToast.signInSuccess(result.user.name);
         router.replace("/dashboard");
       } catch (error) {
-        if (error instanceof ApiError) {
-          setErrorMessage(error.message);
-        } else {
-          setErrorMessage("Unable to sign in. Please try again.");
-        }
+        const message =
+          error instanceof ApiError
+            ? error.message
+            : "Unable to sign in. Please try again.";
+        authToast.signInFailed(message);
       } finally {
         setIsSubmitting(false);
       }
@@ -64,5 +66,5 @@ export function useLogin() {
     [router],
   );
 
-  return { login, isSubmitting, errorMessage, setErrorMessage };
+  return { login, isSubmitting };
 }

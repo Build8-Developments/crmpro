@@ -6,6 +6,7 @@ import { CredentialsStep } from "@/features/auth/components/credentials-step";
 import { WorkspaceStep } from "@/features/auth/components/workspace-step";
 import { useLogin } from "@/features/auth/hooks/use-auth-actions";
 import { useWorkspaceLookup } from "@/features/auth/hooks/use-workspace-lookup";
+import { authToast } from "@/features/auth/utils/auth-toast";
 import { normalizeWorkspaceSlug } from "@/features/auth/utils/workspace-slug";
 
 type LoginStep = "workspace" | "credentials";
@@ -16,19 +17,18 @@ export function LoginFlow() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const { status, workspace, errorMessage } = useWorkspaceLookup(slugInput);
-  const { login, isSubmitting, errorMessage: loginError, setErrorMessage } =
-    useLogin();
+  const { status, workspace } = useWorkspaceLookup(slugInput);
+  const { login, isSubmitting } = useLogin();
 
   const handleContinue = () => {
     if (workspace) {
-      setErrorMessage(null);
+      authToast.dismissSignIn();
       setStep("credentials");
     }
   };
 
   const handleBack = () => {
-    setErrorMessage(null);
+    authToast.dismissSignIn();
     setPassword("");
     setStep("workspace");
   };
@@ -58,7 +58,6 @@ export function LoginFlow() {
           onSlugChange={(value) => setSlugInput(normalizeWorkspaceSlug(value))}
           status={status}
           workspace={workspace}
-          errorMessage={errorMessage}
           onContinue={handleContinue}
         />
       </div>
@@ -81,7 +80,6 @@ export function LoginFlow() {
             onBack={handleBack}
             onSubmit={() => void handleLogin()}
             isSubmitting={isSubmitting}
-            errorMessage={loginError}
           />
         )}
       </div>

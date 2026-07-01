@@ -13,7 +13,6 @@ interface WorkspaceStepProps {
   onSlugChange: (value: string) => void;
   status: WorkspaceLookupStatus;
   workspace: WorkspaceLookupResult | null;
-  errorMessage: string | null;
   onContinue: () => void;
 }
 
@@ -22,7 +21,6 @@ export function WorkspaceStep({
   onSlugChange,
   status,
   workspace,
-  errorMessage,
   onContinue,
 }: WorkspaceStepProps) {
   const canContinue = status === "exists" && workspace !== null;
@@ -33,7 +31,12 @@ export function WorkspaceStep({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">Enter your workspace</h1>
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <AppIcons.building className="size-4" stroke={1.75} />
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight">Enter your workspace</h1>
+        </div>
         <p className="text-sm text-muted-foreground">
           Use the workspace slug provided by your organization.
         </p>
@@ -42,6 +45,10 @@ export function WorkspaceStep({
       <div className="space-y-2">
         <Label htmlFor="workspace-slug">Workspace slug</Label>
         <div className="relative">
+          <AppIcons.building
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            stroke={1.75}
+          />
           <Input
             id="workspace-slug"
             value={slugInput}
@@ -52,9 +59,11 @@ export function WorkspaceStep({
             spellCheck={false}
             aria-invalid={showMissing}
             className={cn(
-              "pr-10",
-              showExists && "border-emerald-500/70 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20",
-              showMissing && "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
+              "pl-9 pr-10",
+              showExists &&
+                "border-emerald-500/70 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/20",
+              showMissing &&
+                "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
             )}
           />
           {showChecking && (
@@ -67,23 +76,20 @@ export function WorkspaceStep({
               <AppIcons.check className="size-4" stroke={2.5} />
             </span>
           )}
+          {showMissing && (
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-destructive">
+              <AppIcons.alertCircle className="size-4" stroke={2} />
+            </span>
+          )}
         </div>
 
         {showExists && (
-          <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-            <AppIcons.check className="size-3.5" stroke={2.5} />
-            {workspace.name}
-          </p>
-        )}
-
-        {showMissing && (
-          <p className="text-sm text-destructive">
-            Workspace not found. Check the slug and try again.
-          </p>
-        )}
-
-        {status === "error" && errorMessage && (
-          <p className="text-sm text-destructive">{errorMessage}</p>
+          <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5">
+            <AppIcons.check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" stroke={2.5} />
+            <span className="truncate text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              {workspace.name}
+            </span>
+          </div>
         )}
       </div>
 
@@ -94,6 +100,7 @@ export function WorkspaceStep({
         onClick={onContinue}
       >
         Continue
+        <AppIcons.arrowRight className="size-4" stroke={2} />
       </Button>
     </div>
   );

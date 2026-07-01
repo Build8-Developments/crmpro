@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authApi } from "@/features/auth/api";
+import { authToast } from "@/features/auth/utils/auth-toast";
 import {
   isValidWorkspaceSlug,
   normalizeWorkspaceSlug,
@@ -23,10 +24,9 @@ export function useWorkspaceLookup(rawSlug: string) {
   const slug = normalizeWorkspaceSlug(rawSlug);
   const [status, setStatus] = useState<WorkspaceLookupStatus>("idle");
   const [workspace, setWorkspace] = useState<WorkspaceLookupResult | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setErrorMessage(null);
+    authToast.dismissWorkspace();
 
     if (!slug) {
       setStatus("idle");
@@ -58,11 +58,12 @@ export function useWorkspaceLookup(rawSlug: string) {
         setWorkspace(null);
         if (error instanceof ApiError && error.status === 404) {
           setStatus("missing");
+          authToast.workspaceNotFound();
           return;
         }
 
         setStatus("error");
-        setErrorMessage(
+        authToast.workspaceLookupFailed(
           error instanceof ApiError
             ? error.message
             : "Unable to verify workspace. Try again.",
@@ -77,6 +78,5 @@ export function useWorkspaceLookup(rawSlug: string) {
     slug,
     status,
     workspace,
-    errorMessage,
   };
 }
