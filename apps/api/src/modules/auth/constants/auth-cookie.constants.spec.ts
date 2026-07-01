@@ -28,6 +28,29 @@ describe('auth-cookie.constants', () => {
 
     const development = buildRefreshCookieOptions('development', '7d');
     expect(development.secure).toBe(false);
+    expect(development.sameSite).toBe('lax');
+  });
+
+  it('builds cross-origin production cookie options when enabled', () => {
+    const previous = process.env.REFRESH_COOKIE_CROSS_ORIGIN;
+    process.env.REFRESH_COOKIE_CROSS_ORIGIN = 'true';
+
+    try {
+      const crossOrigin = buildRefreshCookieOptions('production', '7d', true);
+      expect(crossOrigin).toEqual({
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        path: REFRESH_COOKIE_PATH,
+        maxAge: getRefreshCookieMaxAgeMs('7d'),
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.REFRESH_COOKIE_CROSS_ORIGIN;
+      } else {
+        process.env.REFRESH_COOKIE_CROSS_ORIGIN = previous;
+      }
+    }
   });
 });
 

@@ -1,12 +1,7 @@
 import type { ApiResponse } from "@/types/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { getQueryClient } from "@/lib/query/query-client";
-
-/**
- * Base URL for the CRM API (e.g. http://localhost:3000/api/v1).
- */
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api/v1";
+import { resolveApiBaseUrl } from "@/lib/api/resolve-api-base-url";
 
 /**
  * Normalized API error thrown by the client for any non-success response.
@@ -90,10 +85,8 @@ async function refreshAccessToken(): Promise<string> {
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
-  const url = new URL(
-    normalizedPath,
-    BASE_URL.endsWith("/") ? BASE_URL : `${BASE_URL}/`,
-  );
+  const baseUrl = resolveApiBaseUrl();
+  const url = new URL(normalizedPath, baseUrl);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined && value !== null) {
