@@ -44,11 +44,11 @@ export function QuickActions() {
               href={action.href}
               className={cn(
                 "group flex items-center gap-2.5 rounded-lg border bg-card px-3 py-2.5 shadow-xs",
-                "transition-all duration-200 hover:-translate-y-px hover:shadow-sm",
+                "transition-shadow duration-150 ease-out hover:shadow-sm",
               )}
               style={dashboardEnterStyle(index + 8)}
             >
-              <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105">
+              <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <Icon className="size-4" stroke={2} />
               </div>
               <span className="text-xs font-medium text-foreground">

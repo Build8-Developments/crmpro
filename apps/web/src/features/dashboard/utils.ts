@@ -9,6 +9,12 @@ export function isDashboardEffectivelyEmpty(
     return false;
   }
 
+  const staleLeads = data.overview?.staleLeads ?? 0;
+  const unassignedLeads = data.overview?.unassignedLeads ?? 0;
+  if (staleLeads > 0 || unassignedLeads > 0) {
+    return false;
+  }
+
   const pipelineTotal =
     data.pipeline?.stages.reduce((sum, stage) => sum + stage.count, 0) ?? 0;
 
@@ -37,8 +43,7 @@ export function getDashboardListRowCount(
   return Math.max(stages, trendRows, 1);
 }
 
-export const DASHBOARD_ENTER_CLASS =
-  "dashboard-enter opacity-0 translate-y-2";
+export const DASHBOARD_ENTER_CLASS = "dashboard-enter";
 
 export function dashboardEnterStyle(index: number): CSSProperties {
   return { animationDelay: `${index * 40}ms` };

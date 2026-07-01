@@ -58,12 +58,42 @@ export class DevelopersService {
       this.prisma.developer.count({ where }),
     ]);
 
-    return buildPaginatedResponse(developers, page, limit, totalItems);
+    const [projectCounts, interestedLeadCounts] = await Promise.all([
+      this.loadProjectCounts(
+        tenantId,
+        developers.map((developer) => developer.id),
+      ),
+      this.loadInterestedLeadCounts(
+        tenantId,
+        developers.map((developer) => developer.id),
+      ),
+    ]);
+
+    return buildPaginatedResponse(
+      developers.map((developer) =>
+        this.toDeveloperResponse(
+          developer,
+          projectCounts.get(developer.id) ?? 0,
+          interestedLeadCounts.get(developer.id) ?? 0,
+        ),
+      ),
+      page,
+      limit,
+      totalItems,
+    );
   }
 
   async getDeveloper(id: string, tenantId: string): Promise<DeveloperResponse> {
     const developer = await this.getDeveloperOrThrow(id, tenantId);
-    return developer;
+    const [projectCounts, interestedLeadCounts] = await Promise.all([
+      this.loadProjectCounts(tenantId, [developer.id]),
+      this.loadInterestedLeadCounts(tenantId, [developer.id]),
+    ]);
+    return this.toDeveloperResponse(
+      developer,
+      projectCounts.get(developer.id) ?? 0,
+      interestedLeadCounts.get(developer.id) ?? 0,
+    );
   }
 
   async createDeveloper(
@@ -74,10 +104,11 @@ export class DevelopersService {
     await this.ensureNameUnique(name, tenantId);
 
     try {
-      return await this.prisma.developer.create({
+      const created = await this.prisma.developer.create({
         data: { tenantId, name },
         select: developerSelect,
       });
+      return this.toDeveloperResponse(created, 0, 0);
     } catch (error) {
       this.handlePrismaError(error);
     }
@@ -93,11 +124,20 @@ export class DevelopersService {
     await this.ensureNameUnique(name, tenantId, developer.id);
 
     try {
-      return await this.prisma.developer.update({
+      const updated = await this.prisma.developer.update({
         where: { id: developer.id },
         data: { name },
         select: developerSelect,
       });
+      const [projectCounts, interestedLeadCounts] = await Promise.all([
+        this.loadProjectCounts(tenantId, [updated.id]),
+        this.loadInterestedLeadCounts(tenantId, [updated.id]),
+      ]);
+      return this.toDeveloperResponse(
+        updated,
+        projectCounts.get(updated.id) ?? 0,
+        interestedLeadCounts.get(updated.id) ?? 0,
+      );
     } catch (error) {
       this.handlePrismaError(error);
     }
@@ -196,6 +236,92 @@ export class DevelopersService {
         'Cannot delete developer with active projects',
       );
     }
+  }
+
+  private async loadProjectCounts(
+    tenantId: string,
+    developerIds: string[],
+  ): Promise<Map<string, number>> {
+    if (developerIds.length === 0) {
+      return new Map();
+    }
+
+    const counts = await this.prisma.project.groupBy({
+      by: ['developerId'],
+      where: {
+        tenantId,
+        deletedAt: null,
+        developerId: { in: developerIds },
+      },
+      _count: { _all: true },
+    });
+
+    return new Map(
+      counts.map((row) => [row.developerId, row._count._all]),
+    );
+  }
+
+  private async loadInterestedLeadCounts(
+    tenantId: string,
+    developerIds: string[],
+  ): Promise<Map<string, number>> {
+    if (developerIds.length === 0) {
+      return new Map();
+    }
+
+    const interestByProject = await this.prisma.leadProjectInterest.groupBy({
+      by: ['projectId'],
+      where: {
+        project: {
+          tenantId,
+          deletedAt: null,
+          developerId: { in: developerIds },
+        },
+      },
+      _count: { _all: true },
+    });
+
+    if (interestByProject.length === 0) {
+      return new Map();
+    }
+
+    const projects = await this.prisma.project.findMany({
+      where: {
+        tenantId,
+        id: { in: interestByProject.map((row) => row.projectId) },
+      },
+      select: { id: true, developerId: true },
+    });
+
+    const developerIdByProject = new Map(
+      projects.map((project) => [project.id, project.developerId]),
+    );
+
+    const counts = new Map<string, number>();
+    for (const row of interestByProject) {
+      const developerId = developerIdByProject.get(row.projectId);
+      if (!developerId) {
+        continue;
+      }
+      counts.set(
+        developerId,
+        (counts.get(developerId) ?? 0) + row._count._all,
+      );
+    }
+
+    return counts;
+  }
+
+  private toDeveloperResponse(
+    developer: Prisma.DeveloperGetPayload<{ select: typeof developerSelect }>,
+    projectCount: number,
+    interestedLeadCount: number,
+  ): DeveloperResponse {
+    return {
+      ...developer,
+      projectCount,
+      interestedLeadCount,
+    };
   }
 
   private handlePrismaError(error: unknown): never {

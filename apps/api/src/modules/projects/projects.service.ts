@@ -43,6 +43,8 @@ const projectSelect = {
   name: true,
   location: true,
   isActive: true,
+  createdAt: true,
+  updatedAt: true,
   developer: {
     select: {
       id: true,
@@ -79,8 +81,18 @@ export class ProjectsService {
       this.prisma.project.count({ where }),
     ]);
 
+    const interestedLeadCounts = await this.loadInterestedLeadCounts(
+      tenantId,
+      projects.map((project) => project.id),
+    );
+
     return buildPaginatedResponse(
-      projects.map((project) => this.toProjectResponse(project)),
+      projects.map((project) =>
+        this.toProjectResponse(
+          project,
+          interestedLeadCounts.get(project.id) ?? 0,
+        ),
+      ),
       page,
       limit,
       totalItems,
@@ -89,7 +101,13 @@ export class ProjectsService {
 
   async getProject(id: string, tenantId: string): Promise<ProjectResponse> {
     const project = await this.getProjectOrThrow(id, tenantId);
-    return this.toProjectResponse(project);
+    const interestedLeadCounts = await this.loadInterestedLeadCounts(tenantId, [
+      project.id,
+    ]);
+    return this.toProjectResponse(
+      project,
+      interestedLeadCounts.get(project.id) ?? 0,
+    );
   }
 
   async createProject(
@@ -120,7 +138,7 @@ export class ProjectsService {
         });
       });
 
-      return this.toProjectResponse(project);
+      return this.toProjectResponse(project, 0);
     } catch (error) {
       this.handlePrismaError(error);
     }
@@ -162,7 +180,14 @@ export class ProjectsService {
         select: projectSelect,
       });
 
-      return this.toProjectResponse(updated);
+      const interestedLeadCounts = await this.loadInterestedLeadCounts(
+        tenantId,
+        [updated.id],
+      );
+      return this.toProjectResponse(
+        updated,
+        interestedLeadCounts.get(updated.id) ?? 0,
+      );
     } catch (error) {
       this.handlePrismaError(error);
     }
@@ -275,12 +300,40 @@ export class ProjectsService {
     }
   }
 
-  private toProjectResponse(project: ProjectRecord): ProjectResponse {
+  private async loadInterestedLeadCounts(
+    tenantId: string,
+    projectIds: string[],
+  ): Promise<Map<string, number>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+
+    const counts = await this.prisma.leadProjectInterest.groupBy({
+      by: ['projectId'],
+      where: {
+        projectId: { in: projectIds },
+        project: { tenantId, deletedAt: null },
+      },
+      _count: { _all: true },
+    });
+
+    return new Map(
+      counts.map((row) => [row.projectId, row._count._all]),
+    );
+  }
+
+  private toProjectResponse(
+    project: ProjectRecord,
+    interestedLeadCount: number,
+  ): ProjectResponse {
     return {
       id: project.id,
       name: project.name,
       location: project.location,
       isActive: project.isActive,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      interestedLeadCount,
       developer: project.developer,
     };
   }

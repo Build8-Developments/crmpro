@@ -1,0 +1,30 @@
+"use client";
+
+import { Skeleton } from "@/components/ui/skeleton";
+
+export function FilesSkeleton() {
+  return (
+    <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <Skeleton className="h-8 w-full max-w-xl" />
+      <div className="overflow-hidden rounded-lg border border-border/70">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-3 border-b border-border/50 px-4 py-3 last:border-b-0"
+          >
+            <Skeleton className="size-8 rounded-md" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+            <Skeleton className="h-7 w-16" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -19,6 +19,7 @@ import {
   IconPlus,
   IconChevronDown,
   IconChevronRight,
+  IconChevronUp,
   IconMenu2,
   IconX,
   IconLogout,
@@ -53,6 +54,7 @@ import {
   IconDotsVertical,
   IconCopy,
   IconPhone,
+  IconGripVertical,
 } from "@tabler/icons-react";
 
 /**
@@ -84,6 +86,7 @@ export const AppIcons = {
   search: IconSearch,
   create: IconPlus,
   chevronDown: IconChevronDown,
+  chevronUp: IconChevronUp,
   chevronRight: IconChevronRight,
   menu: IconMenu2,
   close: IconX,
@@ -119,6 +122,7 @@ export const AppIcons = {
   moreVertical: IconDotsVertical,
   copy: IconCopy,
   phone: IconPhone,
+  grip: IconGripVertical,
   team: IconUsersGroup,
 } satisfies Record<string, AppIcon>;
 

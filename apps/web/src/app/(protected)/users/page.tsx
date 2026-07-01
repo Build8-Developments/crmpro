@@ -1,13 +1,5 @@
-import { PagePlaceholder } from "@/components/crm/page-placeholder";
-import { getRoute } from "@/config/routes";
+import { UsersPage } from "@/features/users/components/users-page";
 
-export default function UsersPage() {
-  const route = getRoute("/users");
-  return (
-    <PagePlaceholder
-      title={route?.label ?? "Users"}
-      subtitle={route?.subtitle}
-      icon={route?.icon}
-    />
-  );
+export default function Page() {
+  return <UsersPage />;
 }

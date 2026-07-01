@@ -110,8 +110,15 @@ export class PipelinesService {
       this.prisma.pipeline.count({ where }),
     ]);
 
+    const stageLeadCounts = await this.loadStageLeadCounts(
+      tenantId,
+      pipelines.map((pipeline) => pipeline.id),
+    );
+
     return buildPaginatedResponse(
-      pipelines.map((pipeline) => this.toPipelineResponse(pipeline)),
+      pipelines.map((pipeline) =>
+        this.toPipelineResponse(pipeline, stageLeadCounts),
+      ),
       page,
       limit,
       totalItems,
@@ -123,7 +130,10 @@ export class PipelinesService {
     tenantId: string,
   ): Promise<PipelineResponse> {
     const pipeline = await this.getPipelineOrThrow(id, tenantId);
-    return this.toPipelineResponse(pipeline);
+    const stageLeadCounts = await this.loadStageLeadCounts(tenantId, [
+      pipeline.id,
+    ]);
+    return this.toPipelineResponse(pipeline, stageLeadCounts);
   }
 
   async createPipeline(
@@ -593,12 +603,22 @@ export class PipelinesService {
       return;
     }
 
+    const stageCount = await tx.pipelineStage.count({
+      where: { pipelineId },
+    });
+
+    // Park the moved stage outside the active range so intermediate updates
+    // never violate @@unique([pipelineId, sortOrder]).
+    await tx.pipelineStage.update({
+      where: { id: stageId },
+      data: { sortOrder: stageCount + 1000 },
+    });
+
     if (toOrder < fromOrder) {
       const stagesToShift = await tx.pipelineStage.findMany({
         where: {
           pipelineId,
           sortOrder: { gte: toOrder, lt: fromOrder },
-          id: { not: stageId },
         },
         orderBy: { sortOrder: 'desc' },
         select: { id: true, sortOrder: true },
@@ -618,7 +638,6 @@ export class PipelinesService {
       where: {
         pipelineId,
         sortOrder: { gt: fromOrder, lte: toOrder },
-        id: { not: stageId },
       },
       orderBy: { sortOrder: 'asc' },
       select: { id: true, sortOrder: true },
@@ -680,8 +699,32 @@ export class PipelinesService {
     });
   }
 
+  private async loadStageLeadCounts(
+    tenantId: string,
+    pipelineIds: string[],
+  ): Promise<Map<string, number>> {
+    if (pipelineIds.length === 0) {
+      return new Map();
+    }
+
+    const counts = await this.prisma.lead.groupBy({
+      by: ['pipelineStageId'],
+      where: {
+        tenantId,
+        pipelineId: { in: pipelineIds },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    });
+
+    return new Map(
+      counts.map((row) => [row.pipelineStageId, row._count._all]),
+    );
+  }
+
   private toPipelineResponse(
     pipeline: Prisma.PipelineGetPayload<{ include: typeof pipelineInclude }>,
+    stageLeadCounts: Map<string, number> = new Map(),
   ): PipelineResponse {
     return {
       id: pipeline.id,
@@ -689,19 +732,24 @@ export class PipelinesService {
       isDefault: pipeline.isDefault,
       createdAt: pipeline.createdAt,
       updatedAt: pipeline.updatedAt,
-      stages: pipeline.stages.map((stage) => this.toStageResponse(stage)),
+      stages: pipeline.stages.map((stage) =>
+        this.toStageResponse(stage, stageLeadCounts.get(stage.id) ?? 0),
+      ),
     };
   }
 
-  private toStageResponse(stage: {
-    id: string;
-    name: string;
-    sortOrder: number;
-    color: string | null;
-    isSystem: boolean;
-    isClosed: boolean;
-    closeType: PipelineCloseType | null;
-  }): PipelineStageResponse {
+  private toStageResponse(
+    stage: {
+      id: string;
+      name: string;
+      sortOrder: number;
+      color: string | null;
+      isSystem: boolean;
+      isClosed: boolean;
+      closeType: PipelineCloseType | null;
+    },
+    leadCount = 0,
+  ): PipelineStageResponse {
     return {
       id: stage.id,
       name: stage.name,
@@ -710,6 +758,7 @@ export class PipelinesService {
       isSystem: stage.isSystem,
       isClosed: stage.isClosed,
       closeType: stage.closeType,
+      leadCount,
     };
   }
 

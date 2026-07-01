@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
@@ -14,6 +15,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
+import { GetFilesQueryDto } from './dto/get-files-query.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
 import { FilesService } from './files.service';
 
@@ -21,6 +23,16 @@ import { FilesService } from './files.service';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
+
+  @Get()
+  @RequirePermission(PERMISSIONS.FILE_READ)
+  async listFiles(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: GetFilesQueryDto,
+  ) {
+    const data = await this.filesService.listFiles(user.tenantId, query);
+    return { success: true, data };
+  }
 
   @Post('request-upload')
   @RequirePermission(PERMISSIONS.FILE_UPLOAD)

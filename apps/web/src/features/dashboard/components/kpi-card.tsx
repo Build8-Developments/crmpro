@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { AppIcon } from "@/components/icons/app-icons";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ interface KpiCardProps {
   icon: AppIcon;
   tone?: "default" | "warning" | "success";
   index?: number;
+  href?: string;
 }
 
 export function KpiCard({
@@ -20,12 +22,15 @@ export function KpiCard({
   icon: Icon,
   tone = "default",
   index = 0,
+  href,
 }: KpiCardProps) {
-  return (
+  const card = (
     <Card
       className={cn(
         DASHBOARD_ENTER_CLASS,
-        "gap-0 overflow-hidden py-0 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+        "gap-0 overflow-hidden py-0 transition-shadow duration-150 ease-out",
+        href && "cursor-pointer hover:shadow-md",
+        !href && "hover:shadow-md",
         tone === "warning" && "border-amber-500/35 bg-amber-500/5",
       )}
       style={dashboardEnterStyle(index)}
@@ -68,5 +73,18 @@ export function KpiCard({
         </div>
       </div>
     </Card>
+  );
+
+  if (!href) {
+    return card;
+  }
+
+  return (
+    <Link
+      href={href}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      {card}
+    </Link>
   );
 }

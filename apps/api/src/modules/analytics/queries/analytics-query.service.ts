@@ -284,6 +284,7 @@ export class AnalyticsQueryService {
         : UNKNOWN_SOURCE_LABEL;
 
       return {
+        sourceId: row.sourceId,
         sourceName,
         count,
         percentage: calculatePercentage(count, total),
@@ -535,9 +536,14 @@ export class AnalyticsQueryService {
 
   async getStatusDistribution(
     tenantId: string,
-    range: AnalyticsDateRange,
+    _range: AnalyticsDateRange,
   ): Promise<LeadStatusDistribution> {
-    const baseWhere = this.baseLeadWhere(tenantId, range);
+    // Lifecycle distribution is a current-state snapshot (like pipeline funnel),
+    // not limited to leads created within the selected analytics range.
+    const baseWhere: Prisma.LeadWhereInput = {
+      tenantId,
+      deletedAt: null,
+    };
 
     const [open, won, lost, archived] = await Promise.all([
       this.prisma.lead.count({

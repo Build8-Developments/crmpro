@@ -8,5 +8,8 @@ export interface ProjectResponse {
   name: string;
   location: string | null;
   isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  interestedLeadCount: number;
   developer: ProjectDeveloperSummary;
 }

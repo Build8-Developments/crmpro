@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { LeadRowActions } from "../components/lead-row-actions";
 import { LeadStageBadge } from "../components/lead-status-badge";
 import { LeadAssigneeCell } from "../components/leads-table-cells";
+import { useLeadUiStore } from "../stores/lead-ui-store";
 
 export const LEADS_SORTABLE_COLUMNS = new Set([
   "fullName",
@@ -124,10 +125,18 @@ export function createLeadColumns(): ColumnDef<Lead>[] {
 }
 
 function LeadPrimaryCell({ lead }: { lead: Lead }) {
+  const openDrawer = useLeadUiStore((s) => s.openDrawer);
   const interest = getPrimaryProjectInterest(lead);
 
   return (
-    <div className="min-w-0">
+    <button
+      type="button"
+      className="min-w-0 text-left hover:underline"
+      onClick={(event) => {
+        event.stopPropagation();
+        openDrawer(lead.id);
+      }}
+    >
       <p className="truncate font-medium text-foreground">{lead.fullName}</p>
       {interest ? (
         <p className="truncate text-[10px] text-muted-foreground">
@@ -137,7 +146,7 @@ function LeadPrimaryCell({ lead }: { lead: Lead }) {
             : ""}
         </p>
       ) : null}
-    </div>
+    </button>
   );
 }
 

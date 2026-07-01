@@ -7,6 +7,12 @@ import {
   FileAssetCategory,
   Prisma,
 } from '@crmpro/database';
+import {
+  buildPaginatedResponse,
+  getPaginationParams,
+  PaginatedResponse,
+} from '../../common/pagination';
+import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -19,6 +25,7 @@ import {
 } from '../audit/audit.constants';
 import { AuditWriterService } from '../audit/audit-writer.service';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
+import { GetFilesQueryDto } from './dto/get-files-query.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
 import {
   DOWNLOAD_URL_EXPIRY_SECONDS,
@@ -28,6 +35,7 @@ import {
 import {
   CompleteUploadResponse,
   DownloadUrlResponse,
+  FileAssetListItem,
   RequestUploadResponse,
 } from './types/file.types';
 import {
@@ -47,8 +55,50 @@ const fileAssetSelect = {
   createdAt: true,
 } satisfies Prisma.FileAssetSelect;
 
+const FILE_SORT_FIELDS = ['createdAt', 'originalFilename', 'sizeBytes'] as const;
+
+const FILE_SORT_CONFIG = {
+  allowedFields: FILE_SORT_FIELDS,
+  defaultField: 'createdAt' as const,
+  defaultOrder: SortOrder.DESC,
+};
+
+const fileListSelect = {
+  id: true,
+  category: true,
+  originalFilename: true,
+  mimeType: true,
+  sizeBytes: true,
+  leadId: true,
+  projectId: true,
+  createdAt: true,
+  uploadedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  lead: {
+    select: {
+      id: true,
+      fullName: true,
+    },
+  },
+  project: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} satisfies Prisma.FileAssetSelect;
+
 type FileAssetRecord = Prisma.FileAssetGetPayload<{
   select: typeof fileAssetSelect;
+}>;
+
+type FileListRecord = Prisma.FileAssetGetPayload<{
+  select: typeof fileListSelect;
 }>;
 
 @Injectable()
@@ -62,6 +112,33 @@ export class FilesService {
     private readonly notificationTrigger: NotificationTriggerService,
     private readonly auditWriter: AuditWriterService,
   ) {}
+
+  async listFiles(
+    tenantId: string,
+    query: GetFilesQueryDto,
+  ): Promise<PaginatedResponse<FileAssetListItem>> {
+    const { page, limit, skip, take } = getPaginationParams(query);
+    const where = this.buildListWhereClause(tenantId, query);
+    const orderBy = buildOrderBy(query.sortBy, query.sortOrder, FILE_SORT_CONFIG);
+
+    const [rows, totalItems] = await this.prisma.$transaction([
+      this.prisma.fileAsset.findMany({
+        where,
+        orderBy,
+        select: fileListSelect,
+        skip,
+        take,
+      }),
+      this.prisma.fileAsset.count({ where }),
+    ]);
+
+    return buildPaginatedResponse(
+      rows.map((row) => this.toFileListItem(row)),
+      page,
+      limit,
+      totalItems,
+    );
+  }
 
   async requestUpload(
     tenantId: string,
@@ -475,6 +552,45 @@ export class FilesService {
       sizeBytes: file.sizeBytes.toString(),
       leadId: file.leadId,
       createdAt: file.createdAt,
+    };
+  }
+
+  private buildListWhereClause(
+    tenantId: string,
+    query: GetFilesQueryDto,
+  ): Prisma.FileAssetWhereInput {
+    const search = normalizeSearch(query.search);
+
+    return {
+      tenantId,
+      deletedAt: null,
+      ...(query.category ? { category: query.category } : {}),
+      ...(search && {
+        originalFilename: {
+          contains: search,
+          mode: 'insensitive',
+        },
+      }),
+    };
+  }
+
+  private toFileListItem(file: FileListRecord): FileAssetListItem {
+    return {
+      id: file.id,
+      category: file.category,
+      originalFilename: file.originalFilename,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes.toString(),
+      leadId: file.leadId,
+      projectId: file.projectId,
+      createdAt: file.createdAt.toISOString(),
+      uploadedBy: {
+        id: file.uploadedBy.id,
+        fullName: file.uploadedBy.name,
+        email: file.uploadedBy.email,
+      },
+      lead: file.lead,
+      project: file.project,
     };
   }
 }

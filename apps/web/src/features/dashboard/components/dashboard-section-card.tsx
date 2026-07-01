@@ -29,7 +29,7 @@ export function DashboardSectionCard({
     <Card
       className={cn(
         DASHBOARD_ENTER_CLASS,
-        "flex flex-col gap-0 overflow-hidden py-0 transition-all duration-200 hover:shadow-md",
+        "flex flex-col gap-0 overflow-hidden py-0 transition-shadow duration-150 ease-out hover:shadow-md",
         className,
       )}
       style={style}

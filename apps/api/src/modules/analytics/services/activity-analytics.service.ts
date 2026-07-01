@@ -38,6 +38,7 @@ export class ActivityAnalyticsService {
         },
         select: {
           id: true,
+          leadId: true,
           eventType: true,
           metadata: true,
           createdAt: true,
@@ -110,7 +111,10 @@ export class ActivityAnalyticsService {
           activity.lead.fullName,
         ),
         occurredAt: activity.createdAt.toISOString(),
-        metadata: this.asMetadataRecord(activity.metadata),
+        metadata: {
+          ...this.asMetadataRecord(activity.metadata),
+          leadId: activity.leadId,
+        },
       })),
       ...importJobs.map((job) => ({
         id: job.id,

@@ -2,12 +2,15 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  getLeadActivities,
   getLeadFilterPipelines,
   getLeadFilterProjects,
   getLeadFilterSources,
   getLeadFilterUsers,
   getLeadById,
+  getLeadNotes,
   getLeads,
+  mapUsersToFilterOptions,
 } from "@/features/leads/api";
 import {
   buildLeadsListParams,
@@ -67,10 +70,12 @@ export function useLeadFilterOptions() {
       return data.items.map((pipeline) => ({
         id: pipeline.id,
         name: pipeline.name,
+        isDefault: pipeline.isDefault,
         stages: pipeline.stages.map((stage) => ({
           id: stage.id,
           name: stage.name,
           color: stage.color,
+          sortOrder: stage.sortOrder,
         })),
       }));
     },
@@ -87,7 +92,8 @@ export function useLeadFilterOptions() {
 
   const users = useQuery({
     queryKey: ["leads", "filter-options", "users"],
-    queryFn: async () => (await getLeadFilterUsers()).items,
+    queryFn: async () =>
+      mapUsersToFilterOptions((await getLeadFilterUsers()).items),
     enabled,
     staleTime: 5 * 60 * 1000,
   });
@@ -100,4 +106,24 @@ export function useLeadFilterOptions() {
   });
 
   return { pipelines, sources, users, projects };
+}
+
+export function useLeadNotes(leadId: string | undefined) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: [...queryKeys.leads.detail(leadId ?? ""), "notes"],
+    queryFn: () => getLeadNotes(leadId!),
+    enabled: status === "authenticated" && Boolean(leadId),
+  });
+}
+
+export function useLeadActivities(leadId: string | undefined) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: [...queryKeys.leads.detail(leadId ?? ""), "activities"],
+    queryFn: async () => (await getLeadActivities(leadId!)).items,
+    enabled: status === "authenticated" && Boolean(leadId),
+  });
 }

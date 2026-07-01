@@ -79,6 +79,10 @@ export type AnalyticsDashboardData = {
   trends?: TrendAnalyticsData;
   team?: TeamAnalyticsData;
   activity?: ActivityFeedItem[];
+  sources?: LeadSourceAnalytics[];
+  projects?: ProjectPerformanceAnalytics[];
+  developers?: DeveloperPerformanceAnalytics[];
+  status?: LeadStatusDistribution;
 };
 
 export interface PipelineStageAnalytics {
@@ -96,6 +100,7 @@ export interface PipelineFunnelAnalytics {
 }
 
 export interface LeadSourceAnalytics {
+  sourceId: string | null;
   sourceName: string;
   count: number;
   percentage: number;

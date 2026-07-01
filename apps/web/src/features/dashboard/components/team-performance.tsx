@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import type { TeamAnalyticsData } from "@/features/dashboard/types";
 import { formatNumber, formatPercent, getInitials } from "@/lib/format";
@@ -35,8 +36,9 @@ export function TeamPerformance({ team }: TeamPerformanceProps) {
     >
       <div className="divide-y divide-border/50">
         {team.topPerformers.map((performer, index) => (
-          <div
+          <Link
             key={performer.userId}
+            href={`/users?userId=${performer.userId}&search=${encodeURIComponent(performer.name)}`}
             className="flex items-center gap-2.5 px-3.5 py-2 transition-colors duration-150 hover:bg-muted/30"
             style={dashboardEnterStyle(index + 5)}
           >
@@ -96,7 +98,7 @@ export function TeamPerformance({ team }: TeamPerformanceProps) {
                 </Badge>
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </DashboardSectionCard>

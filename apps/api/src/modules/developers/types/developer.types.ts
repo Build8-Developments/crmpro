@@ -3,4 +3,6 @@ export interface DeveloperResponse {
   name: string;
   createdAt: Date;
   updatedAt: Date;
+  projectCount: number;
+  interestedLeadCount: number;
 }

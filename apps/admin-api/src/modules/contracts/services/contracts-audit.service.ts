@@ -69,6 +69,7 @@ export class ContractsAuditService {
     actorAdminId: string,
     contractId: string,
     metadata: RequestSecurityMetadata,
+    details: Record<string, unknown> = {},
     tx?: PrismaTx,
   ): Promise<void> {
     await this.write(
@@ -77,7 +78,7 @@ export class ContractsAuditService {
         action: 'CONTRACT_TERMINATED',
         entityType: 'TenantContract',
         entityId: contractId,
-        metadata,
+        metadata: { ...metadata, ...details },
       },
       tx,
     );

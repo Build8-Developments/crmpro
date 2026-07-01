@@ -5,7 +5,11 @@ export type AnalyticsDashboardSection =
   | 'pipeline'
   | 'trends'
   | 'team'
-  | 'activity';
+  | 'activity'
+  | 'sources'
+  | 'projects'
+  | 'developers'
+  | 'status';
 
 export interface AnalyticsSectionVisibility {
   overview: boolean;
@@ -13,19 +17,29 @@ export interface AnalyticsSectionVisibility {
   trends: boolean;
   team: boolean;
   activity: boolean;
+  sources: boolean;
+  projects: boolean;
+  developers: boolean;
+  status: boolean;
 }
 
 export function getVisibleDashboardSections(
   permissions: Set<PermissionKey>,
 ): AnalyticsSectionVisibility {
+  const canReadAnalytics = permissions.has(PERMISSIONS.ANALYTICS_READ);
+
   return {
-    overview: permissions.has(PERMISSIONS.ANALYTICS_READ),
+    overview: canReadAnalytics,
     pipeline: permissions.has(PERMISSIONS.PIPELINE_READ),
-    trends: permissions.has(PERMISSIONS.ANALYTICS_READ),
+    trends: canReadAnalytics,
     team: permissions.has(PERMISSIONS.USER_READ),
     activity:
       permissions.has(PERMISSIONS.AUDIT_READ) ||
       permissions.has(PERMISSIONS.LEAD_READ),
+    sources: canReadAnalytics,
+    projects: canReadAnalytics,
+    developers: canReadAnalytics,
+    status: canReadAnalytics,
   };
 }
 
@@ -41,6 +55,10 @@ export function getRequiredPermissionForSection(
   switch (section) {
     case 'overview':
     case 'trends':
+    case 'sources':
+    case 'projects':
+    case 'developers':
+    case 'status':
       return PERMISSIONS.ANALYTICS_READ;
     case 'pipeline':
       return PERMISSIONS.PIPELINE_READ;

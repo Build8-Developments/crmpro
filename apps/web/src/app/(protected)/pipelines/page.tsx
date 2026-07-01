@@ -1,13 +1,5 @@
-import { PagePlaceholder } from "@/components/crm/page-placeholder";
-import { getRoute } from "@/config/routes";
+import { PipelinesPage } from "@/features/pipelines/components/pipelines-page";
 
-export default function PipelinesPage() {
-  const route = getRoute("/pipelines");
-  return (
-    <PagePlaceholder
-      title={route?.label ?? "Pipelines"}
-      subtitle={route?.subtitle}
-      icon={route?.icon}
-    />
-  );
+export default function Page() {
+  return <PipelinesPage />;
 }

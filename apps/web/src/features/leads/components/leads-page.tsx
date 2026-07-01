@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useLeads, useLeadsListParams } from "@/features/leads/hooks";
+import { useLeadsUrlFilters } from "@/features/leads/hooks/use-leads-url-filters";
 import {
   getSelectedLeadIds,
   useLeadsTableStore,
@@ -25,9 +26,15 @@ import { LeadsTable } from "./leads-table";
 import { LeadsToolbar } from "./leads-toolbar";
 import { useLeadsTable } from "@/features/leads/table/use-leads-table";
 import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
+import { LeadDetailDrawer } from "./lead-detail-drawer";
+import { CreateLeadDialog } from "./create-lead-dialog";
+import { AssignLeadDialog } from "./assign-lead-dialog";
+import { EditLeadDialog } from "./edit-lead-dialog";
+import { MoveStageDialog } from "./move-stage-dialog";
 
 export function LeadsPage() {
   const [search, setSearch] = useState("");
+  useLeadsUrlFilters();
   const listParams = useLeadsListParams(search);
 
   const sortBy = useLeadsTableStore((s) => s.sortBy);
@@ -61,7 +68,21 @@ export function LeadsPage() {
 
   const leads = data?.items ?? [];
   const pagination = data?.pagination;
-  const selectedCount = getSelectedLeadIds(rowSelection).length;
+  const selectedLeadIds = getSelectedLeadIds(rowSelection);
+  const selectedCount = selectedLeadIds.length;
+  const selectedLeads = leads.filter((lead) => selectedLeadIds.includes(lead.id));
+  const assignableLeadIds = selectedLeads
+    .filter((lead) => lead.status === "OPEN")
+    .map((lead) => lead.id);
+  const movableLeadIds = assignableLeadIds;
+  const archivableLeadIds = selectedLeads
+    .filter((lead) => lead.status === "OPEN")
+    .map((lead) => lead.id);
+  const restorableLeadIds = selectedLeads
+    .filter((lead) => lead.status === "ARCHIVED")
+    .map((lead) => lead.id);
+  const bulkPipelineId = selectedLeads.find((lead) => lead.id === selectedLeadIds[0])
+    ?.pipeline.id;
   const hasFilters =
     countActiveLeadFilters(filters) > 0 || search.trim().length > 0;
 
@@ -154,8 +175,20 @@ export function LeadsPage() {
 
       <BulkActionsToolbar
         selectedCount={selectedCount}
+        selectedLeadIds={selectedLeadIds}
+        assignableLeadIds={assignableLeadIds}
+        movableLeadIds={movableLeadIds}
+        archivableLeadIds={archivableLeadIds}
+        restorableLeadIds={restorableLeadIds}
+        bulkPipelineId={bulkPipelineId}
         onClearSelection={clearRowSelection}
       />
+
+      <LeadDetailDrawer />
+      <CreateLeadDialog />
+      <EditLeadDialog />
+      <AssignLeadDialog />
+      <MoveStageDialog />
     </div>
   );
 }

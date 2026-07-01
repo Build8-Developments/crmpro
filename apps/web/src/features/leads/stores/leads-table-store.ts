@@ -4,12 +4,15 @@ import type { LeadStatus, LeadsListParams } from "@/features/leads/types";
 import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
 
 export interface LeadsTableFilters {
+  id?: string;
   pipelineId?: string;
   stageId?: string;
   sourceId?: string;
   assignedUserId?: string;
   status?: LeadStatus;
   projectId?: string;
+  unassignedOnly?: boolean;
+  staleOnly?: boolean;
 }
 
 export type LeadsSortField =
@@ -79,6 +82,7 @@ export function buildLeadsListParams(
     sortBy: state.sortBy,
     sortOrder: state.sortOrder,
     ...(trimmedSearch ? { search: trimmedSearch } : {}),
+    ...(state.filters.id ? { id: state.filters.id } : {}),
     ...(state.filters.pipelineId ? { pipelineId: state.filters.pipelineId } : {}),
     ...(state.filters.stageId ? { stageId: state.filters.stageId } : {}),
     ...(state.filters.sourceId ? { sourceId: state.filters.sourceId } : {}),
@@ -87,6 +91,8 @@ export function buildLeadsListParams(
       : {}),
     ...(state.filters.status ? { status: state.filters.status } : {}),
     ...(state.filters.projectId ? { projectId: state.filters.projectId } : {}),
+    ...(state.filters.unassignedOnly ? { unassignedOnly: true } : {}),
+    ...(state.filters.staleOnly ? { staleOnly: true } : {}),
   };
 }
 

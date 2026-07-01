@@ -13,15 +13,28 @@ const RANGES: { value: DashboardRange; label: string }[] = [
 interface DashboardHeaderProps {
   range: DashboardRange;
   onRangeChange: (range: DashboardRange) => void;
+  isRefreshing?: boolean;
 }
 
-export function DashboardHeader({ range, onRangeChange }: DashboardHeaderProps) {
+export function DashboardHeader({
+  range,
+  onRangeChange,
+  isRefreshing = false,
+}: DashboardHeaderProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Dashboard
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            Dashboard
+          </h1>
+          {isRefreshing ? (
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+              Updating…
+            </span>
+          ) : null}
+        </div>
         <p className="text-xs text-muted-foreground">
           Monitor sales performance and pipeline health
         </p>

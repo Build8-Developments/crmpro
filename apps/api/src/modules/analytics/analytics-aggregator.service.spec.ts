@@ -7,6 +7,7 @@ import { PipelineAnalyticsService } from './services/pipeline-analytics.service'
 import { TrendAnalyticsService } from './services/trend-analytics.service';
 import { TeamAnalyticsService } from './services/team-analytics.service';
 import { ActivityAnalyticsService } from './services/activity-analytics.service';
+import { AnalyticsQueryService } from './queries/analytics-query.service';
 
 describe('AnalyticsAggregatorService', () => {
   let service: AnalyticsAggregatorService;
@@ -16,6 +17,12 @@ describe('AnalyticsAggregatorService', () => {
   let trendService: { getTrends: jest.Mock };
   let teamService: { getTeam: jest.Mock };
   let activityService: { getActivity: jest.Mock };
+  let queryService: {
+    getLeadSources: jest.Mock;
+    getProjectPerformance: jest.Mock;
+    getDeveloperPerformance: jest.Mock;
+    getStatusDistribution: jest.Mock;
+  };
 
   const overview = { totalLeads: 10, staleLeads: 2, unassignedLeads: 1 };
   const pipeline = {
@@ -47,6 +54,33 @@ describe('AnalyticsAggregatorService', () => {
       metadata: {},
     },
   ];
+  const sources = [
+    {
+      sourceId: 'src-1',
+      sourceName: 'Facebook',
+      count: 10,
+      percentage: 50,
+      won: 2,
+      conversionRate: 20,
+    },
+  ];
+  const projects = [
+    {
+      projectId: 'p1',
+      projectName: 'Marina',
+      developer: 'Emaar',
+      interestedLeads: 5,
+    },
+  ];
+  const developers = [
+    {
+      developerId: 'd1',
+      developerName: 'Emaar',
+      projects: 3,
+      interestedLeads: 12,
+    },
+  ];
+  const status = { open: 8, won: 2, lost: 1, archived: 0 };
 
   beforeEach(async () => {
     permissionsService = {
@@ -69,6 +103,12 @@ describe('AnalyticsAggregatorService', () => {
     activityService = {
       getActivity: jest.fn().mockResolvedValue(activity),
     };
+    queryService = {
+      getLeadSources: jest.fn().mockResolvedValue(sources),
+      getProjectPerformance: jest.fn().mockResolvedValue(projects),
+      getDeveloperPerformance: jest.fn().mockResolvedValue(developers),
+      getStatusDistribution: jest.fn().mockResolvedValue(status),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -79,6 +119,7 @@ describe('AnalyticsAggregatorService', () => {
         { provide: TrendAnalyticsService, useValue: trendService },
         { provide: TeamAnalyticsService, useValue: teamService },
         { provide: ActivityAnalyticsService, useValue: activityService },
+        { provide: AnalyticsQueryService, useValue: queryService },
       ],
     }).compile();
 
@@ -94,6 +135,10 @@ describe('AnalyticsAggregatorService', () => {
       trends,
       team,
       activity,
+      sources,
+      projects,
+      developers,
+      status,
     });
     expect(overviewService.getOverview).toHaveBeenCalled();
     expect(pipelineService.getPipeline).toHaveBeenCalled();
@@ -115,6 +160,10 @@ describe('AnalyticsAggregatorService', () => {
       overview,
       pipeline,
       trends,
+      sources,
+      projects,
+      developers,
+      status,
     });
     expect(teamService.getTeam).not.toHaveBeenCalled();
     expect(activityService.getActivity).not.toHaveBeenCalled();

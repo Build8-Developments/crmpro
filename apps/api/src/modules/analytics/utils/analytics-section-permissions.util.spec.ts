@@ -15,6 +15,10 @@ describe('analytics-section-permissions.util', () => {
       trends: true,
       team: true,
       activity: true,
+      sources: true,
+      projects: true,
+      developers: true,
+      status: true,
     });
   });
 
@@ -30,6 +34,10 @@ describe('analytics-section-permissions.util', () => {
       trends: true,
       team: false,
       activity: false,
+      sources: true,
+      projects: true,
+      developers: true,
+      status: true,
     });
   });
 

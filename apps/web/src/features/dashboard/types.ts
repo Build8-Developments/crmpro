@@ -69,6 +69,36 @@ export interface TeamAnalyticsData {
   topPerformers: TeamPerformerSnapshot[];
 }
 
+export interface LeadSourceAnalytics {
+  sourceId: string | null;
+  sourceName: string;
+  count: number;
+  percentage: number;
+  won: number;
+  conversionRate: number;
+}
+
+export interface ProjectPerformanceAnalytics {
+  projectId: string;
+  projectName: string;
+  developer: string;
+  interestedLeads: number;
+}
+
+export interface DeveloperPerformanceAnalytics {
+  developerId: string;
+  developerName: string;
+  projects: number;
+  interestedLeads: number;
+}
+
+export interface LeadStatusDistribution {
+  open: number;
+  won: number;
+  lost: number;
+  archived: number;
+}
+
 export interface ActivityFeedItem {
   id: string;
   type: string;
@@ -84,4 +114,8 @@ export interface AnalyticsDashboardData {
   trends?: TrendAnalyticsData;
   team?: TeamAnalyticsData;
   activity?: ActivityFeedItem[];
+  sources?: LeadSourceAnalytics[];
+  projects?: ProjectPerformanceAnalytics[];
+  developers?: DeveloperPerformanceAnalytics[];
+  status?: LeadStatusDistribution;
 }

@@ -299,8 +299,7 @@ export class ContractsService {
       existing.contractEndAt ? undefined : terminatedAt,
     );
 
-    await this.auditService.logContractTerminated(actorAdminId, id, {
-      ...metadata,
+    await this.auditService.logContractTerminated(actorAdminId, id, metadata, {
       tenantId: existing.tenantId,
       accessUntil: accessUntil?.toISOString() ?? null,
       gracePeriodDays: existing.gracePeriodDays,

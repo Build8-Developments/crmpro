@@ -454,6 +454,7 @@ export class LeadsService {
     return {
       tenantId,
       deletedAt: null,
+      ...(filters.id ? { id: filters.id } : {}),
       ...(filters.pipelineId ? { pipelineId: filters.pipelineId } : {}),
       ...(filters.stageId ? { pipelineStageId: filters.stageId } : {}),
       ...(filters.sourceId ? { sourceId: filters.sourceId } : {}),
@@ -468,6 +469,14 @@ export class LeadsService {
             },
           }
         : {}),
+      ...(filters.unassignedOnly
+        ? {
+            status: LeadStatus.OPEN,
+            pipelineStage: { isClosed: false },
+            assignedUserId: null,
+          }
+        : {}),
+      ...(filters.staleOnly ? this.buildStaleLeadWhereInput() : {}),
       ...(search && {
         OR: [
           { fullName: { contains: search, mode: 'insensitive' } },
@@ -479,11 +488,31 @@ export class LeadsService {
     };
   }
 
+  private buildStaleLeadWhereInput(): Prisma.LeadWhereInput {
+    const staleBefore = new Date();
+    staleBefore.setUTCDate(staleBefore.getUTCDate() - 7);
+
+    return {
+      status: LeadStatus.OPEN,
+      pipelineStage: { isClosed: false },
+      OR: [
+        {
+          lastContactedAt: null,
+          createdAt: { lt: staleBefore },
+        },
+        {
+          lastContactedAt: { lt: staleBefore },
+        },
+      ],
+    };
+  }
+
   private buildWhereClause(
     tenantId: string,
     query: GetLeadsQueryDto,
   ): Prisma.LeadWhereInput {
     return this.buildLeadsWhereInput(tenantId, {
+      id: query.id,
       pipelineId: query.pipelineId,
       stageId: query.stageId,
       sourceId: query.sourceId,
@@ -491,6 +520,8 @@ export class LeadsService {
       status: query.status,
       projectId: query.projectId,
       search: query.search,
+      unassignedOnly: query.unassignedOnly,
+      staleOnly: query.staleOnly,
     });
   }
 

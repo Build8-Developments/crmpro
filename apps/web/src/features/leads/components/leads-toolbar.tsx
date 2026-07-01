@@ -16,6 +16,7 @@ import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { LEADS_PAGE_SIZE_OPTIONS } from "@/features/leads/utils/lead-filters";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
+import { ActiveFilterBadges } from "./active-filter-badges";
 
 interface LeadsToolbarProps {
   search: string;
@@ -43,7 +44,8 @@ export function LeadsToolbar({
   const activeFilterCount = countActiveLeadFilters(filters);
 
   return (
-    <div className="flex flex-col gap-2 border-b border-border/60 pb-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="space-y-2">
+      <div className="flex flex-col gap-2 border-b border-border/60 pb-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <div className="relative min-w-[12rem] flex-1 sm:max-w-sm">
           <AppIcons.search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -98,6 +100,11 @@ export function LeadsToolbar({
           {formatNumber(totalItems)} leads
         </span>
       </div>
+      </div>
+      <ActiveFilterBadges
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </div>
   );
 }

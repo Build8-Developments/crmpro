@@ -10,12 +10,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useArchiveLead, useRestoreLead } from "@/features/leads/mutations";
+import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface LeadRowActionsProps {
   lead: Lead;
 }
 
 export function LeadRowActions({ lead }: LeadRowActionsProps) {
+  const openDrawer = useLeadUiStore((s) => s.openDrawer);
+  const openAssignDialog = useLeadUiStore((s) => s.openAssignDialog);
+  const openMoveStageDialog = useLeadUiStore((s) => s.openMoveStageDialog);
+  const openEditDialog = useLeadUiStore((s) => s.openEditDialog);
+  const archiveLead = useArchiveLead();
+  const restoreLead = useRestoreLead();
+  const { can } = usePermissions();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -31,13 +42,46 @@ export function LeadRowActions({ lead }: LeadRowActionsProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem disabled>Open lead</DropdownMenuItem>
-        <DropdownMenuItem disabled>Assign</DropdownMenuItem>
-        <DropdownMenuItem disabled>Move stage</DropdownMenuItem>
-        {lead.status === "OPEN" ? (
+        <DropdownMenuItem onClick={() => openDrawer(lead.id)}>
+          Open lead
+        </DropdownMenuItem>
+        {can("lead.update") ? (
+          <DropdownMenuItem onClick={() => openEditDialog(lead.id)}>
+            Edit
+          </DropdownMenuItem>
+        ) : null}
+        {can("lead.assign") && lead.status === "OPEN" ? (
+          <DropdownMenuItem onClick={() => openAssignDialog([lead.id])}>
+            Assign
+          </DropdownMenuItem>
+        ) : null}
+        {can("lead.update") && lead.status === "OPEN" ? (
+          <DropdownMenuItem
+            onClick={() =>
+              openMoveStageDialog([lead.id], lead.pipeline.id)
+            }
+          >
+            Move stage
+          </DropdownMenuItem>
+        ) : null}
+        {can("lead.update") && lead.status === "OPEN" ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>Archive</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => void archiveLead.mutateAsync(lead.id)}
+            >
+              Archive
+            </DropdownMenuItem>
+          </>
+        ) : null}
+        {can("lead.update") && lead.status === "ARCHIVED" ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => void restoreLead.mutateAsync(lead.id)}
+            >
+              Restore
+            </DropdownMenuItem>
           </>
         ) : null}
       </DropdownMenuContent>

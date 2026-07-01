@@ -31,6 +31,7 @@ export const queryKeys = {
     all: () => ["pipelines"] as const,
     list: (params?: ListQueryParams) =>
       ["pipelines", "list", params ?? {}] as const,
+    detail: (id: string) => ["pipelines", "detail", id] as const,
   },
 
   notifications: {
@@ -49,7 +50,35 @@ export const queryKeys = {
 
   roles: {
     all: () => ["roles"] as const,
-    list: (params?: ListQueryParams) => ["roles", "list", params ?? {}] as const,
+    list: () => ["roles", "list"] as const,
+    detail: (id: string) => ["roles", "detail", id] as const,
+  },
+
+  developers: {
+    all: () => ["developers"] as const,
+    list: (params?: ListQueryParams) =>
+      ["developers", "list", params ?? {}] as const,
+    detail: (id: string) => ["developers", "detail", id] as const,
+  },
+
+  projects: {
+    all: () => ["projects"] as const,
+    list: (params?: ListQueryParams) =>
+      ["projects", "list", params ?? {}] as const,
+    detail: (id: string) => ["projects", "detail", id] as const,
+  },
+
+  files: {
+    all: () => ["files"] as const,
+    list: (params?: ListQueryParams) =>
+      ["files", "list", params ?? {}] as const,
+  },
+
+  audit: {
+    all: () => ["audit"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["audit", "list", params ?? {}] as const,
+    detail: (id: string) => ["audit", "detail", id] as const,
   },
 } as const;
 

@@ -8,6 +8,7 @@ export interface PipelineStageResponse {
   isSystem: boolean;
   isClosed: boolean;
   closeType: PipelineCloseType | null;
+  leadCount: number;
 }
 
 export interface PipelineResponse {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Bar,
   BarChart,
@@ -12,6 +13,7 @@ import {
 } from "recharts";
 import { AppIcons } from "@/components/icons/app-icons";
 import type { PipelineAnalyticsData } from "@/features/dashboard/types";
+import { dashboardLeadLinks } from "@/features/dashboard/dashboard-links";
 import { formatDays, formatNumber } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -129,6 +131,10 @@ export function PipelineFunnel({
           const share = totalLeads > 0 ? (stage.count / totalLeads) * 100 : 0;
           return (
             <DashboardDetailListRow key={stage.stageId}>
+              <Link
+                href={dashboardLeadLinks.stage(stage.stageId)}
+                className="flex min-w-0 flex-1 items-center gap-2 transition-colors duration-150 hover:opacity-80"
+              >
               <span className="w-5 shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">
                 {index + 1}
               </span>
@@ -162,6 +168,7 @@ export function PipelineFunnel({
                   />
                 </div>
               </div>
+              </Link>
             </DashboardDetailListRow>
           );
         })}

@@ -10,6 +10,7 @@ import { OverviewAnalyticsService } from './services/overview-analytics.service'
 import { PipelineAnalyticsService } from './services/pipeline-analytics.service';
 import { TeamAnalyticsService } from './services/team-analytics.service';
 import { TrendAnalyticsService } from './services/trend-analytics.service';
+import { AnalyticsQueryService } from './queries/analytics-query.service';
 
 @Injectable()
 export class AnalyticsAggregatorService {
@@ -20,6 +21,7 @@ export class AnalyticsAggregatorService {
     private readonly trendService: TrendAnalyticsService,
     private readonly teamService: TeamAnalyticsService,
     private readonly activityService: ActivityAnalyticsService,
+    private readonly queryService: AnalyticsQueryService,
   ) {}
 
   async getDashboard(
@@ -77,6 +79,46 @@ export class AnalyticsAggregatorService {
           })
           .then((activity) => {
             data.activity = activity;
+          }),
+      );
+    }
+
+    if (sections.sources) {
+      tasks.push(
+        this.queryService
+          .getLeadSources(tenantId, dateRange)
+          .then((sources) => {
+            data.sources = sources;
+          }),
+      );
+    }
+
+    if (sections.projects) {
+      tasks.push(
+        this.queryService
+          .getProjectPerformance(tenantId, dateRange)
+          .then((projects) => {
+            data.projects = projects;
+          }),
+      );
+    }
+
+    if (sections.developers) {
+      tasks.push(
+        this.queryService
+          .getDeveloperPerformance(tenantId, dateRange)
+          .then((developers) => {
+            data.developers = developers;
+          }),
+      );
+    }
+
+    if (sections.status) {
+      tasks.push(
+        this.queryService
+          .getStatusDistribution(tenantId, dateRange)
+          .then((status) => {
+            data.status = status;
           }),
       );
     }

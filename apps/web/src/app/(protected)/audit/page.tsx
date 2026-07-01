@@ -1,13 +1,5 @@
-import { PagePlaceholder } from "@/components/crm/page-placeholder";
-import { getRoute } from "@/config/routes";
+import { AuditPage } from "@/features/audit/components/audit-page";
 
-export default function AuditPage() {
-  const route = getRoute("/audit");
-  return (
-    <PagePlaceholder
-      title={route?.label ?? "Audit"}
-      subtitle={route?.subtitle}
-      icon={route?.icon}
-    />
-  );
+export default function Page() {
+  return <AuditPage />;
 }

@@ -126,6 +126,7 @@ export type ImportLeadRowResult =
   | { success: false; reason: string };
 
 export interface LeadListFilters {
+  id?: string;
   pipelineId?: string;
   stageId?: string;
   sourceId?: string;
@@ -133,6 +134,8 @@ export interface LeadListFilters {
   status?: LeadStatus;
   projectId?: string;
   search?: string;
+  unassignedOnly?: boolean;
+  staleOnly?: boolean;
 }
 
 export interface LeadExportParams extends LeadListFilters {

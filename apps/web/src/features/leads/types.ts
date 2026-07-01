@@ -57,13 +57,82 @@ export interface Lead {
   projectInterests: LeadProjectInterest[];
 }
 
+export interface CreateLeadInput {
+  fullName: string;
+  primaryPhone: string;
+  email?: string | null;
+  sourceId?: string;
+  pipelineId: string;
+  pipelineStageId: string;
+  assignedUserId?: string;
+  projectInterests?: Array<{
+    projectId: string;
+    interestLevel?: InterestLevel;
+  }>;
+}
+
+export interface DuplicateMatch {
+  id: string;
+  fullName: string;
+}
+
+export interface DuplicateWarning {
+  detected: true;
+  matches: DuplicateMatch[];
+}
+
+export interface LeadMutationResult {
+  lead: Lead;
+  duplicateWarning: DuplicateWarning | null;
+}
+
+export interface CreateLeadResult extends LeadMutationResult {}
+
+export interface UpdateLeadInput {
+  fullName?: string;
+  primaryPhone?: string;
+  secondaryPhone?: string | null;
+  email?: string | null;
+  sourceId?: string | null;
+  status?: LeadStatus;
+  projectInterests?: Array<{
+    projectId: string;
+    interestLevel?: InterestLevel;
+  }>;
+}
+
+export interface LeadNote {
+  id: string;
+  content: string;
+  author: { id: string; email: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeadTimelineActivity {
+  id: string;
+  eventType: string;
+  metadata: unknown;
+  actor: { id: string; email: string } | null;
+  createdAt: string;
+}
+
+export interface BulkLeadActionResult {
+  successCount: number;
+  failureCount: number;
+  failures: Array<{ leadId: string; reason: string }>;
+}
+
 export interface LeadsListParams extends ListQueryParams {
+  id?: string;
   pipelineId?: string;
   stageId?: string;
   sourceId?: string;
   assignedUserId?: string;
   status?: LeadStatus;
   projectId?: string;
+  unassignedOnly?: boolean;
+  staleOnly?: boolean;
 }
 
 export type LeadsListResponse = PaginatedResponse<Lead>;
