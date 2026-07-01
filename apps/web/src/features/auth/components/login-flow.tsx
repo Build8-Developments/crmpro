@@ -44,13 +44,13 @@ export function LoginFlow() {
   };
 
   return (
-    <div className="relative min-h-[320px] overflow-hidden">
+    <div className="relative grid [&>*]:col-start-1 [&>*]:row-start-1">
       <div
         className={cn(
           "transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
           step === "workspace"
-            ? "translate-x-0 scale-100 opacity-100"
-            : "pointer-events-none absolute inset-0 -translate-x-3 scale-[0.98] opacity-0",
+            ? "relative z-10 translate-x-0 scale-100 opacity-100"
+            : "pointer-events-none absolute inset-x-0 top-0 -translate-x-3 scale-[0.98] opacity-0",
         )}
       >
         <WorkspaceStep
@@ -67,8 +67,8 @@ export function LoginFlow() {
         className={cn(
           "transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
           step === "credentials"
-            ? "translate-x-0 scale-100 opacity-100"
-            : "pointer-events-none absolute inset-0 translate-x-3 scale-[0.98] opacity-0",
+            ? "relative z-10 translate-x-0 scale-100 opacity-100"
+            : "pointer-events-none absolute inset-x-0 top-0 translate-x-3 scale-[0.98] opacity-0",
         )}
       >
         {workspace && (
