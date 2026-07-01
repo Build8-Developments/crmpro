@@ -25,6 +25,7 @@ import { MonitoringModule } from './modules/monitoring/monitoring.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { PublicModule } from './modules/public/public.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import configuration from './config/configuration';
@@ -60,6 +61,7 @@ import { envValidationSchema } from './config/env.validation';
     AuditModule,
     UsersModule,
     RolesModule,
+    PublicModule,
   ],
   controllers: [],
   providers: [
