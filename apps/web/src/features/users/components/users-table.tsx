@@ -38,7 +38,7 @@ function SortableHeader({
   return (
     <th
       className={cn(
-        "h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase",
+        "h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase",
         className,
       )}
     >
@@ -75,10 +75,9 @@ export function UsersTable({
   onOpenUser,
 }: UsersTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto bg-background">
         <table className="w-full min-w-[880px] border-collapse text-sm">
-          <thead className="border-b border-border/70 bg-muted/50">
+          <thead className="border-b border-border/50 bg-muted/25">
             <tr className="text-left">
               <SortableHeader
                 label="User"
@@ -95,13 +94,13 @@ export function UsersTable({
                 onSortChange={onSortChange}
                 className="hidden md:table-cell"
               />
-              <th className="h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
+              <th className="h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
                 Role
               </th>
-              <th className="h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
+              <th className="h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
                 Status
               </th>
-              <th className="hidden h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase lg:table-cell">
+              <th className="hidden h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase lg:table-cell">
                 Last login
               </th>
               <SortableHeader
@@ -112,7 +111,7 @@ export function UsersTable({
                 onSortChange={onSortChange}
                 className="hidden xl:table-cell"
               />
-              <th className="h-9 w-10 px-2" aria-label="Actions" />
+              <th className="h-8 w-10 px-2" aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -126,7 +125,6 @@ export function UsersTable({
             ))}
           </tbody>
         </table>
-      </div>
     </div>
   );
 }
@@ -153,47 +151,60 @@ function UserTableRow({
     <tr
       ref={rowRef}
       className={cn(
-        "border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30",
-        isHighlighted && "bg-primary/5 ring-1 ring-inset ring-primary/20",
+        "border-b border-border/40 transition-colors last:border-0 hover:bg-muted/20",
+        isHighlighted && "bg-primary/5",
         !user.isActive && "opacity-70",
       )}
     >
-      <td className="px-3 py-2.5">
+      <td className="px-3 py-2">
         <button
           type="button"
-          className="flex w-full items-center gap-2.5 text-left"
+          className="flex w-full min-w-0 items-center gap-2.5 text-left"
           onClick={() => onOpenUser(user.id)}
         >
-          <Avatar size="sm" className="size-8">
+          <Avatar size="sm" className="size-7">
             <AvatarFallback className="bg-primary/10 text-[10px] font-semibold text-primary">
               {getInitials(user.fullName)}
             </AvatarFallback>
           </Avatar>
-          <span className="font-medium text-foreground">{user.fullName}</span>
+          <span className="truncate text-sm font-medium text-foreground">
+            {user.fullName}
+          </span>
         </button>
       </td>
-      <td className="hidden px-3 py-2.5 text-xs text-muted-foreground md:table-cell">
+      <td className="hidden px-3 py-2 text-xs text-muted-foreground md:table-cell">
         {user.email}
       </td>
-      <td className="px-3 py-2.5">
-        <Badge variant="outline" className="text-[10px]">
+      <td className="px-3 py-2">
+        <Badge
+          variant="outline"
+          className="h-5 px-1.5 text-[10px] font-medium"
+        >
           {user.role.name}
         </Badge>
       </td>
-      <td className="px-3 py-2.5">
-        <Badge variant={user.isActive ? "secondary" : "outline"}>
+      <td className="px-3 py-2">
+        <Badge
+          variant="outline"
+          className={cn(
+            "h-5 px-1.5 text-[10px] font-medium",
+            user.isActive
+              ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "border-border bg-muted/50 text-muted-foreground",
+          )}
+        >
           {user.isActive ? "Active" : "Inactive"}
         </Badge>
       </td>
-      <td className="hidden px-3 py-2.5 text-xs text-muted-foreground lg:table-cell">
+      <td className="hidden px-3 py-2 text-xs text-muted-foreground lg:table-cell">
         {user.lastLoginAt
           ? formatRelativeTime(user.lastLoginAt)
           : "Never"}
       </td>
-      <td className="hidden px-3 py-2.5 text-xs text-muted-foreground xl:table-cell">
+      <td className="hidden px-3 py-2 text-xs text-muted-foreground xl:table-cell">
         {formatRelativeTime(user.createdAt)}
       </td>
-      <td className="px-2 py-2.5 text-right">
+      <td className="px-2 py-2 text-right">
         <UserRowActions user={user} />
       </td>
     </tr>

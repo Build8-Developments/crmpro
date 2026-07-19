@@ -132,7 +132,7 @@ export const navGroups: NavGroup[] = [
         href: "/imports",
         subtitle: "Import leads from CSV",
         icon: AppIcons.imports,
-        requiredPermissions: ["import.read"],
+        requiredPermissions: ["import-job.read"],
         searchable: true,
         keywords: ["upload", "csv", "bulk"],
       },
@@ -141,7 +141,7 @@ export const navGroups: NavGroup[] = [
         href: "/exports",
         subtitle: "Export data to CSV",
         icon: AppIcons.exports,
-        requiredPermissions: ["export.read"],
+        requiredPermissions: ["export-job.read"],
         searchable: true,
         keywords: ["download", "csv", "reports"],
       },
@@ -158,8 +158,33 @@ export const navGroups: NavGroup[] = [
   },
 ];
 
+/** Account routes available via topbar / command palette (not primary sidebar). */
+export const accountRoutes: NavRoute[] = [
+  {
+    label: "Notifications",
+    href: "/notifications",
+    subtitle: "Alerts and activity for your account",
+    icon: AppIcons.notifications,
+    requiredPermissions: ["notification.read"],
+    searchable: true,
+    keywords: ["alerts", "inbox", "unread", "activity"],
+  },
+  {
+    label: "Settings",
+    href: "/settings",
+    subtitle: "Profile, sessions, and preferences",
+    icon: AppIcons.settings,
+    requiredPermissions: [],
+    searchable: true,
+    keywords: ["account", "profile", "preferences", "security", "workspace"],
+  },
+];
+
 /** Flat list of every navigable route. */
-export const allRoutes: NavRoute[] = navGroups.flatMap((group) => group.routes);
+export const allRoutes: NavRoute[] = [
+  ...navGroups.flatMap((group) => group.routes),
+  ...accountRoutes,
+];
 
 /** Find the route whose href best matches a pathname (for topbar/breadcrumbs). */
 export function findRouteByPath(pathname: string): NavRoute | undefined {

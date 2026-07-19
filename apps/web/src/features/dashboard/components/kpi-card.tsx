@@ -1,9 +1,6 @@
 import Link from "next/link";
 import type { AppIcon } from "@/components/icons/app-icons";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { DASHBOARD_ENTER_CLASS, dashboardEnterStyle } from "../utils";
 
 interface KpiCardProps {
   title: string;
@@ -11,8 +8,8 @@ interface KpiCardProps {
   badge?: string;
   icon: AppIcon;
   tone?: "default" | "warning" | "success";
-  index?: number;
   href?: string;
+  className?: string;
 }
 
 export function KpiCard({
@@ -21,70 +18,75 @@ export function KpiCard({
   badge,
   icon: Icon,
   tone = "default",
-  index = 0,
   href,
+  className,
 }: KpiCardProps) {
-  const card = (
-    <Card
+  const content = (
+    <div
       className={cn(
-        DASHBOARD_ENTER_CLASS,
-        "gap-0 overflow-hidden py-0 transition-shadow duration-150 ease-out",
-        href && "cursor-pointer hover:shadow-md",
-        !href && "hover:shadow-md",
-        tone === "warning" && "border-amber-500/35 bg-amber-500/5",
+        "relative flex h-full min-h-[4.75rem] flex-col justify-between gap-2 px-3.5 py-3 transition-colors",
+        href && "hover:bg-muted/30",
+        tone === "warning" && "bg-amber-500/[0.04]",
+        className,
       )}
-      style={dashboardEnterStyle(index)}
     >
-      <div className="flex items-center gap-3 px-3.5 py-3">
-        <div
+      {tone === "warning" ? (
+        <span
+          className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-amber-500/70"
+          aria-hidden
+        />
+      ) : null}
+
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {title}
+        </span>
+        <Icon
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-md",
+            "size-3.5 shrink-0",
             tone === "warning"
-              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+              ? "text-amber-600 dark:text-amber-400"
               : tone === "success"
-                ? "bg-primary/12 text-primary"
-                : "bg-muted text-muted-foreground",
+                ? "text-primary"
+                : "text-muted-foreground/55",
+          )}
+          stroke={1.75}
+        />
+      </div>
+
+      <div>
+        <p
+          className={cn(
+            "text-[1.35rem] font-semibold leading-none tracking-tight tabular-nums",
+            tone === "warning" && "text-amber-700 dark:text-amber-400",
           )}
         >
-          <Icon className="size-4" stroke={2} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-0.5 flex items-center justify-between gap-2">
-            <span className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {title}
-            </span>
-            {badge ? (
-              <Badge
-                variant={tone === "warning" ? "warning" : "secondary"}
-                className="h-5 shrink-0 px-1.5 text-[10px] font-medium"
-              >
-                {badge}
-              </Badge>
-            ) : null}
-          </div>
+          {value}
+        </p>
+        {badge ? (
           <p
             className={cn(
-              "text-xl font-semibold leading-none tracking-tight tabular-nums",
-              tone === "warning" && "text-amber-700 dark:text-amber-400",
+              "mt-1.5 truncate text-[11px]",
+              tone === "warning"
+                ? "font-medium text-amber-700/80 dark:text-amber-400/80"
+                : "text-muted-foreground",
             )}
           >
-            {value}
+            {badge}
           </p>
-        </div>
+        ) : null}
       </div>
-    </Card>
+    </div>
   );
 
-  if (!href) {
-    return card;
-  }
+  if (!href) return content;
 
   return (
     <Link
       href={href}
-      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
-      {card}
+      {content}
     </Link>
   );
 }

@@ -80,7 +80,7 @@ export function DevelopersPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <DevelopersHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -104,13 +104,21 @@ export function DevelopersPage() {
   }
 
   return (
-    <div className="space-y-6 px-6 py-6 md:px-8">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <DevelopersHeader />
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <DevelopersToolbar
           search={search}
           onSearchChange={handleSearchChange}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
+          hasSearch={hasSearch}
+          onClearSearch={() => {
+            setSearch("");
+            setPage(1);
+          }}
           totalItems={pagination?.totalItems ?? developers.length}
           isFetching={isFetching}
         />

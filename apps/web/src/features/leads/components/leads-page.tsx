@@ -70,7 +70,9 @@ export function LeadsPage() {
   const pagination = data?.pagination;
   const selectedLeadIds = getSelectedLeadIds(rowSelection);
   const selectedCount = selectedLeadIds.length;
-  const selectedLeads = leads.filter((lead) => selectedLeadIds.includes(lead.id));
+  const selectedLeads = leads.filter((lead) =>
+    selectedLeadIds.includes(lead.id),
+  );
   const assignableLeadIds = selectedLeads
     .filter((lead) => lead.status === "OPEN")
     .map((lead) => lead.id);
@@ -81,8 +83,9 @@ export function LeadsPage() {
   const restorableLeadIds = selectedLeads
     .filter((lead) => lead.status === "ARCHIVED")
     .map((lead) => lead.id);
-  const bulkPipelineId = selectedLeads.find((lead) => lead.id === selectedLeadIds[0])
-    ?.pipeline.id;
+  const bulkPipelineId = selectedLeads.find(
+    (lead) => lead.id === selectedLeadIds[0],
+  )?.pipeline.id;
   const hasFilters =
     countActiveLeadFilters(filters) > 0 || search.trim().length > 0;
 
@@ -102,7 +105,7 @@ export function LeadsPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <LeadsHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -129,60 +132,62 @@ export function LeadsPage() {
     leads.length === 0 && !hasFilters && pagination?.totalItems === 0;
 
   return (
-    <div className="flex min-h-0 flex-col gap-2 px-6 py-4 md:px-8">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <LeadsHeader />
 
-      <LeadsToolbar
-        search={search}
-        onSearchChange={setSearch}
-        totalItems={pagination?.totalItems ?? 0}
-        pageSize={limit}
-        onPageSizeChange={setLimit}
-        filters={filters}
-        onFiltersChange={setFilters}
-        onClearFilters={() => {
-          clearFilters();
-          setSearch("");
-        }}
-        isFetching={isFetching}
-      />
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+        <LeadsToolbar
+          search={search}
+          onSearchChange={setSearch}
+          totalItems={pagination?.totalItems ?? 0}
+          pageSize={limit}
+          onPageSizeChange={setLimit}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onClearFilters={() => {
+            clearFilters();
+            setSearch("");
+          }}
+          isFetching={isFetching}
+        />
 
-      {showEmpty ? (
-        <LeadsEmptyState />
-      ) : (
-        <>
-          {leads.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border/70 bg-muted/15 px-6 py-12 text-center text-sm text-muted-foreground">
-              No leads match your search or filters.
-            </div>
-          ) : (
-            <LeadsTable
-              table={table}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={setSort}
-            />
-          )}
+        <BulkActionsToolbar
+          selectedCount={selectedCount}
+          selectedLeadIds={selectedLeadIds}
+          assignableLeadIds={assignableLeadIds}
+          movableLeadIds={movableLeadIds}
+          archivableLeadIds={archivableLeadIds}
+          restorableLeadIds={restorableLeadIds}
+          bulkPipelineId={bulkPipelineId}
+          onClearSelection={clearRowSelection}
+        />
 
-          {pagination ? (
-            <LeadsPagination
-              pagination={pagination}
-              onPageChange={setPage}
-            />
-          ) : null}
-        </>
-      )}
+        {showEmpty ? (
+          <LeadsEmptyState />
+        ) : (
+          <>
+            {leads.length === 0 ? (
+              <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+                No leads match your search or filters.
+              </div>
+            ) : (
+              <LeadsTable
+                table={table}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortChange={setSort}
+              />
+            )}
 
-      <BulkActionsToolbar
-        selectedCount={selectedCount}
-        selectedLeadIds={selectedLeadIds}
-        assignableLeadIds={assignableLeadIds}
-        movableLeadIds={movableLeadIds}
-        archivableLeadIds={archivableLeadIds}
-        restorableLeadIds={restorableLeadIds}
-        bulkPipelineId={bulkPipelineId}
-        onClearSelection={clearRowSelection}
-      />
+            {pagination ? (
+              <LeadsPagination
+                pagination={pagination}
+                onPageChange={setPage}
+              />
+            ) : null}
+          </>
+        )}
+      </div>
 
       <LeadDetailDrawer />
       <CreateLeadDialog />

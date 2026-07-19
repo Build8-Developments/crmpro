@@ -114,6 +114,15 @@ export function AuditPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setActorUserId(null);
+    setEntityTypeFilter("all");
+    setActionFilter("all");
+    setFromDate("");
+    setToDate("");
+    setPage(1);
+  };
+
   if (isLoading && !data) {
     return <AuditSkeleton />;
   }
@@ -161,6 +170,8 @@ export function AuditPage() {
           onFromDateChange={handleFromDateChange}
           toDate={toDate}
           onToDateChange={handleToDateChange}
+          hasFilters={hasFilters}
+          onClearFilters={handleClearFilters}
           totalItems={pagination?.totalItems ?? logs.length}
           isFetching={isFetching}
         />

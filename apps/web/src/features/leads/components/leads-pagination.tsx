@@ -18,7 +18,7 @@ export function LeadsPagination({
     pagination;
 
   return (
-    <div className="flex flex-col gap-2 border-t border-border/60 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-t border-border/50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs text-muted-foreground">
         {paginationRangeLabel(page, limit, totalItems)}
       </p>

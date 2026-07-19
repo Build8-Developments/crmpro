@@ -14,6 +14,7 @@ export interface AuditLog {
   action: string;
   entityType: string;
   entityId: string | null;
+  entityLabel: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   actor: AuditActor | null;
@@ -33,6 +34,8 @@ export type AuditEntityTypeFilter =
   | "all"
   | "User"
   | "Role"
+  | "Lead"
+  | "Project"
   | "FileAsset"
   | "ImportJob"
   | "ExportJob"
@@ -40,6 +43,10 @@ export type AuditEntityTypeFilter =
 
 export type AuditActionFilter =
   | "all"
+  | "created"
+  | "updated"
+  | "deleted"
+  | "assigned"
   | "USER_CREATED"
   | "USER_UPDATED"
   | "USER_ROLE_CHANGED"
@@ -58,3 +65,11 @@ export type AuditActionFilter =
   | "EXPORT_COMPLETED"
   | "BULK_LEAD_ASSIGNED"
   | "BULK_LEAD_STAGE_CHANGED";
+
+export type AuditActionTone =
+  | "create"
+  | "update"
+  | "delete"
+  | "assign"
+  | "security"
+  | "neutral";

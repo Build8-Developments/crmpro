@@ -94,6 +94,13 @@ export function UsersPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setRoleId(null);
+    setStatusFilter("all");
+    setPage(1);
+  };
+
   const handleSortChange = (
     nextSortBy: UsersSortField,
     nextSortOrder: "asc" | "desc",
@@ -113,7 +120,7 @@ export function UsersPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <UsersHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -122,8 +129,8 @@ export function UsersPage() {
               Failed to load users
             </CardTitle>
             <CardDescription>
-              We couldn&apos;t fetch your team members. Check your connection and
-              try again.
+              We couldn&apos;t fetch your team members. Check your connection
+              and try again.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -137,10 +144,10 @@ export function UsersPage() {
   }
 
   return (
-    <div className="space-y-6 px-6 py-6 md:px-8">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <UsersHeader />
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <UsersToolbar
           search={search}
           onSearchChange={handleSearchChange}
@@ -150,6 +157,8 @@ export function UsersPage() {
           rolesLoading={rolesLoading}
           statusFilter={statusFilter}
           onStatusFilterChange={handleStatusFilterChange}
+          hasFilters={hasFilters}
+          onClearFilters={handleClearFilters}
           totalItems={pagination?.totalItems ?? users.length}
           isFetching={isFetching}
         />

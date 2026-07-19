@@ -15,10 +15,10 @@ export function ProjectsEmptyState({ hasFilters }: ProjectsEmptyStateProps) {
 
   if (hasFilters) {
     return (
-      <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-        <AppIcons.search className="mb-3 size-8 text-muted-foreground/60" />
-        <h2 className="text-sm font-medium text-foreground">No matches</h2>
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+      <div className="flex flex-col items-center px-6 py-14 text-center">
+        <AppIcons.search className="size-5 text-muted-foreground/50" />
+        <h2 className="mt-3 text-sm font-medium text-foreground">No matches</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Try adjusting your search or filters.
         </p>
       </div>
@@ -26,18 +26,20 @@ export function ProjectsEmptyState({ hasFilters }: ProjectsEmptyStateProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <AppIcons.projects className="size-6" />
-      </div>
-      <h2 className="text-lg font-semibold text-foreground">No projects yet</h2>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+    <div className="flex flex-col items-center px-6 py-16 text-center">
+      <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <AppIcons.projects className="size-5" />
+      </span>
+      <h2 className="mt-4 text-base font-semibold text-foreground">
+        No projects yet
+      </h2>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
         Add real estate projects and link them to developers for lead interest
         tracking.
       </p>
       {can("project.create") ? (
-        <Button className="mt-6" onClick={openCreateDialog}>
-          <AppIcons.create className="size-4" />
+        <Button size="sm" className="mt-4" onClick={openCreateDialog}>
+          <AppIcons.create className="size-3.5" />
           New project
         </Button>
       ) : null}

@@ -1,66 +1,36 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-
-function KpiSkeleton() {
-  return (
-    <Card className="gap-0 py-0">
-      <CardContent className="space-y-4 p-5">
-        <Skeleton className="size-9 rounded-lg" />
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-3 w-32" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ChartSkeleton({ tall = false }: { tall?: boolean }) {
-  return (
-    <Card>
-      <CardHeader className="space-y-2">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-56" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className={tall ? "h-72 w-full" : "h-64 w-full"} />
-      </CardContent>
-    </Card>
-  );
-}
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-4 w-72" />
+    <div className="space-y-4 px-6 py-5 md:px-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1.5">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-3.5 w-56" />
         </div>
-        <Skeleton className="h-10 w-44 rounded-lg" />
+        <Skeleton className="h-9 w-36 rounded-lg" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <KpiSkeleton key={index} />
-        ))}
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border/50 sm:grid-cols-3 xl:grid-cols-6 xl:divide-y-0">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="space-y-3 px-3.5 py-3">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-6 w-12" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-4 border-t border-border/50 px-3.5 py-2.5">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-3 w-20" />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ChartSkeleton tall />
-        <ChartSkeleton tall />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <ChartSkeleton />
-        <ChartSkeleton />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-16 rounded-xl" />
-        ))}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <Skeleton className="h-72 w-full rounded-xl" />
+        <Skeleton className="h-72 w-full rounded-xl" />
       </div>
     </div>
   );

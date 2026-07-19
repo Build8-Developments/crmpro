@@ -20,7 +20,7 @@ export function UsersPagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col gap-2 border-t border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-t border-border/50 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-xs text-muted-foreground">
         {paginationRangeLabel(page, limit, totalItems)}
       </p>

@@ -2,8 +2,8 @@
 
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { formatNumber } from "@/lib/format";
 import {
   useBulkArchiveLeads,
   useBulkRestoreLeads,
@@ -90,80 +90,82 @@ export function BulkActionsToolbar({
   if (selectedCount === 0) return null;
 
   return (
-    <div
-      className={cn(
-        "fixed inset-x-0 bottom-6 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl border border-border/80 bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur-md",
-        "animate-in fade-in-0 slide-in-from-bottom-4 duration-200",
-      )}
-    >
-      <span className="text-sm font-medium tabular-nums">
-        {selectedCount} selected
-      </span>
-      <div className="h-4 w-px bg-border" />
-      {can("lead.assign") && assignableLeadIds.length > 0 ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleBulkAssign}
-        >
-          <AppIcons.userPlus className="size-4" />
-          Assign
-          {assignableLeadIds.length < selectedCount
-            ? ` (${assignableLeadIds.length})`
-            : ""}
-        </Button>
-      ) : null}
-      {can("lead.update") && movableLeadIds.length > 0 && bulkPipelineId ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleBulkMove}
-        >
-          <AppIcons.stageChange className="size-4" />
-          Move stage
-          {movableLeadIds.length < selectedCount
-            ? ` (${movableLeadIds.length})`
-            : ""}
-        </Button>
-      ) : null}
-      {can("lead.update") && archivableLeadIds.length > 0 ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={pending}
-          onClick={() => void handleBulkArchive()}
-        >
-          Archive
-          {archivableLeadIds.length < selectedCount
-            ? ` (${archivableLeadIds.length})`
-            : ""}
-        </Button>
-      ) : null}
-      {can("lead.update") && restorableLeadIds.length > 0 ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={pending}
-          onClick={() => void handleBulkRestore()}
-        >
-          Restore
-          {restorableLeadIds.length < selectedCount
-            ? ` (${restorableLeadIds.length})`
-            : ""}
-        </Button>
-      ) : null}
+    <div className="flex flex-wrap items-center gap-2 border-b border-border/50 bg-muted/30 px-4 py-2">
+      <p className="text-xs font-medium text-foreground">
+        {formatNumber(selectedCount)} selected
+      </p>
       <Button
         type="button"
         variant="ghost"
         size="sm"
+        className="h-7 px-2 text-xs"
         onClick={onClearSelection}
       >
-        Clear selection
+        Clear
       </Button>
+
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        {can("lead.assign") && assignableLeadIds.length > 0 ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={handleBulkAssign}
+          >
+            <AppIcons.userPlus className="size-3.5" />
+            Assign
+            {assignableLeadIds.length < selectedCount
+              ? ` (${assignableLeadIds.length})`
+              : ""}
+          </Button>
+        ) : null}
+        {can("lead.update") && movableLeadIds.length > 0 && bulkPipelineId ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={handleBulkMove}
+          >
+            <AppIcons.stageChange className="size-3.5" />
+            Move
+            {movableLeadIds.length < selectedCount
+              ? ` (${movableLeadIds.length})`
+              : ""}
+          </Button>
+        ) : null}
+        {can("lead.update") && archivableLeadIds.length > 0 ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={pending}
+            onClick={() => void handleBulkArchive()}
+          >
+            Archive
+            {archivableLeadIds.length < selectedCount
+              ? ` (${archivableLeadIds.length})`
+              : ""}
+          </Button>
+        ) : null}
+        {can("lead.update") && restorableLeadIds.length > 0 ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={pending}
+            onClick={() => void handleBulkRestore()}
+          >
+            Restore
+            {restorableLeadIds.length < selectedCount
+              ? ` (${restorableLeadIds.length})`
+              : ""}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

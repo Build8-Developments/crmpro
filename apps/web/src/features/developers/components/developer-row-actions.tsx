@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Developer } from "@/features/developers/types";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -24,8 +25,9 @@ export function DeveloperRowActions({ developer }: DeveloperRowActionsProps) {
 
   const canUpdate = can("developer.update");
   const canDelete = can("developer.delete");
+  const canReadProjects = can("project.read");
 
-  if (!canUpdate && !canDelete) {
+  if (!canUpdate && !canDelete && !canReadProjects) {
     return null;
   }
 
@@ -43,6 +45,13 @@ export function DeveloperRowActions({ developer }: DeveloperRowActionsProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
+        {canReadProjects ? (
+          <DropdownMenuItem asChild>
+            <Link href={`/projects?developerId=${developer.id}`}>
+              View projects
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         {canUpdate ? (
           <DropdownMenuItem onClick={() => openEditDialog(developer.id)}>
             Edit
@@ -50,7 +59,7 @@ export function DeveloperRowActions({ developer }: DeveloperRowActionsProps) {
         ) : null}
         {canDelete ? (
           <>
-            {canUpdate ? <DropdownMenuSeparator /> : null}
+            {canUpdate || canReadProjects ? <DropdownMenuSeparator /> : null}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => openDeleteDialog(developer.id)}

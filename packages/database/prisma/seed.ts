@@ -1421,24 +1421,54 @@ async function seedAuditLogs(params: {
   tenantId: string;
   userIds: string[];
   leadIds: string[];
+  projectIds: string[];
+  roleIds: string[];
 }): Promise<void> {
-  const { tenantId, userIds, leadIds } = params;
+  const { tenantId, userIds, leadIds, projectIds, roleIds } = params;
 
-  for (let i = 0; i < 25; i++) {
-    const isSystem = faker.datatype.boolean({ probability: 0.15 });
+  const samples: Array<{
+    entityType: string;
+    entityId: string;
+    action: string;
+    detail: string;
+  }> = [
+    ...leadIds.slice(0, 8).map((entityId) => ({
+      entityType: 'Lead',
+      entityId,
+      action: faker.helpers.arrayElement(['created', 'updated', 'assigned']),
+      detail: 'Lead pipeline activity recorded',
+    })),
+    ...userIds.slice(0, 6).map((entityId) => ({
+      entityType: 'User',
+      entityId,
+      action: faker.helpers.arrayElement(['created', 'updated', 'assigned']),
+      detail: 'Team member change recorded',
+    })),
+    ...projectIds.slice(0, 6).map((entityId) => ({
+      entityType: 'Project',
+      entityId,
+      action: faker.helpers.arrayElement(['created', 'updated', 'deleted']),
+      detail: 'Project catalog change recorded',
+    })),
+    ...roleIds.slice(0, 5).map((entityId) => ({
+      entityType: 'Role',
+      entityId,
+      action: faker.helpers.arrayElement(['created', 'updated', 'deleted']),
+      detail: 'Role configuration change recorded',
+    })),
+  ];
+
+  for (const sample of samples) {
+    const isSystem = faker.datatype.boolean({ probability: 0.12 });
     await prisma.auditLog.create({
       data: {
         tenantId,
         actorType: isSystem ? AuditActorType.SYSTEM : AuditActorType.USER,
         actorUserId: isSystem ? null : faker.helpers.arrayElement(userIds),
-        entityType: faker.helpers.arrayElement(['Lead', 'User', 'Project', 'Role']),
-        entityId: faker.helpers.arrayElement([
-          ...leadIds,
-          ...userIds,
-          faker.string.uuid(),
-        ]),
-        action: faker.helpers.arrayElement(['created', 'updated', 'deleted', 'assigned']),
-        metadata: { seed: true, detail: faker.lorem.sentence() },
+        entityType: sample.entityType,
+        entityId: sample.entityId,
+        action: sample.action,
+        metadata: { seed: true, detail: sample.detail },
         createdAt: faker.date.recent({ days: 30 }),
       },
     });
@@ -1622,7 +1652,13 @@ async function seedTenantCrmData(
     leadIds,
   });
 
-  await seedAuditLogs({ tenantId, userIds, leadIds });
+  await seedAuditLogs({
+    tenantId,
+    userIds,
+    leadIds,
+    projectIds,
+    roleIds: Object.values(ROLE_IDS),
+  });
 
   await seedNotificationPreferences(tenantId, userIds);
   await seedNotifications({ tenantId, userIds, leadIds });

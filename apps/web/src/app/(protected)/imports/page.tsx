@@ -1,13 +1,5 @@
-import { PagePlaceholder } from "@/components/crm/page-placeholder";
-import { getRoute } from "@/config/routes";
+import { ImportsPage } from "@/features/imports/components/imports-page";
 
-export default function ImportsPage() {
-  const route = getRoute("/imports");
-  return (
-    <PagePlaceholder
-      title={route?.label ?? "Imports"}
-      subtitle={route?.subtitle}
-      icon={route?.icon}
-    />
-  );
+export default function Page() {
+  return <ImportsPage />;
 }

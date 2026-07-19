@@ -54,7 +54,8 @@ export interface RequestUploadResponse {
 
 export interface CompleteUploadInput {
   objectKey: string;
-  category: "OTHER";
+  category: "OTHER" | "IMPORT_FILE";
+  leadId?: string;
 }
 
 export interface DownloadUrlResponse {

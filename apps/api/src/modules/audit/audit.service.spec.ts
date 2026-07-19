@@ -12,6 +12,11 @@ describe('AuditService', () => {
       count: jest.Mock;
       findFirst: jest.Mock;
     };
+    user: { findMany: jest.Mock };
+    role: { findMany: jest.Mock };
+    lead: { findMany: jest.Mock };
+    project: { findMany: jest.Mock };
+    fileAsset: { findMany: jest.Mock };
     $transaction: jest.Mock;
   };
 
@@ -43,6 +48,15 @@ describe('AuditService', () => {
         count: jest.fn(),
         findFirst: jest.fn(),
       },
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'user-2', name: 'Target User' },
+        ]),
+      },
+      role: { findMany: jest.fn().mockResolvedValue([]) },
+      lead: { findMany: jest.fn().mockResolvedValue([]) },
+      project: { findMany: jest.fn().mockResolvedValue([]) },
+      fileAsset: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(async (queries) => {
         if (Array.isArray(queries)) {
           return Promise.all(queries.map((query) => query));
@@ -75,6 +89,7 @@ describe('AuditService', () => {
       }),
     );
     expect(result.items[0]?.id).toBe('audit-new');
+    expect(result.items[0]?.entityLabel).toBe('Target User');
     expect(result.items[1]?.id).toBe('audit-old');
   });
 

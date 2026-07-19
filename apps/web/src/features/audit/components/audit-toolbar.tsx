@@ -1,5 +1,7 @@
 "use client";
 
+import { AppIcons } from "@/components/icons/app-icons";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -8,10 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AuditActionFilter, AuditEntityTypeFilter } from "@/features/audit/types";
+import type {
+  AuditActionFilter,
+  AuditEntityTypeFilter,
+} from "@/features/audit/types";
 import {
   AUDIT_ACTION_FILTER_OPTIONS,
   AUDIT_ENTITY_FILTER_OPTIONS,
+  toDateInputValue,
 } from "@/features/audit/utils/audit-labels";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -34,8 +40,16 @@ interface AuditToolbarProps {
   onFromDateChange: (value: string) => void;
   toDate: string;
   onToDateChange: (value: string) => void;
+  hasFilters: boolean;
+  onClearFilters: () => void;
   totalItems: number;
   isFetching?: boolean;
+}
+
+function daysAgo(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return toDateInputValue(date);
 }
 
 export function AuditToolbar({
@@ -51,11 +65,23 @@ export function AuditToolbar({
   onFromDateChange,
   toDate,
   onToDateChange,
+  hasFilters,
+  onClearFilters,
   totalItems,
   isFetching,
 }: AuditToolbarProps) {
+  const applyPreset = (days: number | null) => {
+    if (days === null) {
+      onFromDateChange("");
+      onToDateChange("");
+      return;
+    }
+    onFromDateChange(daysAgo(days));
+    onToDateChange(toDateInputValue(new Date()));
+  };
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <Select
           value={actorUserId ?? "all"}
@@ -113,6 +139,19 @@ export function AuditToolbar({
           </SelectContent>
         </Select>
 
+        {hasFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={onClearFilters}
+          >
+            <AppIcons.close className="size-3.5" />
+            Clear
+          </Button>
+        ) : null}
+
         <span
           className={cn(
             "ml-auto text-xs text-muted-foreground",
@@ -139,6 +178,36 @@ export function AuditToolbar({
           className="h-8 w-[10.5rem] text-xs"
           aria-label="To date"
         />
+
+        <div className="flex flex-wrap items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => applyPreset(0)}
+          >
+            Today
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => applyPreset(7)}
+          >
+            7 days
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => applyPreset(30)}
+          >
+            30 days
+          </Button>
+        </div>
       </div>
     </div>
   );

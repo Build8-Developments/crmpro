@@ -16,7 +16,6 @@ import { useLeadFilterOptions } from "@/features/leads/hooks";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { LEAD_STATUS_OPTIONS } from "@/features/leads/utils/lead-filters";
 import { FilterSelect } from "./filter-select";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface LeadsFiltersSheetProps {
   filters: LeadsTableFilters;
@@ -172,32 +171,6 @@ export function LeadsFiltersSheet({
             }
             onChange={(projectId) => onFiltersChange({ projectId })}
           />
-
-          <div className="space-y-3 rounded-lg border bg-muted/15 p-3">
-            <p className="text-xs font-medium text-foreground">Quick filters</p>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={Boolean(filters.unassignedOnly)}
-                onCheckedChange={(checked) =>
-                  onFiltersChange({
-                    unassignedOnly: checked === true ? true : undefined,
-                  })
-                }
-              />
-              <span>Unassigned only</span>
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={Boolean(filters.staleOnly)}
-                onCheckedChange={(checked) =>
-                  onFiltersChange({
-                    staleOnly: checked === true ? true : undefined,
-                  })
-                }
-              />
-              <span>Stale leads (7+ days)</span>
-            </label>
-          </div>
         </div>
         <SheetFooter />
       </SheetContent>

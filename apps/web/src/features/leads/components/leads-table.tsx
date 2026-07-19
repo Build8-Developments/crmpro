@@ -22,8 +22,8 @@ export function LeadsTable({
   sortOrder,
 }: LeadsTableProps) {
   return (
-    <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-border/70 bg-background">
-      <div className="max-h-[calc(100vh-14.5rem)] overflow-auto">
+    <div className="min-h-0 flex-1 overflow-hidden bg-background">
+      <div className="max-h-[calc(100vh-16rem)] overflow-auto">
         <table className="w-full min-w-[960px] border-collapse text-xs">
           <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
             {table.getHeaderGroups().map((headerGroup) => (

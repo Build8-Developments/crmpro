@@ -20,21 +20,7 @@ export function ActiveFilterBadges({
   const badges: Array<{ key: string; label: string; onRemove: () => void }> =
     [];
 
-  if (filters.unassignedOnly) {
-    badges.push({
-      key: "unassigned",
-      label: "Unassigned",
-      onRemove: () => onFiltersChange({ unassignedOnly: undefined }),
-    });
-  }
-
-  if (filters.staleOnly) {
-    badges.push({
-      key: "stale",
-      label: "Stale",
-      onRemove: () => onFiltersChange({ staleOnly: undefined }),
-    });
-  }
+  // Unassigned / Stale are shown as toolbar chips — skip here to avoid duplicates.
 
   if (filters.status) {
     const label =
@@ -109,7 +95,7 @@ export function ActiveFilterBadges({
   if (badges.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-6 md:px-8">
+    <div className="flex flex-wrap items-center gap-1.5">
       {badges.map((badge) => (
         <Badge key={badge.key} variant="secondary" className="gap-1 pr-1">
           {badge.label}

@@ -35,8 +35,8 @@ export function DashboardHeader({
             </span>
           ) : null}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Monitor sales performance and pipeline health
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Sales performance and pipeline health
         </p>
       </div>
 

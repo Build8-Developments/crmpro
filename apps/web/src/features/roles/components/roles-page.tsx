@@ -55,7 +55,7 @@ export function RolesPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <RolesHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -80,7 +80,7 @@ export function RolesPage() {
 
   if (roles.length === 0) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <RolesHeader />
         <RolesEmptyState />
         <CreateRoleDialog />
@@ -93,7 +93,7 @@ export function RolesPage() {
       <RolesHeader />
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
-        <div className="grid min-h-[calc(100vh-11rem)] lg:grid-cols-[16rem_1fr]">
+        <div className="grid h-[min(42rem,calc(100vh-10.5rem))] lg:grid-cols-[15rem_1fr]">
           <RolesSidebar
             roles={roles}
             search={search}

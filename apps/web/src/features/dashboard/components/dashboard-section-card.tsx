@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import type { AppIcon } from "@/components/icons/app-icons";
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
-import { DASHBOARD_ENTER_CLASS } from "../utils";
 
 interface DashboardSectionCardProps {
   icon: AppIcon;
@@ -26,37 +24,36 @@ export function DashboardSectionCard({
   contentClassName,
 }: DashboardSectionCardProps) {
   return (
-    <Card
+    <section
       className={cn(
-        DASHBOARD_ENTER_CLASS,
-        "flex flex-col gap-0 overflow-hidden py-0 transition-shadow duration-150 ease-out hover:shadow-md",
+        "flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm",
         className,
       )}
       style={style}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border/50 bg-muted/20 px-3.5 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-border/50 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Icon className="size-3.5" stroke={2} />
-          </div>
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <Icon className="size-3.5" stroke={1.75} />
+          </span>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold leading-tight text-foreground">
+            <h3 className="truncate text-sm font-semibold text-foreground">
               {title}
             </h3>
             {subtitle ? (
-              <p className="truncate text-[11px] leading-tight text-muted-foreground">
+              <p className="truncate text-[11px] text-muted-foreground">
                 {subtitle}
               </p>
             ) : null}
           </div>
         </div>
         {badges ? (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
             {badges}
           </div>
         ) : null}
       </div>
-      <div className={cn("px-3.5 py-3", contentClassName)}>{children}</div>
-    </Card>
+      <div className={cn("px-4 py-3", contentClassName)}>{children}</div>
+    </section>
   );
 }

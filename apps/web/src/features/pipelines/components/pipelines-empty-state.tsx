@@ -10,20 +10,25 @@ export function PipelinesEmptyState() {
   const { can } = usePermissions();
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <AppIcons.pipelines className="size-6" />
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <div className="flex flex-col items-center px-6 py-16 text-center">
+        <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+          <AppIcons.pipelines className="size-5" />
+        </span>
+        <h2 className="mt-4 text-base font-semibold text-foreground">
+          No pipelines yet
+        </h2>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+          Create a pipeline with stages to track how leads move through your
+          funnel.
+        </p>
+        {can("pipeline.create") ? (
+          <Button size="sm" className="mt-4" onClick={openCreatePipeline}>
+            <AppIcons.create className="size-3.5" />
+            New pipeline
+          </Button>
+        ) : null}
       </div>
-      <h2 className="text-lg font-semibold text-foreground">No pipelines yet</h2>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        Create your first pipeline with default stages to start tracking leads.
-      </p>
-      {can("pipeline.create") ? (
-        <Button className="mt-6" onClick={openCreatePipeline}>
-          <AppIcons.create className="size-4" />
-          New pipeline
-        </Button>
-      ) : null}
     </div>
   );
 }

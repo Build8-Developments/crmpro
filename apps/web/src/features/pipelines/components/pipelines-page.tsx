@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,6 @@ import { PipelinesEmptyState } from "@/features/pipelines/components/pipelines-e
 import { PipelinesHeader } from "@/features/pipelines/components/pipelines-header";
 import { PipelinesPagination } from "@/features/pipelines/components/pipelines-pagination";
 import { PipelinesSkeleton } from "@/features/pipelines/components/pipelines-skeleton";
-import { PipelinesToolbar } from "@/features/pipelines/components/pipelines-toolbar";
 import { usePipeline, usePipelines } from "@/features/pipelines/hooks";
 import { usePipelinesUrlState } from "@/features/pipelines/hooks/use-pipelines-url-state";
 import { usePipelineUiStore } from "@/features/pipelines/stores/pipeline-ui-store";
@@ -53,10 +52,9 @@ export function PipelinesPage() {
   const {
     data: selectedPipelineDetail,
     isLoading: detailLoading,
-    isFetching: detailFetching,
   } = usePipeline(selectedPipelineId ?? undefined);
 
-  const pipelines = data?.items ?? [];
+  const pipelines = useMemo(() => data?.items ?? [], [data?.items]);
   const pagination = data?.pagination;
   const hasSearch = debouncedSearch.trim().length > 0;
 
@@ -65,9 +63,10 @@ export function PipelinesPage() {
     pipelines.find((pipeline) => pipeline.id === selectedPipelineId) ??
     null;
 
-  useEffect(() => {
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
     setPage(1);
-  }, [debouncedSearch]);
+  };
 
   useEffect(() => {
     if (pipelines.length === 0) {
@@ -86,12 +85,7 @@ export function PipelinesPage() {
         pipelines.find((pipeline) => pipeline.isDefault) ?? pipelines[0];
       setSelectedPipelineId(defaultPipeline.id);
     }
-  }, [
-    pipelines,
-    selectedPipelineId,
-    setSelectedPipelineId,
-    hasSearch,
-  ]);
+  }, [pipelines, selectedPipelineId, setSelectedPipelineId, hasSearch]);
 
   if (isLoading && !data) {
     return <PipelinesSkeleton />;
@@ -99,7 +93,7 @@ export function PipelinesPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <PipelinesHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -122,32 +116,24 @@ export function PipelinesPage() {
     );
   }
 
-  const showEmpty = pipelines.length === 0 && !hasSearch && pagination?.totalItems === 0;
+  const showEmpty =
+    pipelines.length === 0 && !hasSearch && pagination?.totalItems === 0;
 
   return (
-    <div className="flex min-h-0 flex-col gap-4 px-6 py-4 md:px-8">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <PipelinesHeader />
-
-      <PipelinesToolbar
-        search={search}
-        onSearchChange={setSearch}
-        totalItems={pagination?.totalItems ?? pipelines.length}
-        isFetching={isFetching || detailFetching}
-      />
 
       {showEmpty ? (
         <PipelinesEmptyState />
-      ) : pipelines.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border/70 bg-muted/15 px-6 py-12 text-center text-sm text-muted-foreground">
-          No pipelines match your search.
-        </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
-          <div className="grid lg:grid-cols-[13.5rem_minmax(0,1fr)]">
-            <div className="flex flex-col border-b border-border/60 bg-muted/20 lg:border-b-0 lg:border-r">
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+          <div className="grid h-[min(42rem,calc(100vh-10.5rem))] lg:grid-cols-[15rem_minmax(0,1fr)]">
+            <div className="flex min-h-0 flex-col border-b border-border/50 lg:border-r lg:border-b-0">
               <PipelineSidebar
                 pipelines={pipelines}
                 selectedPipelineId={selectedPipelineId}
+                search={search}
+                onSearchChange={handleSearchChange}
                 className="flex-1"
               />
               {pagination ? (
@@ -163,7 +149,11 @@ export function PipelinesPage() {
               ) : (
                 <PipelineStagesPanel pipeline={selectedPipeline} />
               )
-            ) : null}
+            ) : (
+              <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+                Select a pipeline
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -181,10 +171,10 @@ export function PipelinesPage() {
 function PipelineDetailSkeleton() {
   return (
     <div className="space-y-3 p-4">
-      <Skeleton className="h-6 w-48" />
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-48 w-full" />
+      <Skeleton className="h-5 w-48" />
+      <Skeleton className="h-3.5 w-32" />
+      <Skeleton className="h-8 w-full" />
+      <Skeleton className="h-40 w-full" />
     </div>
   );
 }

@@ -11,6 +11,13 @@ export const queryKeys = {
     all: () => ["auth"] as const,
     me: () => ["auth", "me"] as const,
     permissions: () => ["auth", "permissions"] as const,
+    sessions: () => ["auth", "sessions"] as const,
+  },
+
+  settings: {
+    all: () => ["settings"] as const,
+    notificationPreferences: () =>
+      ["settings", "notification-preferences"] as const,
   },
 
   dashboard: {
@@ -72,6 +79,20 @@ export const queryKeys = {
     all: () => ["files"] as const,
     list: (params?: ListQueryParams) =>
       ["files", "list", params ?? {}] as const,
+  },
+
+  imports: {
+    all: () => ["imports"] as const,
+    list: (params?: ListQueryParams) =>
+      ["imports", "list", params ?? {}] as const,
+    detail: (id: string) => ["imports", "detail", id] as const,
+  },
+
+  exports: {
+    all: () => ["exports"] as const,
+    list: (params?: ListQueryParams) =>
+      ["exports", "list", params ?? {}] as const,
+    detail: (id: string) => ["exports", "detail", id] as const,
   },
 
   audit: {

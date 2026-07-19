@@ -17,13 +17,17 @@ type AuditLogRecord = {
   } | null;
 };
 
-export function toAuditLogResponse(record: AuditLogRecord): AuditLogResponse {
+export function toAuditLogResponse(
+  record: AuditLogRecord,
+  entityLabel: string | null = null,
+): AuditLogResponse {
   return {
     id: record.id,
     actorType: record.actorType,
     action: record.action,
     entityType: record.entityType,
     entityId: record.entityId,
+    entityLabel,
     metadata: normalizeMetadata(record.metadata),
     createdAt: record.createdAt.toISOString(),
     actor: record.actor

@@ -45,7 +45,7 @@ export function DashboardPage() {
 
   if (isError || !data) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <DashboardHeader range={range} onRangeChange={setRange} isRefreshing={false} />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -70,7 +70,7 @@ export function DashboardPage() {
 
   if (isDashboardEffectivelyEmpty(data)) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <DashboardHeader range={range} onRangeChange={setRange} isRefreshing={isFetching} />
         <EmptyDashboard />
         <QuickActions />
@@ -90,7 +90,7 @@ export function DashboardPage() {
   const isRefreshing = isFetching && !isLoading;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <DashboardHeader
         range={range}
         onRangeChange={setRange}

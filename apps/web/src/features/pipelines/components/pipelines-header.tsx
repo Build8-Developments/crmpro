@@ -10,18 +10,18 @@ export function PipelinesHeader() {
   const { can } = usePermissions();
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
           Pipelines
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure sales stages and how leads move through your funnel
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Sales stages and how leads move through your funnel
         </p>
       </div>
       {can("pipeline.create") ? (
         <Button size="sm" onClick={openCreatePipeline}>
-          <AppIcons.create className="size-4" />
+          <AppIcons.create className="size-3.5" />
           New pipeline
         </Button>
       ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -54,10 +54,17 @@ export function SortablePipelineStages({ pipeline }: SortablePipelineStagesProps
   );
 
   const [items, setItems] = useState(draggableStages);
+  const [stagesSignature, setStagesSignature] = useState(() =>
+    draggableStages.map((stage) => `${stage.id}:${stage.sortOrder}`).join("|"),
+  );
+  const nextSignature = draggableStages
+    .map((stage) => `${stage.id}:${stage.sortOrder}`)
+    .join("|");
 
-  useEffect(() => {
+  if (nextSignature !== stagesSignature) {
+    setStagesSignature(nextSignature);
     setItems(draggableStages);
-  }, [draggableStages]);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -274,12 +281,14 @@ function StageRow({
               {stage.leadCount}
             </Badge>
           ) : null}
-          {stage.closeType === "WON" ? (
+          {stage.closeType === "WON" &&
+          stage.name.trim().toLowerCase() !== "won" ? (
             <span className="shrink-0 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
               Won
             </span>
           ) : null}
-          {stage.closeType === "LOST" ? (
+          {stage.closeType === "LOST" &&
+          stage.name.trim().toLowerCase() !== "lost" ? (
             <span className="shrink-0 text-[10px] font-medium text-red-600 dark:text-red-400">
               Lost
             </span>

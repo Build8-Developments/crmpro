@@ -11,7 +11,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { navGroups } from "@/config/routes";
+import { accountRoutes, navGroups } from "@/config/routes";
 import { quickActions } from "@/config/quick-actions";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useUIStore } from "@/stores/ui-store";
@@ -48,7 +48,10 @@ export function CommandPalette() {
     router.push(href);
   };
 
-  const searchableGroups = navGroups
+  const searchableGroups = [
+    ...navGroups,
+    { label: "Account", routes: accountRoutes },
+  ]
     .map((group) => ({
       ...group,
       routes: group.routes.filter(

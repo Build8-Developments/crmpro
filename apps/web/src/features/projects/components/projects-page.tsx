@@ -97,6 +97,13 @@ export function ProjectsPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setDeveloperId(null);
+    setStatusFilter("all");
+    setPage(1);
+  };
+
   const handleSortChange = (
     nextSortBy: ProjectsSortField,
     nextSortOrder: "asc" | "desc",
@@ -112,7 +119,7 @@ export function ProjectsPage() {
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <ProjectsHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -121,8 +128,8 @@ export function ProjectsPage() {
               Failed to load projects
             </CardTitle>
             <CardDescription>
-              We couldn&apos;t fetch your projects catalog. Check your connection
-              and try again.
+              We couldn&apos;t fetch your projects catalog. Check your
+              connection and try again.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -136,10 +143,10 @@ export function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-6 px-6 py-6 md:px-8">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <ProjectsHeader />
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <ProjectsToolbar
           search={search}
           onSearchChange={handleSearchChange}
@@ -149,6 +156,8 @@ export function ProjectsPage() {
           developersLoading={developersLoading}
           statusFilter={statusFilter}
           onStatusFilterChange={handleStatusFilterChange}
+          hasFilters={hasFilters}
+          onClearFilters={handleClearFilters}
           totalItems={pagination?.totalItems ?? projects.length}
           isFetching={isFetching}
         />

@@ -23,6 +23,8 @@ function parseEntityType(value: string | null): AuditEntityTypeFilter {
   const options: AuditEntityTypeFilter[] = [
     "User",
     "Role",
+    "Lead",
+    "Project",
     "FileAsset",
     "ImportJob",
     "ExportJob",

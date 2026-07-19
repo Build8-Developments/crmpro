@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DeleteFileDialog } from "@/features/files/components/delete-file-dialog";
+import { FilesBulkToolbar } from "@/features/files/components/files-bulk-toolbar";
 import { FilesEmptyState } from "@/features/files/components/files-empty-state";
 import { FilesHeader } from "@/features/files/components/files-header";
 import { FilesPagination } from "@/features/files/components/files-pagination";
@@ -23,6 +24,7 @@ import { useFilesUrlState } from "@/features/files/hooks/use-files-url-state";
 import { useFileUiStore } from "@/features/files/stores/file-ui-store";
 import type { FileCategoryFilter, FilesSortField } from "@/features/files/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { usePermissions } from "@/hooks/use-permissions";
 
 const FILES_PAGE_SIZE = 50;
 
@@ -31,10 +33,14 @@ export function FilesPage() {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<FilesSortField>("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [categoryFilter, setCategoryFilter] = useState<FileCategoryFilter>("all");
+  const [categoryFilter, setCategoryFilter] =
+    useState<FileCategoryFilter>("all");
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const debouncedSearch = useDebouncedValue(search, 400);
   const highlightedFileId = useFileUiStore((s) => s.highlightedFileId);
   const setHighlightedFileId = useFileUiStore((s) => s.setHighlightedFileId);
+  const { can } = usePermissions();
+  const canDelete = can("file.delete");
 
   useFilesUrlState({
     debouncedSearch,
@@ -55,6 +61,10 @@ export function FilesPage() {
   });
 
   const files = data?.items ?? [];
+  const fileIdsOnPage = new Set(files.map((file) => file.id));
+  const activeSelectedIds = selectedFileIds.filter((id) =>
+    fileIdsOnPage.has(id),
+  );
   const pagination = data?.pagination;
   const hasFilters =
     debouncedSearch.trim().length > 0 || categoryFilter !== "all";
@@ -63,11 +73,13 @@ export function FilesPage() {
   const handleSearchChange = (value: string) => {
     setSearch(value);
     setPage(1);
+    setSelectedFileIds([]);
   };
 
   const handleCategoryChange = (filter: FileCategoryFilter) => {
     setCategoryFilter(filter);
     setPage(1);
+    setSelectedFileIds([]);
   };
 
   const handleSortChange = (
@@ -79,13 +91,32 @@ export function FilesPage() {
     setPage(1);
   };
 
+  const handleClearFilters = () => {
+    setSearch("");
+    setCategoryFilter("all");
+    setPage(1);
+    setSelectedFileIds([]);
+  };
+
+  const handleToggleFile = (fileId: string) => {
+    setSelectedFileIds((current) =>
+      current.includes(fileId)
+        ? current.filter((id) => id !== fileId)
+        : [...current, fileId],
+    );
+  };
+
+  const handleToggleAll = (checked: boolean) => {
+    setSelectedFileIds(checked ? files.map((file) => file.id) : []);
+  };
+
   if (isLoading && !data) {
     return <FilesSkeleton />;
   }
 
   if (isError) {
     return (
-      <div className="space-y-6 px-6 py-6 md:px-8">
+      <div className="space-y-4 px-6 py-5 md:px-8">
         <FilesHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -109,18 +140,31 @@ export function FilesPage() {
   }
 
   return (
-    <div className="space-y-6 px-6 py-6 md:px-8">
+    <div className="space-y-4 px-6 py-5 md:px-8">
       <FilesHeader />
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <FilesToolbar
           search={search}
           onSearchChange={handleSearchChange}
           categoryFilter={categoryFilter}
           onCategoryFilterChange={handleCategoryChange}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
+          hasFilters={hasFilters}
+          onClearFilters={handleClearFilters}
           totalItems={pagination?.totalItems ?? files.length}
           isFetching={isFetching}
         />
+
+        {canDelete ? (
+          <FilesBulkToolbar
+            selectedCount={activeSelectedIds.length}
+            selectedFileIds={activeSelectedIds}
+            onClearSelection={() => setSelectedFileIds([])}
+          />
+        ) : null}
 
         {isEmpty ? (
           <FilesEmptyState hasFilters={hasFilters} />
@@ -131,13 +175,20 @@ export function FilesPage() {
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
+              selectedFileIds={activeSelectedIds}
+              onToggleFile={handleToggleFile}
+              onToggleAll={handleToggleAll}
+              canSelect={canDelete}
               highlightedFileId={highlightedFileId}
               onHighlightFile={setHighlightedFileId}
             />
             {pagination ? (
               <FilesPagination
                 pagination={pagination}
-                onPageChange={setPage}
+                onPageChange={(nextPage) => {
+                  setPage(nextPage);
+                  setSelectedFileIds([]);
+                }}
               />
             ) : null}
           </>

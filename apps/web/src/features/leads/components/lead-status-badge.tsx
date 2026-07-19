@@ -12,7 +12,7 @@ export function LeadStageBadge({ stage, archived }: LeadStageBadgeProps) {
   const styles = getStageColorStyles(stage.color);
 
   return (
-    <div className="flex max-w-[9rem] items-center gap-1">
+    <div className="flex max-w-[11rem] items-center gap-1">
       <span
         className={cn(
           "inline-flex h-5 max-w-full items-center truncate rounded px-1.5 text-[11px] font-medium",
@@ -27,7 +27,7 @@ export function LeadStageBadge({ stage, archived }: LeadStageBadgeProps) {
       </span>
       {archived ? (
         <Badge variant="secondary" className="h-4 px-1 text-[9px]">
-          Arc
+          Archived
         </Badge>
       ) : null}
     </div>

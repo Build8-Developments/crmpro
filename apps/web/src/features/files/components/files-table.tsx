@@ -4,11 +4,15 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileRowActions } from "@/features/files/components/file-row-actions";
 import type { FileAsset, FilesSortField } from "@/features/files/types";
 import {
   formatFileCategory,
   formatFileSize,
+  getFileCategoryTone,
+  getFileKind,
+  getFileKindTone,
   getFileTypeLabel,
 } from "@/features/files/utils/file-formatters";
 import { formatRelativeTime } from "@/lib/format";
@@ -19,6 +23,10 @@ interface FilesTableProps {
   sortBy: FilesSortField;
   sortOrder: "asc" | "desc";
   onSortChange: (sortBy: FilesSortField, sortOrder: "asc" | "desc") => void;
+  selectedFileIds: string[];
+  onToggleFile: (fileId: string) => void;
+  onToggleAll: (checked: boolean) => void;
+  canSelect?: boolean;
   highlightedFileId?: string | null;
   onHighlightFile?: (fileId: string) => void;
 }
@@ -43,7 +51,7 @@ function SortableHeader({
   return (
     <th
       className={cn(
-        "h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase",
+        "h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase",
         className,
       )}
     >
@@ -71,14 +79,25 @@ function SortableHeader({
   );
 }
 
-function FileIcon({ mimeType }: { mimeType: string }) {
-  if (mimeType.includes("pdf")) {
-    return <AppIcons.exports className="size-4" />;
-  }
-  if (mimeType.includes("csv") || mimeType.includes("spreadsheet")) {
-    return <AppIcons.imports className="size-4" />;
-  }
-  return <AppIcons.files className="size-4" />;
+function FileTypeIcon({ mimeType }: { mimeType: string }) {
+  const kind = getFileKind(mimeType);
+  const Icon =
+    kind === "pdf"
+      ? AppIcons.exports
+      : kind === "csv"
+        ? AppIcons.imports
+        : AppIcons.files;
+
+  return (
+    <span
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center rounded-md",
+        getFileKindTone(kind),
+      )}
+    >
+      <Icon className="size-3.5" />
+    </span>
+  );
 }
 
 export function FilesTable({
@@ -86,118 +105,154 @@ export function FilesTable({
   sortBy,
   sortOrder,
   onSortChange,
+  selectedFileIds,
+  onToggleFile,
+  onToggleAll,
+  canSelect = false,
   highlightedFileId,
   onHighlightFile,
 }: FilesTableProps) {
   const highlightRef = useRef<HTMLTableRowElement | null>(null);
+  const allSelected =
+    files.length > 0 && files.every((file) => selectedFileIds.includes(file.id));
+  const someSelected =
+    files.some((file) => selectedFileIds.includes(file.id)) && !allSelected;
 
   useEffect(() => {
     if (!highlightedFileId || !highlightRef.current) return;
-    highlightRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    highlightRef.current.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    });
   }, [highlightedFileId, files]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] border-collapse text-sm">
-          <thead className="border-b border-border/60 bg-muted/30">
-            <tr>
-              <th className="h-9 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
-                File
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[860px] border-collapse text-sm">
+        <thead className="border-b border-border/50 bg-muted/25">
+          <tr>
+            {canSelect ? (
+              <th className="h-8 w-10 px-3">
+                <Checkbox
+                  checked={
+                    allSelected ? true : someSelected ? "indeterminate" : false
+                  }
+                  onCheckedChange={(checked) => onToggleAll(checked === true)}
+                  aria-label="Select all files"
+                />
               </th>
-              <th className="h-9 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
-                Category
-              </th>
-              <th className="h-9 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
-                Linked to
-              </th>
-              <SortableHeader
-                label="Size"
-                column="sizeBytes"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSortChange={onSortChange}
-                className="text-left"
-              />
-              <SortableHeader
-                label="Uploaded"
-                column="createdAt"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSortChange={onSortChange}
-                className="text-left"
-              />
-              <th className="h-9 w-12 px-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {files.map((file) => {
-              const highlighted = file.id === highlightedFileId;
-              return (
-                <tr
-                  key={file.id}
-                  ref={highlighted ? highlightRef : undefined}
-                  className={cn(
-                    "border-b border-border/40 transition-colors last:border-b-0",
-                    highlighted && "bg-primary/5",
-                  )}
-                  onMouseEnter={() => onHighlightFile?.(file.id)}
-                >
-                  <td className="px-3 py-2.5">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                        <FileIcon mimeType={file.mimeType} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-foreground">
-                          {file.originalFilename}
-                        </p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {getFileTypeLabel(file.mimeType)} ·{" "}
-                          {file.uploadedBy.fullName}
-                        </p>
-                      </div>
+            ) : null}
+            <SortableHeader
+              label="File"
+              column="originalFilename"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
+            <th className="h-8 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
+              Category
+            </th>
+            <th className="h-8 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
+              Linked to
+            </th>
+            <SortableHeader
+              label="Size"
+              column="sizeBytes"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
+            <SortableHeader
+              label="Uploaded"
+              column="createdAt"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
+            <th className="h-8 w-20 px-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {files.map((file) => {
+            const highlighted = file.id === highlightedFileId;
+            const selected = selectedFileIds.includes(file.id);
+            return (
+              <tr
+                key={file.id}
+                ref={highlighted ? highlightRef : undefined}
+                className={cn(
+                  "border-b border-border/40 transition-colors last:border-b-0 hover:bg-muted/20",
+                  (highlighted || selected) && "bg-primary/5",
+                )}
+                onMouseEnter={() => onHighlightFile?.(file.id)}
+              >
+                {canSelect ? (
+                  <td className="px-3 py-2">
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={() => onToggleFile(file.id)}
+                      aria-label={`Select ${file.originalFilename}`}
+                    />
+                  </td>
+                ) : null}
+                <td className="px-3 py-2">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <FileTypeIcon mimeType={file.mimeType} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {file.originalFilename}
+                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {getFileTypeLabel(file.mimeType)} ·{" "}
+                        {file.uploadedBy.fullName}
+                      </p>
                     </div>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <Badge variant="outline" className="text-[10px] font-normal">
-                      {formatFileCategory(file.category)}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                    {file.lead ? (
-                      <Link
-                        href={`/leads?id=${file.lead.id}`}
-                        className="text-primary hover:underline"
-                      >
-                        {file.lead.fullName}
-                      </Link>
-                    ) : file.project ? (
-                      <Link
-                        href={`/projects?projectId=${file.project.id}`}
-                        className="text-primary hover:underline"
-                      >
-                        {file.project.name}
-                      </Link>
-                    ) : (
-                      "—"
+                  </div>
+                </td>
+                <td className="px-3 py-2">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 px-1.5 text-[10px] font-medium",
+                      getFileCategoryTone(file.category),
                     )}
-                  </td>
-                  <td className="px-3 py-2.5 text-xs tabular-nums text-muted-foreground">
-                    {formatFileSize(file.sizeBytes)}
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                    {formatRelativeTime(file.createdAt)}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <FileRowActions file={file} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                  >
+                    {formatFileCategory(file.category)}
+                  </Badge>
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {file.lead ? (
+                    <Link
+                      href={`/leads?id=${file.lead.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {file.lead.fullName}
+                    </Link>
+                  ) : file.project ? (
+                    <Link
+                      href={`/projects?projectId=${file.project.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {file.project.name}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
+                  {formatFileSize(file.sizeBytes)}
+                </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">
+                  {formatRelativeTime(file.createdAt)}
+                </td>
+                <td className="px-2 py-2">
+                  <FileRowActions file={file} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

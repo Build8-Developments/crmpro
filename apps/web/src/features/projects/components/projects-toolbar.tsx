@@ -1,6 +1,7 @@
 "use client";
 
 import { AppIcons } from "@/components/icons/app-icons";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -9,14 +10,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useProjectUiStore } from "@/features/projects/stores/project-ui-store";
+import type { ProjectStatusFilter } from "@/features/projects/types";
+import { usePermissions } from "@/hooks/use-permissions";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ProjectStatusFilter } from "@/features/projects/types";
 
 interface DeveloperOption {
   id: string;
   name: string;
 }
+
+const STATUS_CHIPS: Array<{ value: ProjectStatusFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+];
 
 interface ProjectsToolbarProps {
   search: string;
@@ -27,6 +36,8 @@ interface ProjectsToolbarProps {
   developersLoading?: boolean;
   statusFilter: ProjectStatusFilter;
   onStatusFilterChange: (filter: ProjectStatusFilter) => void;
+  hasFilters: boolean;
+  onClearFilters: () => void;
   totalItems: number;
   isFetching?: boolean;
 }
@@ -40,11 +51,16 @@ export function ProjectsToolbar({
   developersLoading,
   statusFilter,
   onStatusFilterChange,
+  hasFilters,
+  onClearFilters,
   totalItems,
   isFetching,
 }: ProjectsToolbarProps) {
+  const openCreateDialog = useProjectUiStore((s) => s.openCreateDialog);
+  const { can } = usePermissions();
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="space-y-3 border-b border-border/50 px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
           <AppIcons.search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -52,7 +68,7 @@ export function ProjectsToolbar({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search projects..."
-            className="h-8 pl-8 text-xs"
+            className="h-8 border-transparent bg-muted/40 pl-8 text-xs shadow-none"
             aria-label="Search projects"
           />
         </div>
@@ -64,7 +80,7 @@ export function ProjectsToolbar({
           }
           disabled={developersLoading}
         >
-          <SelectTrigger className="h-8 w-[10.5rem] text-xs">
+          <SelectTrigger className="h-8 w-[11rem] text-xs">
             <SelectValue placeholder="All developers" />
           </SelectTrigger>
           <SelectContent>
@@ -77,30 +93,59 @@ export function ProjectsToolbar({
           </SelectContent>
         </Select>
 
-        <Select
-          value={statusFilter}
-          onValueChange={(value) =>
-            onStatusFilterChange(value as ProjectStatusFilter)
-          }
-        >
-          <SelectTrigger className="h-8 w-[7.5rem] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
+        {hasFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={onClearFilters}
+          >
+            <AppIcons.close className="size-3.5" />
+            Clear
+          </Button>
+        ) : null}
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {isFetching ? (
-            <AppIcons.loader className="size-3.5 animate-spin" />
-          ) : null}
-          <span className={cn("font-medium tabular-nums text-foreground")}>
-            {formatNumber(totalItems)} projects
-          </span>
-        </div>
+        <span
+          className={cn(
+            "text-xs tabular-nums text-muted-foreground",
+            isFetching && "opacity-70",
+          )}
+        >
+          {formatNumber(totalItems)} projects
+        </span>
+
+        {can("project.create") ? (
+          <Button
+            size="sm"
+            className="ml-auto h-8"
+            onClick={openCreateDialog}
+          >
+            <AppIcons.create className="size-3.5" />
+            New project
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {STATUS_CHIPS.map((chip) => {
+          const active = statusFilter === chip.value;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => onStatusFilterChange(chip.value)}
+              className={cn(
+                "h-7 rounded-md px-2.5 text-[11px] font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {chip.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

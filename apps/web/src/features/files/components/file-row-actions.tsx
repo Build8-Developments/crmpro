@@ -24,8 +24,11 @@ export function FileRowActions({ file }: FileRowActionsProps) {
   const { can } = usePermissions();
   const [downloading, setDownloading] = useState(false);
 
+  const canRead = can("file.read");
+  const canDelete = can("file.delete");
+
   const handleDownload = async () => {
-    if (!can("file.read")) return;
+    if (!canRead) return;
 
     try {
       setDownloading(true);
@@ -36,40 +39,58 @@ export function FileRowActions({ file }: FileRowActionsProps) {
     }
   };
 
+  if (!canRead && !canDelete) return null;
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <div className="flex items-center justify-end gap-0.5">
+      {canRead ? (
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           className="size-7"
-          aria-label={`Actions for ${file.originalFilename}`}
+          disabled={downloading}
+          aria-label={`Download ${file.originalFilename}`}
+          onClick={() => void handleDownload()}
         >
-          <AppIcons.moreVertical className="size-4" />
+          <AppIcons.download className="size-3.5" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        {can("file.read") ? (
-          <DropdownMenuItem
-            disabled={downloading}
-            onClick={() => void handleDownload()}
-          >
-            <AppIcons.download className="size-3.5" />
-            {downloading ? "Opening..." : "Download"}
-          </DropdownMenuItem>
-        ) : null}
-        {can("file.delete") ? (
-          <>
-            <DropdownMenuSeparator />
+      ) : null}
+
+      {canDelete ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label={`More actions for ${file.originalFilename}`}
+            >
+              <AppIcons.moreVertical className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            {canRead ? (
+              <>
+                <DropdownMenuItem
+                  disabled={downloading}
+                  onClick={() => void handleDownload()}
+                >
+                  Download
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => openDeleteDialog(file.id)}
             >
               Delete
             </DropdownMenuItem>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+    </div>
   );
 }

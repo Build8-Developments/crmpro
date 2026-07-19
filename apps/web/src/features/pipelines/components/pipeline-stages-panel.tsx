@@ -18,6 +18,7 @@ import {
 } from "@/features/pipelines/utils/pipeline-stage";
 import { getStageColorStyles } from "@/features/leads/utils/stage-color";
 import { usePermissions } from "@/hooks/use-permissions";
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface PipelineStagesPanelProps {
@@ -35,20 +36,29 @@ export function PipelineStagesPanel({
   const { can } = usePermissions();
 
   const stages = sortStages(pipeline.stages);
+  const leadTotal = formatPipelineLeadTotal(stages);
 
   return (
-    <div className={cn("flex min-w-0 flex-col", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
+    <div className={cn("flex min-h-0 min-w-0 flex-col bg-background", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold">{pipeline.name}</h2>
-          <p className="text-xs text-muted-foreground">
-            {stages.length} stages · {formatPipelineLeadTotal(stages)} leads
-            {pipeline.isDefault ? " · default" : ""}
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-sm font-semibold text-foreground">
+              {pipeline.name}
+            </h2>
+            {pipeline.isDefault ? (
+              <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Default
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {stages.length} stages · {formatNumber(leadTotal)} leads
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <Button variant="ghost" size="sm" className="h-8" asChild>
+          <Button variant="outline" size="sm" className="h-8" asChild>
             <Link href={`/leads?pipelineId=${pipeline.id}`}>
               <AppIcons.leads className="size-3.5" />
               Leads
@@ -102,11 +112,13 @@ export function PipelineStagesPanel({
         </div>
       </div>
 
-      <div className="border-b border-border/40 bg-muted/15 px-4 py-2.5">
+      <div className="border-b border-border/40 px-4 py-3">
         <PipelineFlowStrip stages={stages} />
       </div>
 
-      <SortablePipelineStages pipeline={pipeline} />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <SortablePipelineStages pipeline={pipeline} />
+      </div>
     </div>
   );
 }
@@ -117,34 +129,32 @@ function formatPipelineLeadTotal(stages: PipelineStage[]): number {
 
 function PipelineFlowStrip({ stages }: { stages: PipelineStage[] }) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex items-center gap-0 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {stages.map((stage, index) => {
         const styles = getStageColorStyles(stage.color);
         const terminal = isTerminalSystemStage(stage);
         return (
-          <div key={stage.id} className="flex shrink-0 items-center gap-1">
+          <div key={stage.id} className="flex shrink-0 items-center">
             {index > 0 ? (
-              <AppIcons.chevronRight
-                className="size-3 shrink-0 text-muted-foreground/50"
-                stroke={2}
-              />
+              <span className="mx-1.5 h-px w-3 bg-border" aria-hidden />
             ) : null}
             <span
               className={cn(
-                "inline-flex h-6 max-w-[7.5rem] items-center truncate rounded-md px-2 text-[11px] font-medium",
-                terminal && "ring-1 ring-border/50 ring-inset",
+                "inline-flex items-center gap-1.5 text-[11px]",
+                terminal ? "font-medium text-foreground" : "text-muted-foreground",
               )}
-              style={{
-                backgroundColor: styles.backgroundColor,
-                color: styles.color,
-              }}
               title={
                 stage.leadCount > 0
                   ? `${stage.name} · ${stage.leadCount} leads`
                   : stage.name
               }
             >
-              {stage.name}
+              <span
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: styles.backgroundColor }}
+                aria-hidden
+              />
+              <span className="max-w-[6.5rem] truncate">{stage.name}</span>
             </span>
           </div>
         );

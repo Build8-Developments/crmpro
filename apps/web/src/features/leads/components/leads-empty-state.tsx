@@ -11,24 +11,26 @@ export function LeadsEmptyState() {
   const { can } = usePermissions();
 
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 px-6 py-16 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <AppIcons.leads className="size-6" />
-      </div>
-      <h2 className="text-lg font-semibold text-foreground">No leads yet</h2>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+    <div className="flex flex-col items-center px-6 py-16 text-center">
+      <span className="flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <AppIcons.leads className="size-5" />
+      </span>
+      <h2 className="mt-4 text-base font-semibold text-foreground">
+        No leads yet
+      </h2>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
         Import leads or create your first lead to start tracking your pipeline.
       </p>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-        <Button variant="outline" asChild>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <Button variant="outline" size="sm" asChild>
           <Link href="/imports">
-            <AppIcons.upload className="size-4" />
+            <AppIcons.upload className="size-3.5" />
             Import CSV
           </Link>
         </Button>
         {can("lead.create") ? (
-          <Button onClick={openCreateDialog}>
-            <AppIcons.create className="size-4" />
+          <Button size="sm" onClick={openCreateDialog}>
+            <AppIcons.create className="size-3.5" />
             Add Lead
           </Button>
         ) : null}

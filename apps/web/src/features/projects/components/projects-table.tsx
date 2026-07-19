@@ -3,10 +3,9 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
-import { Badge } from "@/components/ui/badge";
 import { ProjectRowActions } from "@/features/projects/components/project-row-actions";
 import type { Project, ProjectsSortField } from "@/features/projects/types";
-import { formatNumber, formatRelativeTime } from "@/lib/format";
+import { formatNumber, formatRelativeTime, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface ProjectsTableProps {
@@ -38,7 +37,7 @@ function SortableHeader({
   return (
     <th
       className={cn(
-        "h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase",
+        "h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase",
         className,
       )}
     >
@@ -75,57 +74,52 @@ export function ProjectsTable({
   onHighlightProject,
 }: ProjectsTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[880px] border-collapse text-sm">
-          <thead className="border-b border-border/70 bg-muted/50">
-            <tr className="text-left">
-              <SortableHeader
-                label="Project"
-                column="name"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSortChange={onSortChange}
-              />
-              <th className="h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
-                Developer
-              </th>
-              <th className="hidden h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase lg:table-cell">
-                Location
-              </th>
-              <SortableHeader
-                label="Status"
-                column="isActive"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSortChange={onSortChange}
-              />
-              <th className="h-9 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
-                Leads
-              </th>
-              <SortableHeader
-                label="Updated"
-                column="updatedAt"
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSortChange={onSortChange}
-                className="hidden md:table-cell"
-              />
-              <th className="h-9 w-10 px-2" aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map((project) => (
-              <ProjectTableRow
-                key={project.id}
-                project={project}
-                highlightedProjectId={highlightedProjectId}
-                onHighlightProject={onHighlightProject}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="overflow-x-auto bg-background">
+      <table className="w-full min-w-[820px] border-collapse text-sm">
+        <thead className="border-b border-border/50 bg-muted/25">
+          <tr className="text-left">
+            <SortableHeader
+              label="Project"
+              column="name"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
+            <th className="h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
+              Developer
+            </th>
+            <SortableHeader
+              label="Status"
+              column="isActive"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+            />
+            <th className="h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
+              Leads
+            </th>
+            <SortableHeader
+              label="Updated"
+              column="updatedAt"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={onSortChange}
+              className="hidden md:table-cell"
+            />
+            <th className="h-8 w-10 px-2" aria-label="Actions" />
+          </tr>
+        </thead>
+        <tbody>
+          {projects.map((project) => (
+            <ProjectTableRow
+              key={project.id}
+              project={project}
+              highlightedProjectId={highlightedProjectId}
+              onHighlightProject={onHighlightProject}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -141,6 +135,7 @@ function ProjectTableRow({
 }) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const isHighlighted = highlightedProjectId === project.id;
+  const leadCount = project.interestedLeadCount ?? 0;
 
   useEffect(() => {
     if (isHighlighted) {
@@ -152,47 +147,56 @@ function ProjectTableRow({
     <tr
       ref={rowRef}
       className={cn(
-        "border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30",
-        isHighlighted && "bg-primary/5 ring-1 ring-inset ring-primary/20",
+        "border-b border-border/40 transition-colors last:border-0 hover:bg-muted/20",
+        isHighlighted && "bg-primary/5",
         !project.isActive && "opacity-70",
       )}
       onClick={() => onHighlightProject?.(project.id)}
     >
       <td className="px-3 py-2.5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <AppIcons.projects className="size-4" />
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold tracking-wide text-muted-foreground">
+            {getInitials(project.name)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-foreground">
+              {project.name}
+            </p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {project.location?.trim() || "No location"}
+            </p>
           </div>
-          <span className="font-medium text-foreground">{project.name}</span>
         </div>
       </td>
       <td className="px-3 py-2.5">
         <Link
           href={`/developers?developerId=${project.developer.id}&search=${encodeURIComponent(project.developer.name)}`}
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="text-xs font-medium text-foreground/80 transition-colors hover:text-foreground"
           onClick={(event) => event.stopPropagation()}
         >
           {project.developer.name}
         </Link>
       </td>
-      <td className="hidden max-w-[12rem] truncate px-3 py-2.5 text-xs text-muted-foreground lg:table-cell">
-        {project.location ?? "—"}
-      </td>
       <td className="px-3 py-2.5">
-        <Badge variant={project.isActive ? "secondary" : "outline"}>
+        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              project.isActive ? "bg-emerald-500" : "bg-muted-foreground/40",
+            )}
+          />
           {project.isActive ? "Active" : "Inactive"}
-        </Badge>
+        </span>
       </td>
       <td className="px-3 py-2.5">
-        {(project.interestedLeadCount ?? 0) > 0 ? (
+        {leadCount > 0 ? (
           <Link
             href={`/leads?projectId=${project.id}`}
-            className="inline-flex"
+            className="inline-flex items-center gap-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:text-primary"
             onClick={(event) => event.stopPropagation()}
           >
-            <Badge variant="outline" className="tabular-nums">
-              {formatNumber(project.interestedLeadCount ?? 0)}
-            </Badge>
+            <AppIcons.leads className="size-3 text-muted-foreground" />
+            {formatNumber(leadCount)}
           </Link>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>

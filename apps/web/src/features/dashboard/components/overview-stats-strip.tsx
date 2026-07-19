@@ -1,9 +1,6 @@
 import Link from "next/link";
-import { AppIcons } from "@/components/icons/app-icons";
 import type { DashboardOverviewData } from "@/features/dashboard/types";
 import { formatDays, formatNumber } from "@/lib/format";
-import { Badge } from "@/components/ui/badge";
-import { dashboardEnterStyle } from "../utils";
 
 interface OverviewStatsStripProps {
   overview: DashboardOverviewData;
@@ -11,72 +8,63 @@ interface OverviewStatsStripProps {
 
 const stats = [
   {
-    key: "activePipelines",
+    key: "activePipelines" as const,
     label: "Pipelines",
-    icon: AppIcons.pipelines,
     href: "/pipelines",
-    format: formatNumber,
+    format: (v: number) => formatNumber(v),
   },
   {
-    key: "activeProjects",
+    key: "activeProjects" as const,
     label: "Projects",
-    icon: AppIcons.projects,
     href: "/projects",
-    format: formatNumber,
+    format: (v: number) => formatNumber(v),
   },
   {
-    key: "developers",
+    key: "developers" as const,
     label: "Developers",
-    icon: AppIcons.developers,
     href: "/developers",
-    format: formatNumber,
+    format: (v: number) => formatNumber(v),
   },
   {
-    key: "importsToday",
-    label: "Imports today",
-    icon: AppIcons.imports,
+    key: "importsToday" as const,
+    label: "Imports",
     href: "/imports",
-    format: formatNumber,
+    format: (v: number) => formatNumber(v),
   },
   {
-    key: "exportsToday",
-    label: "Exports today",
-    icon: AppIcons.exports,
+    key: "exportsToday" as const,
+    label: "Exports",
     href: "/exports",
-    format: formatNumber,
+    format: (v: number) => formatNumber(v),
   },
   {
-    key: "avgLeadAgeDays",
-    label: "Avg lead age",
-    icon: AppIcons.clock,
+    key: "avgLeadAgeDays" as const,
+    label: "Avg age",
     href: "/leads",
-    format: (value: number | null) => formatDays(value),
+    format: (v: number | null) => formatDays(v),
   },
 ] as const;
 
 export function OverviewStatsStrip({ overview }: OverviewStatsStripProps) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {stats.map((stat, index) => {
-        const Icon = stat.icon;
-        const rawValue = overview[stat.key];
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/50 px-3.5 py-2.5">
+      {stats.map((stat) => {
+        const raw = overview[stat.key];
         const display =
           stat.key === "avgLeadAgeDays"
-            ? stat.format(rawValue as number | null)
-            : stat.format(rawValue as number);
+            ? stat.format(raw as number | null)
+            : stat.format(raw as number);
 
         return (
           <Link
             key={stat.key}
             href={stat.href}
-            className="inline-flex items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-xs transition-shadow duration-150 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            style={dashboardEnterStyle(index + 6)}
+            className="inline-flex items-baseline gap-1.5 text-[11px] transition-colors hover:text-foreground"
           >
-            <Icon className="size-3.5 text-muted-foreground" stroke={2} />
             <span className="text-muted-foreground">{stat.label}</span>
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] tabular-nums">
+            <span className="font-medium tabular-nums text-foreground">
               {display}
-            </Badge>
+            </span>
           </Link>
         );
       })}

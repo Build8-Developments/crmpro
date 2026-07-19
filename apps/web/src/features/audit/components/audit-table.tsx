@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import type { AuditLog } from "@/features/audit/types";
 import {
   formatAuditAction,
-  formatAuditActorLabel,
   formatAuditEntityType,
+  formatAuditSummary,
+  formatAuditTime,
+  getAuditActionBadgeClass,
+  getAuditEntityHref,
+  getAuditTargetLabel,
 } from "@/features/audit/utils/audit-labels";
-import { formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface AuditTableProps {
@@ -17,66 +22,37 @@ interface AuditTableProps {
   selectedLogId?: string | null;
 }
 
-function EntityLink({ log }: { log: AuditLog }) {
-  if (!log.entityId) {
-    return <span className="text-muted-foreground">—</span>;
-  }
+function TargetCell({ log }: { log: AuditLog }) {
+  const label = getAuditTargetLabel(log);
+  const href = getAuditEntityHref(log.entityType, log.entityId);
 
-  if (log.entityType === "User") {
+  if (href) {
     return (
       <Link
-        href={`/users?userId=${log.entityId}`}
-        className="text-primary hover:underline"
+        href={href}
+        className="font-medium text-primary hover:underline"
         onClick={(event) => event.stopPropagation()}
       >
-        View user
+        {label}
       </Link>
     );
   }
 
-  if (log.entityType === "Role") {
-    return (
-      <Link
-        href={`/roles?roleId=${log.entityId}`}
-        className="text-primary hover:underline"
-        onClick={(event) => event.stopPropagation()}
-      >
-        View role
-      </Link>
-    );
-  }
-
-  if (log.entityType === "FileAsset") {
-    return (
-      <Link
-        href={`/files?fileId=${log.entityId}`}
-        className="text-primary hover:underline"
-        onClick={(event) => event.stopPropagation()}
-      >
-        View file
-      </Link>
-    );
-  }
-
-  return (
-    <span className="font-mono text-[11px] text-muted-foreground">
-      {log.entityId.slice(0, 8)}…
-    </span>
-  );
+  return <span className="text-muted-foreground">{label}</span>;
 }
 
 export function AuditTable({ logs, onSelectLog, selectedLogId }: AuditTableProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-sm">
+        <table className="w-full min-w-[920px] border-collapse text-sm">
           <thead className="border-b border-border/60 bg-muted/30">
             <tr>
               <th className="h-9 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
                 When
               </th>
               <th className="h-9 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
-                Actor
+                Event
               </th>
               <th className="h-9 px-3 text-left font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
                 Action
@@ -92,6 +68,12 @@ export function AuditTable({ logs, onSelectLog, selectedLogId }: AuditTableProps
           <tbody>
             {logs.map((log) => {
               const selected = log.id === selectedLogId;
+              const actorName = log.actor?.fullName ?? "System";
+              const detail =
+                typeof log.metadata?.detail === "string"
+                  ? log.metadata.detail
+                  : null;
+
               return (
                 <tr
                   key={log.id}
@@ -101,31 +83,55 @@ export function AuditTable({ logs, onSelectLog, selectedLogId }: AuditTableProps
                   )}
                   onClick={() => onSelectLog(log.id)}
                 >
-                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
-                    {formatRelativeTime(log.createdAt)}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-foreground">
-                        {formatAuditActorLabel(log.actorType, log.actor)}
+                  <td className="px-3 py-3 align-top">
+                    <div className="min-w-[5.5rem]">
+                      <p className="text-xs font-medium text-foreground">
+                        {formatRelativeTime(log.createdAt)}
                       </p>
-                      {log.actor?.email ? (
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {log.actor.email}
-                        </p>
-                      ) : null}
+                      <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                        {formatAuditTime(log.createdAt)}
+                      </p>
                     </div>
                   </td>
-                  <td className="px-3 py-2.5">
-                    <Badge variant="outline" className="text-[10px] font-normal">
+                  <td className="px-3 py-3 align-top">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <Avatar size="sm" className="mt-0.5">
+                        <AvatarFallback className="text-[10px]">
+                          {getInitials(actorName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-foreground">
+                          {formatAuditSummary(log)}
+                        </p>
+                        {detail ? (
+                          <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                            {detail}
+                          </p>
+                        ) : log.actor?.email ? (
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            {log.actor.email}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 align-top">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-medium",
+                        getAuditActionBadgeClass(log.action),
+                      )}
+                    >
                       {formatAuditAction(log.action)}
                     </Badge>
                   </td>
-                  <td className="px-3 py-2.5 text-xs text-muted-foreground">
+                  <td className="px-3 py-3 align-top text-xs text-muted-foreground">
                     {formatAuditEntityType(log.entityType)}
                   </td>
-                  <td className="px-3 py-2.5 text-xs">
-                    <EntityLink log={log} />
+                  <td className="px-3 py-3 align-top text-xs">
+                    <TargetCell log={log} />
                   </td>
                 </tr>
               );

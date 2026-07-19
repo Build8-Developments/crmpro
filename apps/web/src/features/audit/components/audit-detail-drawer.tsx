@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -14,10 +16,16 @@ import { useAuditUiStore } from "@/features/audit/stores/audit-ui-store";
 import {
   formatAuditAction,
   formatAuditActorLabel,
+  formatAuditDateTime,
   formatAuditEntityType,
-  formatAuditMetadata,
+  formatAuditSummary,
+  getAuditActionBadgeClass,
+  getAuditEntityHref,
+  getAuditTargetLabel,
+  getReadableMetadataEntries,
 } from "@/features/audit/utils/audit-labels";
 import { formatRelativeTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function AuditDetailDrawer() {
   const selectedLogId = useAuditUiStore((s) => s.selectedLogId);
@@ -25,14 +33,18 @@ export function AuditDetailDrawer() {
   const { data: log, isLoading, isError } = useAuditLog(selectedLogId ?? undefined);
 
   const open = Boolean(selectedLogId);
+  const href = log
+    ? getAuditEntityHref(log.entityType, log.entityId)
+    : null;
+  const metadataEntries = getReadableMetadataEntries(log?.metadata ?? null);
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && closeDrawer()}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
         <SheetHeader className="border-b border-border/60 px-5 py-4 text-left">
-          <SheetTitle>Audit event</SheetTitle>
+          <SheetTitle>Event details</SheetTitle>
           <SheetDescription>
-            Detailed record of a workspace activity event
+            What happened, who did it, and related context
           </SheetDescription>
         </SheetHeader>
 
@@ -51,70 +63,89 @@ export function AuditDetailDrawer() {
 
           {log ? (
             <div className="space-y-5">
-              <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-3 text-sm">
+              <div className="space-y-2">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-medium",
+                    getAuditActionBadgeClass(log.action),
+                  )}
+                >
+                  {formatAuditAction(log.action)}
+                </Badge>
+                <p className="text-sm font-medium leading-relaxed text-foreground">
+                  {formatAuditSummary(log)}
+                </p>
+              </div>
+
+              <dl className="grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-3 text-sm">
                 <dt className="text-muted-foreground">When</dt>
-                <dd>{formatRelativeTime(log.createdAt)}</dd>
+                <dd>
+                  <p>{formatAuditDateTime(log.createdAt)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatRelativeTime(log.createdAt)}
+                  </p>
+                </dd>
 
                 <dt className="text-muted-foreground">Actor</dt>
                 <dd>
-                  <div>
-                    <p>{formatAuditActorLabel(log.actorType, log.actor)}</p>
-                    {log.actor?.email ? (
-                      <p className="text-xs text-muted-foreground">
-                        {log.actor.email}
-                      </p>
-                    ) : null}
-                  </div>
+                  <p>{formatAuditActorLabel(log.actorType, log.actor)}</p>
+                  {log.actor?.email ? (
+                    <p className="text-xs text-muted-foreground">
+                      {log.actor.email}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {log.actorType === "SYSTEM"
+                        ? "Automated system event"
+                        : "No email available"}
+                    </p>
+                  )}
                 </dd>
-
-                <dt className="text-muted-foreground">Action</dt>
-                <dd>{formatAuditAction(log.action)}</dd>
 
                 <dt className="text-muted-foreground">Entity</dt>
                 <dd>{formatAuditEntityType(log.entityType)}</dd>
 
-                <dt className="text-muted-foreground">Entity ID</dt>
-                <dd className="font-mono text-xs break-all">
-                  {log.entityId ?? "—"}
+                <dt className="text-muted-foreground">Target</dt>
+                <dd className="min-w-0">
+                  <p className="break-words">{getAuditTargetLabel(log)}</p>
+                  {log.entityId ? (
+                    <p className="mt-0.5 font-mono text-[11px] break-all text-muted-foreground">
+                      {log.entityId}
+                    </p>
+                  ) : null}
                 </dd>
               </dl>
 
-              {log.entityId ? (
-                <div className="flex flex-wrap gap-2">
-                  {log.entityType === "User" ? (
-                    <Link
-                      href={`/users?userId=${log.entityId}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Open user
-                    </Link>
-                  ) : null}
-                  {log.entityType === "Role" ? (
-                    <Link
-                      href={`/roles?roleId=${log.entityId}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Open role
-                    </Link>
-                  ) : null}
-                  {log.entityType === "FileAsset" ? (
-                    <Link
-                      href={`/files?fileId=${log.entityId}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Open file
-                    </Link>
-                  ) : null}
-                </div>
+              {href ? (
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link href={href}>Open {formatAuditEntityType(log.entityType).toLowerCase()}</Link>
+                </Button>
               ) : null}
 
               <div>
                 <h3 className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  Metadata
+                  Details
                 </h3>
-                <pre className="overflow-x-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-[11px] leading-relaxed text-foreground">
-                  {formatAuditMetadata(log.metadata)}
-                </pre>
+                {metadataEntries.length > 0 ? (
+                  <dl className="divide-y divide-border/50 rounded-lg border border-border/60">
+                    {metadataEntries.map((entry) => (
+                      <div
+                        key={entry.key}
+                        className="grid grid-cols-[7rem_1fr] gap-3 px-3 py-2.5 text-xs"
+                      >
+                        <dt className="text-muted-foreground">{entry.label}</dt>
+                        <dd className="break-words text-foreground">
+                          {entry.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="rounded-lg border border-dashed border-border/60 px-3 py-4 text-xs text-muted-foreground">
+                    No additional details were recorded for this event.
+                  </p>
+                )}
               </div>
             </div>
           ) : null}

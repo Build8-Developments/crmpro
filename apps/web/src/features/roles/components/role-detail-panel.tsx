@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRole } from "@/features/roles/hooks";
@@ -33,8 +32,8 @@ export function RoleDetailPanel({ roleSummary }: RoleDetailPanelProps) {
 
   if (!roleSummary) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-10 text-center">
-        <AppIcons.roles className="size-8 text-muted-foreground/40" />
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+        <AppIcons.roles className="size-6 text-muted-foreground/40" />
         <p className="text-sm text-muted-foreground">
           Select a role to inspect permissions
         </p>
@@ -45,9 +44,10 @@ export function RoleDetailPanel({ roleSummary }: RoleDetailPanelProps) {
   if (isLoading && !roleDetail) {
     return (
       <div className="space-y-3 p-4">
-        <Skeleton className="h-10 w-56" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
       </div>
     );
   }
@@ -83,6 +83,7 @@ function RoleDetailContent({
   const updatePermissions = useUpdateRolePermissions();
   const [selectedKeys, setSelectedKeys] = useState(role.permissionKeys);
   const [permissionSearch, setPermissionSearch] = useState("");
+  const [showGrantedOnly, setShowGrantedOnly] = useState(false);
 
   const canManage = can("role.manage");
   const isReadOnly = !canManage || role.isSystem;
@@ -104,45 +105,49 @@ function RoleDetailContent({
     [actorPermissions],
   );
 
-  const grantableGroups = useMemo(() => {
-    const normalizedSearch = permissionSearch.trim().toLowerCase();
-
-    return PERMISSION_GROUP_ORDER.map((groupKey) => {
-      const grantable = [...PERMISSION_GROUPS[groupKey]].filter(canGrant);
-      if (grantable.length === 0) return null;
-
-      if (!normalizedSearch) {
-        return { groupKey, grantable };
-      }
-
-      const groupLabel = PERMISSION_GROUP_LABELS[groupKey].toLowerCase();
-      const matchesGroup = groupLabel.includes(normalizedSearch);
-
-      const filtered = grantable.filter((key) => {
-        if (matchesGroup) return true;
-        return formatPermissionActionLabel(key)
-          .toLowerCase()
-          .includes(normalizedSearch);
-      });
-
-      if (filtered.length === 0) return null;
-      return { groupKey, grantable: filtered };
-    }).filter(
-      (group): group is { groupKey: PermissionGroupKey; grantable: string[] } =>
-        group !== null,
-    );
-  }, [canGrant, permissionSearch]);
-
   const totalGrantable = useMemo(
     () =>
       PERMISSION_GROUP_ORDER.reduce(
         (count, groupKey) =>
-          count +
-          [...PERMISSION_GROUPS[groupKey]].filter(canGrant).length,
+          count + [...PERMISSION_GROUPS[groupKey]].filter(canGrant).length,
         0,
       ),
     [canGrant],
   );
+
+  const grantableGroups = useMemo(() => {
+    const normalizedSearch = permissionSearch.trim().toLowerCase();
+
+    return PERMISSION_GROUP_ORDER.map((groupKey) => {
+      let grantable = [...PERMISSION_GROUPS[groupKey]].filter(canGrant);
+      if (grantable.length === 0) return null;
+
+      if (showGrantedOnly) {
+        grantable = grantable.filter((key) => selectedKeys.includes(key));
+        if (grantable.length === 0) return null;
+      }
+
+      if (normalizedSearch) {
+        const groupLabel = PERMISSION_GROUP_LABELS[groupKey].toLowerCase();
+        const matchesGroup = groupLabel.includes(normalizedSearch);
+        grantable = grantable.filter((key) => {
+          if (matchesGroup) return true;
+          return (
+            formatPermissionActionLabel(key)
+              .toLowerCase()
+              .includes(normalizedSearch) ||
+            key.toLowerCase().includes(normalizedSearch)
+          );
+        });
+        if (grantable.length === 0) return null;
+      }
+
+      return { groupKey, grantable };
+    }).filter(
+      (group): group is { groupKey: PermissionGroupKey; grantable: string[] } =>
+        group !== null,
+    );
+  }, [canGrant, permissionSearch, selectedKeys, showGrantedOnly]);
 
   const togglePermission = (permissionKey: string) => {
     if (isReadOnly) return;
@@ -173,122 +178,104 @@ function RoleDetailContent({
     });
   };
 
-  const enabledPct =
-    totalGrantable > 0
-      ? Math.round((selectedKeys.length / totalGrantable) * 100)
-      : 0;
-
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 px-5 py-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold tracking-tight">
-              {role.name}
-            </h2>
-            <Badge
-              variant={role.isSystem ? "secondary" : "outline"}
-              className="h-5 px-1.5 text-[10px] font-normal"
-            >
-              {role.isSystem ? "System" : "Custom"}
-            </Badge>
-          </div>
-          {summary.description ? (
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              {summary.description}
-            </p>
-          ) : null}
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {formatNumber(selectedKeys.length)}
+      <div className="space-y-2.5 border-b border-border/50 px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h2 className="truncate text-base font-semibold tracking-tight">
+                {role.name}
+              </h2>
+              <Badge
+                variant={role.isSystem ? "secondary" : "outline"}
+                className="h-5 px-1.5 text-[10px] font-normal"
+              >
+                {role.isSystem ? "System" : "Custom"}
+              </Badge>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {summary.description ? `${summary.description} · ` : null}
+              <span className="tabular-nums">
+                <span className="font-medium text-foreground">
+                  {formatNumber(selectedKeys.length)}
+                </span>
+                /{formatNumber(totalGrantable)} permissions
               </span>
-              {" / "}
-              {formatNumber(totalGrantable)} permissions
-            </span>
-            <span className="text-muted-foreground/40">·</span>
-            <Link
-              href={`/users?roleId=${role.id}`}
-              className="text-xs text-primary hover:underline"
-            >
-              {formatNumber(role.userCount)} users
-            </Link>
+              {" · "}
+              <Link
+                href={`/users?roleId=${role.id}`}
+                className="text-primary hover:underline"
+              >
+                {formatNumber(role.userCount)} users
+              </Link>
+              {role.isSystem ? " · read-only" : null}
+            </p>
           </div>
+
+          {canManage && !role.isSystem ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => openEditDialog(role.id)}
+              >
+                Rename
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                disabled={role.userCount > 0}
+                onClick={() => openArchiveDialog(role.id)}
+              >
+                Archive
+              </Button>
+            </div>
+          ) : null}
         </div>
 
-        {canManage && !role.isSystem ? (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8"
-              onClick={() => openEditDialog(role.id)}
-            >
-              Rename
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-destructive hover:text-destructive"
-              disabled={role.userCount > 0}
-              onClick={() => openArchiveDialog(role.id)}
-            >
-              Archive
-            </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[10rem] flex-1 sm:max-w-xs">
+            <AppIcons.search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={permissionSearch}
+              onChange={(event) => setPermissionSearch(event.target.value)}
+              placeholder="Filter permissions..."
+              className="h-8 border-transparent bg-muted/40 pl-8 text-xs shadow-none"
+              aria-label="Filter permissions"
+            />
           </div>
-        ) : null}
-      </div>
-
-      {role.isSystem ? (
-        <div className="flex items-center gap-2 border-b border-border/40 bg-muted/30 px-5 py-2.5 text-xs text-muted-foreground">
-          <AppIcons.lock className="size-3.5 shrink-0" />
-          Built-in role — permissions are fixed by the platform.
-        </div>
-      ) : null}
-
-      <div className="border-b border-border/40 px-5 py-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="text-xs font-medium text-muted-foreground">
-            Coverage
-          </span>
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {enabledPct}%
-          </span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${enabledPct}%` }}
-          />
+          <button
+            type="button"
+            onClick={() => setShowGrantedOnly((current) => !current)}
+            className={cn(
+              "h-7 rounded-md px-2.5 text-[11px] font-medium transition-colors",
+              showGrantedOnly
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            Granted only
+          </button>
         </div>
       </div>
 
-      <div className="border-b border-border/40 px-5 py-2.5">
-        <div className="relative">
-          <AppIcons.search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={permissionSearch}
-            onChange={(event) => setPermissionSearch(event.target.value)}
-            placeholder="Filter permissions..."
-            className="h-8 border-transparent bg-muted/40 pl-8 text-xs shadow-none"
-            aria-label="Filter permissions"
-          />
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {grantableGroups.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No permissions match your search
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            No permissions match your filters
           </p>
         ) : (
-          <div className="mx-auto max-w-2xl space-y-4">
+          <div className="space-y-2.5">
             {grantableGroups.map(({ groupKey, grantable }) => (
               <PermissionGroupSection
                 key={groupKey}
                 groupKey={groupKey}
                 grantable={grantable}
                 selectedKeys={selectedKeys}
+                allGroupKeys={[...PERMISSION_GROUPS[groupKey]].filter(canGrant)}
                 isReadOnly={isReadOnly}
                 onToggleGroup={() => toggleGroup(groupKey)}
                 onTogglePermission={togglePermission}
@@ -299,7 +286,7 @@ function RoleDetailContent({
       </div>
 
       {canManage && !role.isSystem ? (
-        <div className="flex items-center justify-between gap-3 border-t border-border/50 bg-muted/20 px-5 py-3">
+        <div className="flex items-center justify-between gap-3 border-t border-border/50 bg-muted/20 px-4 py-2">
           <p className="text-xs text-muted-foreground">
             {selectedKeys.length === 0
               ? "Select at least one permission"
@@ -309,6 +296,7 @@ function RoleDetailContent({
           </p>
           <Button
             size="sm"
+            className="h-7"
             disabled={
               updatePermissions.isPending ||
               !isDirty ||
@@ -335,6 +323,7 @@ function PermissionGroupSection({
   groupKey,
   grantable,
   selectedKeys,
+  allGroupKeys,
   isReadOnly,
   onToggleGroup,
   onTogglePermission,
@@ -342,79 +331,73 @@ function PermissionGroupSection({
   groupKey: PermissionGroupKey;
   grantable: string[];
   selectedKeys: string[];
+  allGroupKeys: string[];
   isReadOnly: boolean;
   onToggleGroup: () => void;
   onTogglePermission: (key: string) => void;
 }) {
-  const selectedCount = grantable.filter((key) =>
+  const selectedCount = allGroupKeys.filter((key) =>
     selectedKeys.includes(key),
   ).length;
-  const allSelected = selectedCount === grantable.length;
-  const pct =
-    grantable.length > 0
-      ? Math.round((selectedCount / grantable.length) * 100)
-      : 0;
+  const allSelected =
+    allGroupKeys.length > 0 &&
+    allGroupKeys.every((key) => selectedKeys.includes(key));
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border/60">
-      <div className="flex items-center justify-between gap-3 bg-muted/25 px-3 py-2">
-        <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-          {PERMISSION_GROUP_LABELS[groupKey]}
-        </h3>
-        <div className="flex items-center gap-2">
+    <section className="rounded-lg border border-border/50 bg-card px-3 py-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h3 className="text-xs font-semibold text-foreground">
+            {PERMISSION_GROUP_LABELS[groupKey]}
+          </h3>
           <span className="text-[11px] tabular-nums text-muted-foreground">
-            {selectedCount}/{grantable.length}
+            {selectedCount}/{allGroupKeys.length}
           </span>
-          {!isReadOnly ? (
-            <button
-              type="button"
-              className="text-[11px] font-medium text-primary hover:underline"
-              onClick={onToggleGroup}
-            >
-              {allSelected ? "Clear all" : "Select all"}
-            </button>
-          ) : null}
         </div>
+        {!isReadOnly ? (
+          <button
+            type="button"
+            className="shrink-0 text-[11px] font-medium text-primary hover:underline"
+            onClick={onToggleGroup}
+          >
+            {allSelected ? "Clear" : "Select all"}
+          </button>
+        ) : null}
       </div>
 
-      <div className="h-px bg-border/50">
-        <div
-          className="h-full bg-primary/60 transition-all duration-200"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      <ul className="divide-y divide-border/40">
+      <div className="flex flex-wrap gap-1.5">
         {grantable.map((permissionKey) => {
           const active = selectedKeys.includes(permissionKey);
           return (
-            <li key={permissionKey}>
-              <label
-                className={cn(
-                  "flex items-center justify-between gap-3 px-3 py-2.5",
-                  !isReadOnly && "cursor-pointer hover:bg-muted/20",
-                  isReadOnly && "cursor-default",
-                )}
-              >
-                <span
-                  className={cn(
-                    "text-sm",
-                    active ? "text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {formatPermissionActionLabel(permissionKey)}
-                </span>
-                <Checkbox
-                  checked={active}
-                  disabled={isReadOnly}
-                  onCheckedChange={() => onTogglePermission(permissionKey)}
-                  aria-label={formatPermissionActionLabel(permissionKey)}
-                />
-              </label>
-            </li>
+            <button
+              key={permissionKey}
+              type="button"
+              disabled={isReadOnly}
+              title={permissionKey}
+              aria-pressed={active}
+              onClick={() => onTogglePermission(permissionKey)}
+              className={cn(
+                "inline-flex h-7 items-center rounded-md border px-2.5 text-[11px] font-medium transition-colors",
+                active
+                  ? "border-primary/35 bg-primary/10 text-foreground"
+                  : "border-border/70 bg-muted/30 text-muted-foreground",
+                !isReadOnly &&
+                  !active &&
+                  "hover:border-border hover:bg-muted/50 hover:text-foreground",
+                !isReadOnly &&
+                  active &&
+                  "hover:border-primary/50 hover:bg-primary/15",
+                isReadOnly && "cursor-default",
+              )}
+            >
+              {active ? (
+                <AppIcons.check className="mr-1 size-3 text-primary" />
+              ) : null}
+              {formatPermissionActionLabel(permissionKey)}
+            </button>
           );
         })}
-      </ul>
+      </div>
     </section>
   );
 }

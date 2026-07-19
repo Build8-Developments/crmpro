@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,13 @@ import {
 } from "@/components/ui/select";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
+import {
+  countActiveLeadFilters,
+  LEADS_PAGE_SIZE_OPTIONS,
+} from "@/features/leads/utils/lead-filters";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
-import { LEADS_PAGE_SIZE_OPTIONS } from "@/features/leads/utils/lead-filters";
+import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
+import { usePermissions } from "@/hooks/use-permissions";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
 import { ActiveFilterBadges } from "./active-filter-badges";
 
@@ -30,6 +35,14 @@ interface LeadsToolbarProps {
   isFetching?: boolean;
 }
 
+const QUICK_CHIPS: Array<{
+  key: "unassignedOnly" | "staleOnly";
+  label: string;
+}> = [
+  { key: "unassignedOnly", label: "Unassigned" },
+  { key: "staleOnly", label: "Stale" },
+];
+
 export function LeadsToolbar({
   search,
   onSearchChange,
@@ -41,41 +54,48 @@ export function LeadsToolbar({
   onClearFilters,
   isFetching,
 }: LeadsToolbarProps) {
+  const openCreateDialog = useLeadUiStore((s) => s.openCreateDialog);
+  const { can } = usePermissions();
   const activeFilterCount = countActiveLeadFilters(filters);
+  const sheetFilterCount =
+    activeFilterCount -
+    (filters.unassignedOnly ? 1 : 0) -
+    (filters.staleOnly ? 1 : 0);
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-col gap-2 border-b border-border/60 pb-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <div className="relative min-w-[12rem] flex-1 sm:max-w-sm">
+    <div className="space-y-3 border-b border-border/50 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
           <AppIcons.search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search name, email, phone..."
-            className="h-8 pl-8 text-xs"
+            className="h-8 border-transparent bg-muted/40 pl-8 text-xs shadow-none"
             aria-label="Search leads"
           />
         </div>
+
         <LeadsFiltersSheet
           filters={filters}
           onFiltersChange={onFiltersChange}
-          activeCount={activeFilterCount}
+          activeCount={sheetFilterCount}
         />
-        {activeFilterCount > 0 ? (
+
+        {activeFilterCount > 0 || search.trim().length > 0 ? (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground"
+            className="h-8 px-2 text-xs"
             onClick={onClearFilters}
           >
+            <AppIcons.close className="size-3.5" />
             Clear
           </Button>
         ) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="shrink-0">Rows</span>
           <Select
             value={String(pageSize)}
@@ -93,14 +113,57 @@ export function LeadsToolbar({
             </SelectContent>
           </Select>
         </div>
-        {isFetching ? (
-          <AppIcons.loader className="size-3.5 animate-spin" />
-        ) : null}
-        <span className={cn("font-medium tabular-nums text-foreground")}>
+
+        <span
+          className={cn(
+            "text-xs tabular-nums text-muted-foreground",
+            isFetching && "opacity-70",
+          )}
+        >
           {formatNumber(totalItems)} leads
         </span>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8" asChild>
+            <Link href="/imports">
+              <AppIcons.upload className="size-3.5" />
+              Import CSV
+            </Link>
+          </Button>
+          {can("lead.create") ? (
+            <Button size="sm" className="h-8" onClick={openCreateDialog}>
+              <AppIcons.create className="size-3.5" />
+              Add Lead
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      <div className="flex flex-wrap gap-1">
+        {QUICK_CHIPS.map((chip) => {
+          const active = Boolean(filters[chip.key]);
+          return (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() =>
+                onFiltersChange({
+                  [chip.key]: active ? undefined : true,
+                })
+              }
+              className={cn(
+                "h-7 rounded-md px-2.5 text-[11px] font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {chip.label}
+            </button>
+          );
+        })}
       </div>
+
       <ActiveFilterBadges
         filters={filters}
         onFiltersChange={onFiltersChange}

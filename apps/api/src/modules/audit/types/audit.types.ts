@@ -12,6 +12,7 @@ export type AuditLogResponse = {
   action: string;
   entityType: string;
   entityId: string | null;
+  entityLabel: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   actor: AuditActorSummary | null;

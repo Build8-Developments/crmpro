@@ -19,35 +19,115 @@ export function useDeleteFile() {
   });
 }
 
+export function useBulkDeleteFiles() {
+  return useApiMutation({
+    mutationFn: async (fileIds: string[]) => {
+      const results = await Promise.allSettled(
+        fileIds.map((fileId) => deleteFile(fileId)),
+      );
+      const failed = results.filter((result) => result.status === "rejected");
+      if (failed.length === fileIds.length) {
+        throw new Error("Failed to delete selected files");
+      }
+      return {
+        successCount: fileIds.length - failed.length,
+        failureCount: failed.length,
+      };
+    },
+    successMessage: "Selected files deleted",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+function putFileWithProgress(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader(
+      "Content-Type",
+      file.type || "application/octet-stream",
+    );
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+        return;
+      }
+      reject(new Error("Failed to upload file to storage"));
+    };
+
+    xhr.onerror = () => reject(new Error("Failed to upload file to storage"));
+    xhr.send(file);
+  });
+}
+
+export async function uploadFileWithProgress(
+  file: File,
+  onProgress?: (progress: number) => void,
+) {
+  onProgress?.(0);
+
+  const intent = await requestFileUpload({
+    fileName: file.name,
+    contentType: file.type || "application/octet-stream",
+    sizeBytes: file.size,
+  });
+
+  await putFileWithProgress(intent.uploadUrl, file, (progress) => {
+    // Reserve the last 5% for complete-upload.
+    onProgress?.(Math.min(progress, 95));
+  });
+
+  const input: CompleteUploadInput = {
+    objectKey: intent.objectKey,
+    category: "OTHER",
+  };
+
+  const result = await completeFileUpload(input);
+  onProgress?.(100);
+  return result;
+}
+
 export function useUploadFile() {
   return useApiMutation({
-    mutationFn: async (file: File) => {
-      const intent = await requestFileUpload({
-        fileName: file.name,
-        contentType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
+    mutationFn: (file: File) => uploadFileWithProgress(file),
+    successMessage: "File uploaded",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
 
-      const uploadResponse = await fetch(intent.uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
-      });
+export function useUploadFiles() {
+  return useApiMutation({
+    mutationFn: async ({
+      files,
+      onFileProgress,
+    }: {
+      files: File[];
+      onFileProgress?: (index: number, progress: number) => void;
+    }) => {
+      const uploaded = [];
 
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file to storage");
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index]!;
+        const result = await uploadFileWithProgress(file, (progress) => {
+          onFileProgress?.(index, progress);
+        });
+        uploaded.push(result);
       }
 
-      const input: CompleteUploadInput = {
-        objectKey: intent.objectKey,
-        category: "OTHER",
-      };
-
-      return completeFileUpload(input);
+      return uploaded;
     },
-    successMessage: "File uploaded",
+    successMessage: "Files uploaded",
     invalidateKeys: [...filesInvalidateKeys],
   });
 }

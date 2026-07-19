@@ -1,13 +1,5 @@
-import { PagePlaceholder } from "@/components/crm/page-placeholder";
-import { getRoute } from "@/config/routes";
+import { SettingsPage } from "@/features/settings/components/settings-page";
 
-export default function SettingsPage() {
-  const route = getRoute("/settings");
-  return (
-    <PagePlaceholder
-      title={route?.label ?? "Settings"}
-      subtitle={route?.subtitle}
-      icon={route?.icon}
-    />
-  );
+export default function Page() {
+  return <SettingsPage />;
 }
