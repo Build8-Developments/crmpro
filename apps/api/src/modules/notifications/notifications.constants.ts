@@ -38,6 +38,7 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.TASK_DUE]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_OVERDUE]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_COMPLETED]: NotificationPreferenceCategory.TASK_UPDATES,
+  [NotificationType.SUPPORT_REPLY]: NotificationPreferenceCategory.SYSTEM,
 };
 
 export const DEFAULT_NOTIFICATION_PRIORITY = NotificationPriority.NORMAL;

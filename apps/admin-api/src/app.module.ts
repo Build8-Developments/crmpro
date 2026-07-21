@@ -11,6 +11,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { PlatformAnalyticsModule } from './modules/platform-analytics/platform-analytics.module';
+import { SystemModule } from './modules/system/system.module';
+import { SearchModule } from './modules/search/search.module';
+import { SupportModule } from './modules/support/support.module';
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { TenantsModule } from './modules/tenants/tenants.module';
     ContractsModule,
     TenantsModule,
     AuditModule,
+    PlatformAnalyticsModule,
+    SystemModule,
+    SearchModule,
+    SupportModule,
   ],
   controllers: [],
   providers: [

@@ -3,6 +3,7 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PERMISSIONS } from '@crmpro/shared/auth';
 import { PermissionsGuard, RequirePermission } from '../../common/auth';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InternalMonitoringGuard } from './guards/internal-monitoring.guard';
 import { MonitoringService } from './monitoring.service';
 
 @ApiTags('Monitoring')
@@ -35,6 +36,17 @@ export class MonitoringController {
   @ApiResponse({ status: 200, description: 'Runtime metrics snapshot' })
   async getMetrics() {
     const data = await this.monitoringService.getMetrics();
+    return { success: true, data };
+  }
+
+  @Get('internal/monitoring/snapshot')
+  @UseGuards(InternalMonitoringGuard)
+  @ApiOperation({
+    summary: 'Internal ops snapshot for platform admin (health + jobs + metrics)',
+  })
+  @ApiResponse({ status: 200, description: 'Combined monitoring snapshot' })
+  async getInternalSnapshot() {
+    const data = await this.monitoringService.getSnapshot();
     return { success: true, data };
   }
 }

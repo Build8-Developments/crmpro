@@ -154,6 +154,15 @@ export const navGroups: NavGroup[] = [
         searchable: true,
         keywords: ["logs", "history", "activity"],
       },
+      {
+        label: "Support",
+        href: "/support",
+        subtitle: "Chat with CRMPro platform support",
+        icon: AppIcons.lifeBuoy,
+        requiredPermissions: ["support.read"],
+        searchable: true,
+        keywords: ["help", "ticket", "contact", "chat", "support", "inbox"],
+      },
     ],
   },
 ];

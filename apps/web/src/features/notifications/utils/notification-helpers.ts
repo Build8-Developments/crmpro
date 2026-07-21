@@ -19,6 +19,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, AppIcon> = {
   TASK_DUE: AppIcons.users,
   TASK_OVERDUE: AppIcons.users,
   TASK_COMPLETED: AppIcons.users,
+  SUPPORT_REPLY: AppIcons.lifeBuoy,
 };
 
 function metaString(
@@ -33,6 +34,8 @@ function metaString(
 
 export function getNotificationHref(notification: Notification): string | null {
   const leadId = metaString(notification.metadata, "leadId");
+  const href = metaString(notification.metadata, "href");
+  const conversationId = metaString(notification.metadata, "conversationId");
 
   switch (notification.type) {
     case "LEAD_ASSIGNED":
@@ -54,9 +57,16 @@ export function getNotificationHref(notification: Notification): string | null {
       return "/settings";
     case "REMINDER":
       return "/leads";
+    case "SUPPORT_REPLY":
+      return (
+        href ??
+        (conversationId
+          ? `/support?id=${encodeURIComponent(conversationId)}`
+          : "/support")
+      );
     case "SYSTEM":
     default:
-      return null;
+      return href;
   }
 }
 

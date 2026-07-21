@@ -45,6 +45,9 @@ export default () => {
   database: {
     url: process.env.DATABASE_URL,
   },
+  monitoring: {
+    internalKey: process.env.INTERNAL_MONITORING_KEY,
+  },
   redis: {
     url: process.env.REDIS_URL,
     ...redisConnection,

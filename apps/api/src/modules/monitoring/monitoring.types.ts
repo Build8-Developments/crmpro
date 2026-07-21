@@ -59,3 +59,9 @@ export interface MetricsData {
   };
   workers: WorkerHealthMap;
 }
+
+export interface MonitoringSnapshotData {
+  health: GlobalHealthData;
+  jobs: JobsHealthData;
+  metrics: MetricsData;
+}

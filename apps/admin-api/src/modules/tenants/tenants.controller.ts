@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedAdmin } from '../auth/auth.types';
 import { extractRequestSecurityMetadata } from '../auth/utils/request-metadata.util';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { GetTenantUsersQueryDto } from './dto/get-tenant-users-query.dto';
 import { GetTenantsQueryDto } from './dto/get-tenants-query.dto';
 import { ResetTenantOwnerPasswordDto } from './dto/reset-tenant-owner-password.dto';
 import { UpdateTenantDetailsDto } from './dto/update-tenant-details.dto';
@@ -43,6 +44,16 @@ export class TenantsController {
   @RequireAdminPermission(ADMIN_PERMISSIONS.TENANT_READ)
   async getTenantUsage(@Param('id', ParseUUIDPipe) id: string) {
     const data = await this.tenantsService.getTenantUsage(id);
+    return { success: true, data };
+  }
+
+  @Get(':id/users')
+  @RequireAdminPermission(ADMIN_PERMISSIONS.TENANT_READ)
+  async listTenantUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: GetTenantUsersQueryDto,
+  ) {
+    const data = await this.tenantsService.listTenantUsers(id, query);
     return { success: true, data };
   }
 

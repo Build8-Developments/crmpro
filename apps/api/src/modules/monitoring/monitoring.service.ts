@@ -41,4 +41,18 @@ export class MonitoringService {
   getMetrics(): Promise<MetricsData> {
     return this.metricsService.getMetrics();
   }
+
+  async getSnapshot(): Promise<{
+    health: Awaited<ReturnType<MonitoringService['getGlobalHealth']>>;
+    jobs: Awaited<ReturnType<MonitoringService['getJobsHealth']>>;
+    metrics: Awaited<ReturnType<MonitoringService['getMetrics']>>;
+  }> {
+    const [health, jobs, metrics] = await Promise.all([
+      this.getGlobalHealth(),
+      this.getJobsHealth(),
+      this.getMetrics(),
+    ]);
+
+    return { health, jobs, metrics };
+  }
 }

@@ -10,6 +10,17 @@ export default () => ({
   redis: {
     url: process.env.REDIS_URL,
   },
+  tenantApi: {
+    baseUrl:
+      process.env.TENANT_API_URL ?? 'http://localhost:3000/api/v1',
+    internalMonitoringKey: process.env.INTERNAL_MONITORING_KEY,
+  },
+  jobs: {
+    stuckTimeoutMinutes: parseInt(
+      process.env.STUCK_JOB_TIMEOUT_MINUTES ?? '15',
+      10,
+    ),
+  },
   auth: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
     accessExpiration: process.env.JWT_ACCESS_EXPIRATION ?? '15m',

@@ -1,8 +1,17 @@
 import type { NextConfig } from "next";
 
+const apiProxyTarget =
+  process.env.API_PROXY_TARGET ?? "http://localhost:3100";
+
 const nextConfig: NextConfig = {
-  /* config options here */
-  // port
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiProxyTarget}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

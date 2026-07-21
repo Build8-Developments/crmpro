@@ -105,6 +105,20 @@ enum NotificationType {
   TASK_DUE
   TASK_OVERDUE
   TASK_COMPLETED
+  SUPPORT_REPLY
+}
+
+enum SupportConversationStatus {
+  OPEN
+  WAITING_ON_USER
+  WAITING_ON_ADMIN
+  RESOLVED
+  CLOSED
+}
+
+enum SupportMessageAuthorType {
+  USER
+  ADMIN
 }
 
 enum NotificationPriority {
@@ -220,6 +234,8 @@ model Tenant {
   importJobs       ImportJob[]
   exportJobs       ExportJob[]
   notifications         Notification[]
+  supportNotes          TenantNote[]
+  supportConversations  SupportConversation[]
 
   @@index([subscriptionPlanId])
 }
@@ -290,6 +306,8 @@ model User {
   notifications      Notification[]        @relation("NotificationRecipient")
   createdNotifications Notification[]      @relation("NotificationCreator")
   notificationPreferences NotificationPreference[]
+  supportConversations SupportConversation[] @relation("SupportConversationCreator")
+  supportMessages      SupportMessage[]      @relation("SupportMessageUserAuthor")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -675,9 +693,12 @@ model PlatformAdmin {
   sessions        AdminSession[]
   auditLogs       AdminAuditLog[]
   securityEvents  AdminSecurityEvent[]
-  authoredNotes    AdminNote[]          @relation("AdminNoteAuthor")
-  receivedNotes    AdminNote[]          @relation("AdminNoteTarget")
-  createdContracts TenantContract[]
+  authoredNotes       AdminNote[]          @relation("AdminNoteAuthor")
+  receivedNotes       AdminNote[]          @relation("AdminNoteTarget")
+  authoredTenantNotes TenantNote[]         @relation("TenantNoteAuthor")
+  assignedSupportConversations SupportConversation[] @relation("SupportConversationAssignee")
+  supportMessages     SupportMessage[]     @relation("SupportMessageAdminAuthor")
+  createdContracts    TenantContract[]
 
   @@index([roleId])
   @@index([isActive])
@@ -788,6 +809,69 @@ model AdminNote {
 
   @@index([targetAdminId, deletedAt])
   @@index([authorAdminId])
+}
+
+/// Internal support notes on a tenant workspace (platform operators only).
+model TenantNote {
+  id            String    @id @default(uuid()) @db.Uuid
+  tenantId      String    @db.Uuid
+  authorAdminId String    @db.Uuid
+  content       String    @db.VarChar(5000)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  authorAdmin PlatformAdmin @relation("TenantNoteAuthor", fields: [authorAdminId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deletedAt])
+  @@index([authorAdminId])
+}
+
+/// User ↔ platform admin support conversation (cross-tenant inbox on admin side).
+model SupportConversation {
+  id                 String                    @id @default(uuid()) @db.Uuid
+  tenantId           String                    @db.Uuid
+  createdByUserId    String                    @db.Uuid
+  assignedAdminId    String?                   @db.Uuid
+  subject            String                    @db.VarChar(200)
+  status             SupportConversationStatus @default(OPEN)
+  lastMessageAt      DateTime                  @default(now())
+  lastMessagePreview String?                   @db.VarChar(280)
+  userUnreadCount    Int                       @default(0)
+  adminUnreadCount   Int                       @default(0)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  closedAt           DateTime?
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdByUser User           @relation("SupportConversationCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  assignedAdmin PlatformAdmin? @relation("SupportConversationAssignee", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  messages      SupportMessage[]
+
+  @@index([tenantId, status, lastMessageAt(sort: Desc)])
+  @@index([assignedAdminId, status, lastMessageAt(sort: Desc)])
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@index([createdByUserId])
+}
+
+model SupportMessage {
+  id             String                   @id @default(uuid()) @db.Uuid
+  conversationId String                   @db.Uuid
+  tenantId       String                   @db.Uuid
+  authorType     SupportMessageAuthorType
+  authorUserId   String?                  @db.Uuid
+  authorAdminId  String?                  @db.Uuid
+  body           String                   @db.VarChar(10000)
+  createdAt      DateTime                 @default(now())
+  deletedAt      DateTime?
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorUser   User?               @relation("SupportMessageUserAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorAdmin  PlatformAdmin?      @relation("SupportMessageAdminAuthor", fields: [authorAdminId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 /// Commercial contract for a tenant. DB enforces at most one ACTIVE row per tenantId (partial unique index).

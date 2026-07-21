@@ -101,6 +101,14 @@ export const queryKeys = {
       ["audit", "list", params ?? {}] as const,
     detail: (id: string) => ["audit", "detail", id] as const,
   },
+
+  support: {
+    all: () => ["support"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["support", "list", params ?? {}] as const,
+    detail: (id: string) => ["support", "detail", id] as const,
+    unreadCount: () => ["support", "unread-count"] as const,
+  },
 } as const;
 
 export type QueryKeyFactory = typeof queryKeys;

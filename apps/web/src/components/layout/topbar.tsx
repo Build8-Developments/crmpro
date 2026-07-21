@@ -248,6 +248,15 @@ function UserMenu({
         <DropdownMenuItem
           onSelect={() => {
             onOpenChange?.(false);
+            router.push("/support");
+          }}
+        >
+          <AppIcons.lifeBuoy className="size-4" stroke={1.75} />
+          Support
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            onOpenChange?.(false);
             router.push("/settings");
           }}
         >

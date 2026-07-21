@@ -73,6 +73,7 @@ export class NotificationTemplateService {
           priority: NotificationPriority.NORMAL,
         };
       case NotificationType.SYSTEM:
+      case NotificationType.SUPPORT_REPLY:
       default:
         return {
           title: this.asString(input.metadata.title, 'System Notification'),

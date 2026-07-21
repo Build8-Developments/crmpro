@@ -1,0 +1,491 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.9842 0.0034 247.8575);
+  --foreground: oklch(0.2077 0.0398 265.7549);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2077 0.0398 265.7549);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2077 0.0398 265.7549);
+  --primary: oklch(0.6959 0.1491 162.4796);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9683 0.0069 247.8956);
+  --secondary-foreground: oklch(0.2795 0.0368 260.031);
+  --muted: oklch(0.9683 0.0069 247.8956);
+  --muted-foreground: oklch(0.5544 0.0407 257.4166);
+  --accent: oklch(0.9793 0.0207 166.1129);
+  --accent-foreground: oklch(0.4318 0.0865 166.9128);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9288 0.0126 255.5078);
+  --input: oklch(0.9288 0.0126 255.5078);
+  --ring: oklch(0.6959 0.1491 162.4796);
+  --chart-1: oklch(0.6959 0.1491 162.4796);
+  --chart-2: oklch(0.6231 0.188 259.8145);
+  --chart-3: oklch(0.5854 0.2041 277.1173);
+  --chart-4: oklch(0.7686 0.1647 70.0804);
+  --chart-5: oklch(0.6368 0.2078 25.3313);
+  --sidebar: oklch(0.2077 0.0398 265.7549);
+  --sidebar-foreground: oklch(0.9842 0.0034 247.8575);
+  --sidebar-primary: oklch(0.6959 0.1491 162.4796);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2795 0.0368 260.031);
+  --sidebar-accent-foreground: oklch(0.9842 0.0034 247.8575);
+  --sidebar-border: oklch(0.2795 0.0368 260.031);
+  --sidebar-ring: oklch(0.6959 0.1491 162.4796);
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: JetBrains Mono, monospace;
+  --radius: 0.5rem;
+  --shadow-x: 0px;
+  --shadow-y: 2px;
+  --shadow-blur: 10px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.05;
+  --shadow-color: 0 0 0;
+  --shadow-2xs: 0px 2px 10px 0px hsl(0 0 0 / 0.03);
+  --shadow-xs: 0px 2px 10px 0px hsl(0 0 0 / 0.03);
+  --shadow-sm:
+    0px 2px 10px 0px hsl(0 0 0 / 0.05), 0px 1px 2px -1px hsl(0 0 0 / 0.05);
+  --shadow:
+    0px 2px 10px 0px hsl(0 0 0 / 0.05), 0px 1px 2px -1px hsl(0 0 0 / 0.05);
+  --shadow-md:
+    0px 2px 10px 0px hsl(0 0 0 / 0.05), 0px 2px 4px -1px hsl(0 0 0 / 0.05);
+  --shadow-lg:
+    0px 2px 10px 0px hsl(0 0 0 / 0.05), 0px 4px 6px -1px hsl(0 0 0 / 0.05);
+  --shadow-xl:
+    0px 2px 10px 0px hsl(0 0 0 / 0.05), 0px 8px 10px -1px hsl(0 0 0 / 0.05);
+  --shadow-2xl: 0px 2px 10px 0px hsl(0 0 0 / 0.13);
+  --tracking-normal: -0.01em;
+  --spacing: 0.25rem;
+
+  /* Scrollbars — slim, theme-aware */
+  --scrollbar-size: 7px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklch, var(--border) 55%, var(--muted-foreground) 45%);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--primary) 50%, var(--muted-foreground) 50%);
+  --scrollbar-thumb-active: var(--primary);
+}
+
+.dark {
+  --background: oklch(0.1288 0.0406 264.6952);
+  --foreground: oklch(0.9842 0.0034 247.8575);
+  --card: oklch(0.2077 0.0398 265.7549);
+  --card-foreground: oklch(0.9842 0.0034 247.8575);
+  --popover: oklch(0.2077 0.0398 265.7549);
+  --popover-foreground: oklch(0.9842 0.0034 247.8575);
+  --primary: oklch(0.6959 0.1491 162.4796);
+  --primary-foreground: oklch(0.1288 0.0406 264.6952);
+  --secondary: oklch(0.2795 0.0368 260.031);
+  --secondary-foreground: oklch(0.9683 0.0069 247.8956);
+  --muted: oklch(0.2795 0.0368 260.031);
+  --muted-foreground: oklch(0.7107 0.0351 256.7878);
+  --accent: oklch(0.378 0.073 168.9398);
+  --accent-foreground: oklch(0.9505 0.0507 163.0508);
+  --destructive: oklch(0.3958 0.1331 25.723);
+  --destructive-foreground: oklch(0.9842 0.0034 247.8575);
+  --border: oklch(0.2795 0.0368 260.031);
+  --input: oklch(0.2795 0.0368 260.031);
+  --ring: oklch(0.6959 0.1491 162.4796);
+  --chart-1: oklch(0.6959 0.1491 162.4796);
+  --chart-2: oklch(0.7137 0.1434 254.624);
+  --chart-3: oklch(0.6801 0.1583 276.9349);
+  --chart-4: oklch(0.8369 0.1644 84.4286);
+  --chart-5: oklch(0.7106 0.1661 22.2162);
+  --sidebar: oklch(0.1288 0.0406 264.6952);
+  --sidebar-foreground: oklch(0.9842 0.0034 247.8575);
+  --sidebar-primary: oklch(0.6959 0.1491 162.4796);
+  --sidebar-primary-foreground: oklch(0.1288 0.0406 264.6952);
+  --sidebar-accent: oklch(0.2795 0.0368 260.031);
+  --sidebar-accent-foreground: oklch(0.9842 0.0034 247.8575);
+  --sidebar-border: oklch(0.2795 0.0368 260.031);
+  --sidebar-ring: oklch(0.6959 0.1491 162.4796);
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: JetBrains Mono, monospace;
+  --radius: 0.5rem;
+  --shadow-x: 0px;
+  --shadow-y: 4px;
+  --shadow-blur: 15px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.2;
+  --shadow-color: 0 0 0;
+  --shadow-2xs: 0px 4px 15px 0px hsl(0 0 0 / 0.1);
+  --shadow-xs: 0px 4px 15px 0px hsl(0 0 0 / 0.1);
+  --shadow-sm:
+    0px 4px 15px 0px hsl(0 0 0 / 0.2), 0px 1px 2px -1px hsl(0 0 0 / 0.2);
+  --shadow:
+    0px 4px 15px 0px hsl(0 0 0 / 0.2), 0px 1px 2px -1px hsl(0 0 0 / 0.2);
+  --shadow-md:
+    0px 4px 15px 0px hsl(0 0 0 / 0.2), 0px 2px 4px -1px hsl(0 0 0 / 0.2);
+  --shadow-lg:
+    0px 4px 15px 0px hsl(0 0 0 / 0.2), 0px 4px 6px -1px hsl(0 0 0 / 0.2);
+  --shadow-xl:
+    0px 4px 15px 0px hsl(0 0 0 / 0.2), 0px 8px 10px -1px hsl(0 0 0 / 0.2);
+  --shadow-2xl: 0px 4px 15px 0px hsl(0 0 0 / 0.5);
+
+  --scrollbar-thumb: color-mix(in oklch, var(--border) 40%, var(--muted-foreground) 60%);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--primary) 45%, var(--muted-foreground) 55%);
+  --scrollbar-thumb-active: color-mix(in oklch, var(--primary) 70%, var(--foreground) 30%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+    transition: background-color var(--duration-fast) var(--ease-spring);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background-color: var(--scrollbar-thumb-active);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select,
+  [data-slot="dropdown-menu-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-checkbox-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-radio-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-sub-trigger"]:not([data-disabled]),
+  [data-slot="command-item"]:not([data-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled],
+  [data-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/*
+ * Theme switching should feel smooth without making every interaction sluggish.
+ * The `.theme-transition` class is added only while the user toggles theme.
+ */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition-property:
+    background-color, border-color, color, fill, stroke, box-shadow, opacity,
+    scrollbar-color;
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-spring);
+}
+
+/*
+ * Motion system
+ * Rule: fast = 150ms, medium = 200ms, large = 300ms
+ * Easing: spring-like cubic-bezier(0.16, 1, 0.3, 1)
+ */
+:root {
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-medium: 200ms;
+  --duration-large: 300ms;
+}
+
+@keyframes crm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes crm-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes crm-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes crm-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes crm-dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes crm-dialog-out {
+  from {
+    opacity: 1;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+
+@keyframes crm-command-in {
+  from {
+    opacity: 0;
+    translate: -50% calc(-50% - 6px);
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    translate: -50% -50%;
+    scale: 1;
+  }
+}
+
+@keyframes crm-command-out {
+  from {
+    opacity: 1;
+    translate: -50% -50%;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: -50% calc(-50% - 6px);
+    scale: 0.98;
+  }
+}
+
+@keyframes crm-mobile-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.985;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes crm-mobile-panel-out {
+  from {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    translate: 0 -4px;
+    scale: 0.985;
+  }
+}
+
+/* ── Dropdowns & menus — 200ms spring ── */
+[data-slot="dropdown-menu-content"][data-state="open"],
+[data-slot="dropdown-menu-sub-content"][data-state="open"] {
+  animation: crm-menu-in var(--duration-medium) var(--ease-spring) both;
+}
+
+[data-slot="dropdown-menu-content"][data-state="closed"],
+[data-slot="dropdown-menu-sub-content"][data-state="closed"] {
+  animation: crm-menu-out 140ms ease-in both;
+}
+
+.mobile-notification-panel[data-state="open"] {
+  animation: crm-mobile-panel-in var(--duration-medium) var(--ease-spring) both;
+}
+
+.mobile-notification-panel[data-state="closed"] {
+  animation: crm-mobile-panel-out 140ms ease-in both;
+}
+
+/* ── Tooltips — quick fade ── */
+[data-slot="tooltip-content"][data-state="delayed-open"],
+[data-slot="tooltip-content"][data-state="instant-open"] {
+  animation: crm-menu-in var(--duration-fast) var(--ease-spring) both;
+}
+
+/* ── Dialogs & sheets — 300ms spring ── */
+[data-slot="dialog-overlay"][data-state="open"] {
+  animation: crm-fade-in var(--duration-large) var(--ease-spring) both;
+}
+
+[data-slot="dialog-overlay"][data-state="closed"] {
+  animation: crm-fade-out 180ms ease-in both;
+}
+
+[data-slot="dialog-content"][data-state="open"]:not(.cmd-palette-content),
+[data-slot="sheet-content"][data-state="open"] {
+  animation: crm-dialog-in var(--duration-large) var(--ease-spring) both;
+}
+
+[data-slot="dialog-content"][data-state="closed"]:not(.cmd-palette-content),
+[data-slot="sheet-content"][data-state="closed"] {
+  animation: crm-dialog-out 180ms ease-in both;
+}
+
+/*
+ * Command palette dialog override.
+ * Keeps the palette exactly centered while allowing the animation to use
+ * translate/scale without fighting the Dialog primitive transform classes.
+ */
+.cmd-palette-content {
+  top: 50% !important;
+  left: 50% !important;
+  translate: -50% -50%;
+  transform: none !important;
+  max-width: min(640px, calc(100vw - 2rem)) !important;
+}
+
+.cmd-palette-content[data-state="open"] {
+  animation: crm-command-in var(--duration-large) var(--ease-spring) both;
+}
+
+.cmd-palette-content[data-state="closed"] {
+  animation: crm-command-out 180ms ease-in both;
+}
+
+@keyframes dashboard-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-enter {
+  animation: dashboard-fade-up 220ms ease-out forwards;
+}
+

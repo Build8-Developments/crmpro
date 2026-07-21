@@ -35,6 +35,7 @@ export const envValidationSchema = Joi.object({
   ENABLE_AUTH_LOGGING: Joi.string().valid('true', 'false', '1', '0').optional(),
   SLOW_QUERY_THRESHOLD_MS: Joi.number().integer().min(1).optional(),
   API_VERSION: Joi.string().optional(),
+  INTERNAL_MONITORING_KEY: Joi.string().min(16).optional(),
   ANALYTICS_CACHE_TTL_SECONDS: Joi.number().integer().min(1).optional(),
   NOTIFICATION_UNREAD_TTL_SECONDS: Joi.number().integer().min(1).optional(),
   BULL_NOTIFICATION_CONCURRENCY: Joi.number().integer().min(1).optional(),

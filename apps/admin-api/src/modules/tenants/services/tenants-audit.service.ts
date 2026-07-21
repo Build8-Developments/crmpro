@@ -141,6 +141,51 @@ export class TenantsAuditService {
     );
   }
 
+  async logTenantNoteCreated(
+    actorAdminId: string,
+    noteId: string,
+    tenantId: string,
+    metadata: RequestSecurityMetadata,
+  ): Promise<void> {
+    await this.write({
+      actorAdminId,
+      action: 'TENANT_NOTE_CREATED',
+      entityType: 'TenantNote',
+      entityId: noteId,
+      metadata: { ...metadata, tenantId },
+    });
+  }
+
+  async logTenantNoteUpdated(
+    actorAdminId: string,
+    noteId: string,
+    tenantId: string,
+    metadata: RequestSecurityMetadata,
+  ): Promise<void> {
+    await this.write({
+      actorAdminId,
+      action: 'TENANT_NOTE_UPDATED',
+      entityType: 'TenantNote',
+      entityId: noteId,
+      metadata: { ...metadata, tenantId },
+    });
+  }
+
+  async logTenantNoteDeleted(
+    actorAdminId: string,
+    noteId: string,
+    tenantId: string,
+    metadata: RequestSecurityMetadata,
+  ): Promise<void> {
+    await this.write({
+      actorAdminId,
+      action: 'TENANT_NOTE_DELETED',
+      entityType: 'TenantNote',
+      entityId: noteId,
+      metadata: { ...metadata, tenantId },
+    });
+  }
+
   private async write(
     input: {
       actorAdminId: string;

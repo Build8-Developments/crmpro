@@ -12,6 +12,7 @@ import {
 import type { PaginatedResponse } from '../../common/pagination/types/paginated-response.type';
 import type { RequestSecurityMetadata } from '../auth/auth.types';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { GetTenantUsersQueryDto } from './dto/get-tenant-users-query.dto';
 import { GetTenantsQueryDto } from './dto/get-tenants-query.dto';
 import { ResetTenantOwnerPasswordDto } from './dto/reset-tenant-owner-password.dto';
 import type { TenantUsageResponse } from './dto/tenant-usage-response.dto';
@@ -114,6 +115,85 @@ export class TenantsService {
     }
 
     return toTenantDetail(tenant);
+  }
+
+  async listTenantUsers(
+    tenantId: string,
+    query: GetTenantUsersQueryDto,
+  ): Promise<
+    PaginatedResponse<{
+      id: string;
+      name: string;
+      email: string;
+      phone: string | null;
+      isActive: boolean;
+      lastLoginAt: string | null;
+      createdAt: string;
+      role: { id: string; name: string };
+    }>
+  > {
+    await this.assertTenantExists(tenantId);
+
+    const { page, limit, skip, take } = getPaginationParams(query);
+    const where: Prisma.UserWhereInput = {
+      tenantId,
+      deletedAt: null,
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { email: { contains: query.search, mode: 'insensitive' } },
+              { phone: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [totalItems, users] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          isActive: true,
+          lastLoginAt: true,
+          createdAt: true,
+          role: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    return buildPaginatedResponse(
+      users.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        isActive: user.isActive,
+        lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+        createdAt: user.createdAt.toISOString(),
+        role: user.role,
+      })),
+      page,
+      limit,
+      totalItems,
+    );
+  }
+
+  private async assertTenantExists(tenantId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
   }
 
   async createTenant(
