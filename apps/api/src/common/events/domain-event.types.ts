@@ -6,6 +6,8 @@ export const DOMAIN_EVENT_TYPES = {
   PIPELINE_CHANGED: 'pipeline.changed',
   IMPORT_COMPLETED: 'import.completed',
   EXPORT_COMPLETED: 'export.completed',
+  NOTIFICATION_CREATED: 'notification.created',
+  SUPPORT_MESSAGE_CREATED: 'support.message.created',
 } as const;
 
 export type DomainEventType =
@@ -88,3 +90,23 @@ export const ANALYTICS_INVALIDATION_EVENT_TYPES: readonly DomainEventType[] = [
   DOMAIN_EVENT_TYPES.IMPORT_COMPLETED,
   DOMAIN_EVENT_TYPES.EXPORT_COMPLETED,
 ];
+
+export class NotificationCreatedEvent implements DomainEvent {
+  readonly type = DOMAIN_EVENT_TYPES.NOTIFICATION_CREATED;
+
+  constructor(
+    readonly tenantId: string,
+    readonly userId: string,
+    readonly actorId?: string,
+  ) {}
+}
+
+export class SupportMessageCreatedEvent implements DomainEvent {
+  readonly type = DOMAIN_EVENT_TYPES.SUPPORT_MESSAGE_CREATED;
+
+  constructor(
+    readonly tenantId: string,
+    readonly conversationId: string,
+    readonly userId: string,
+  ) {}
+}

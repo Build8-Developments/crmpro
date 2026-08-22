@@ -156,6 +156,7 @@ async function executeRequest<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: "include",
+        cache: "no-store",
       signal: options.signal,
     });
   } catch (cause) {

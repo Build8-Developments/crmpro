@@ -11,6 +11,7 @@ import {
   SupportMessageAuthorType,
 } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { StreamingService } from '../streaming/streaming.service';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -29,7 +30,7 @@ function previewOf(body: string): string {
 
 @Injectable()
 export class AdminSupportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly streamingService: StreamingService) {}
 
   async listConversations(
     query: GetAdminSupportConversationsQueryDto,
@@ -158,7 +159,7 @@ export class AdminSupportService {
             title: 'Support replied',
             message: `New reply on “${conversation.subject}”`,
             conversationId,
-            href: `/support/${conversationId}`,
+            href: `/support?id=${conversationId}`,
           },
           priority: NotificationPriority.NORMAL,
           status: NotificationStatus.UNREAD,
@@ -169,6 +170,9 @@ export class AdminSupportService {
       return created;
     });
 
+    this.streamingService.publishToRedis(conversation.createdByUserId, { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: admin.id } });
+    this.streamingService.publishToRedis(conversation.createdByUserId, { type: 'invalidate', data: { entity: 'notifications' } });
+    this.streamingService.publishToRedis('admin-broadcast', { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: admin.id } });
     return toMessageItem(message);
   }
 
@@ -191,6 +195,9 @@ export class AdminSupportService {
       },
       include: conversationInclude,
     });
+
+    this.streamingService.publishToRedis(updated.createdByUserId, { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
+    this.streamingService.publishToRedis('admin-broadcast', { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
 
     return toAdminConversationListItem(updated);
   }

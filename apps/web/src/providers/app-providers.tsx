@@ -5,6 +5,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
+import { useRealtimeStream } from "@/hooks/use-realtime-stream";
+
+function RealtimeStreamInit() {
+  useRealtimeStream();
+  return null;
+}
 
 /**
  * Root provider tree for the application.
@@ -18,6 +24,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <TooltipProvider delayDuration={200}>
           {children}
           <Toaster />
+          <RealtimeStreamInit />
         </TooltipProvider>
       </AuthProvider>
     </QueryProvider>

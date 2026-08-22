@@ -189,6 +189,7 @@ async function executeAuthRequest<T>(
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: "include",
+        cache: "no-store",
     });
   } catch (cause) {
     throw new ApiError({

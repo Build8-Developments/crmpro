@@ -31,7 +31,7 @@ export function useSupportConversation(id: string | undefined) {
     queryKey: queryKeys.support.detail(id ?? ""),
     queryFn: () => getSupportConversation(id!),
     enabled: status === "authenticated" && Boolean(id),
-    refetchInterval: id ? 5_000 : false,
+    // refetchInterval removed in favor of real-time SSE gateway
   });
 }
 
@@ -45,6 +45,6 @@ export function useSupportUnreadCount(options?: { enabled?: boolean }) {
       return data.count;
     },
     enabled: status === "authenticated" && (options?.enabled ?? true),
-    refetchInterval: 30_000,
+    // refetchInterval removed in favor of real-time SSE gateway
   });
 }

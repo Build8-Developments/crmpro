@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { navGroups } from "@/config/routes";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useSupportUnreadCount } from "@/features/support/hooks";
 import { useUIStore } from "@/stores/ui-store";
 import {
   Tooltip,
@@ -46,6 +47,7 @@ function SidebarNav({
 }) {
   const pathname = usePathname();
   const { canAccessRoute } = usePermissions();
+  const { data: unreadCount } = useSupportUnreadCount();
 
   return (
     <nav className="scrollbar-none flex flex-1 flex-col gap-5 overflow-y-auto px-2 py-4">
@@ -95,8 +97,18 @@ function SidebarNav({
                   {!collapsed && (
                     <span className="truncate leading-none">{route.label}</span>
                   )}
-                  {/* Active left-edge accent */}
-                  {active && !collapsed && (
+                  
+                  {!collapsed && route.label === "Support" && unreadCount ? (
+                    <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-sidebar-primary px-1 text-[10px] font-bold leading-none text-sidebar-primary-foreground">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
+                  {collapsed && route.label === "Support" && unreadCount ? (
+                    <span className="absolute right-1 top-1 flex size-2 rounded-full bg-sidebar-primary" />
+                  ) : null}
+
+                  {/* Active right-edge accent */}
+                  {active && !collapsed && route.label !== "Support" && (
                     <span className="absolute right-2 size-1 rounded-full bg-sidebar-primary opacity-70" />
                   )}
                 </Link>

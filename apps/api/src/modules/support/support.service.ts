@@ -8,6 +8,9 @@ import {
   SupportMessageAuthorType,
 } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { StreamingService } from '../streaming/streaming.service';
+import { DomainEventBus } from '../../common/events/domain-event-bus.service';
+import { SupportMessageCreatedEvent } from '../../common/events/domain-event.types';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -26,7 +29,7 @@ function previewOf(body: string): string {
 
 @Injectable()
 export class SupportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
 
   async listConversations(
     tenantId: string,
@@ -154,6 +157,7 @@ export class SupportService {
       });
     });
 
+    this.eventBus.publish(new SupportMessageCreatedEvent(tenantId, conversation.id, userId, userId));
     return toConversationListItem(conversation);
   }
 
@@ -210,6 +214,7 @@ export class SupportService {
       return created;
     });
 
+    this.eventBus.publish(new SupportMessageCreatedEvent(tenantId, conversationId, userId, userId));
     return toMessageItem(message);
   }
 
@@ -231,6 +236,8 @@ export class SupportService {
       },
     });
 
+    this.streamingService.publishToRedis(userId, { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
+    this.streamingService.publishToRedis('admin-broadcast', { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
     return toConversationListItem(updated);
   }
 

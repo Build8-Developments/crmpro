@@ -3,6 +3,13 @@
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Role } from "@/features/roles/types";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -41,8 +48,41 @@ export function RoleCard({ role, onClick, onEdit, onArchive }: RoleCardProps) {
           )}
         </div>
         
-        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", role.isSystem ? "bg-muted/70 text-muted-foreground" : "bg-primary/10 text-primary")}>
-          {role.isSystem ? <AppIcons.lock className="size-4" /> : <AppIcons.roles className="size-4" />}
+        <div className="flex items-center gap-1">
+          <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", role.isSystem ? "bg-muted/70 text-muted-foreground" : "bg-primary/10 text-primary")}>
+            {role.isSystem ? <AppIcons.lock className="size-4" /> : <AppIcons.roles className="size-4" />}
+          </div>
+          
+          {canManage && !role.isSystem ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
+                  <AppIcons.moreVertical className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {onEdit && (
+                  <DropdownMenuItem onClick={onEdit}>
+                    <AppIcons.edit className="mr-2 size-4" />
+                    Rename Role
+                  </DropdownMenuItem>
+                )}
+                {onArchive && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={onArchive} 
+                      disabled={role.userCount > 0}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <AppIcons.archive className="mr-2 size-4" />
+                      Archive Role
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       </div>
 
@@ -68,25 +108,10 @@ export function RoleCard({ role, onClick, onEdit, onArchive }: RoleCardProps) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-2 border-t border-border/50 pt-4">
-        <Button variant="outline" size="sm" className="h-8 flex-1 bg-background" onClick={onClick}>
+      <div className="mt-6 flex border-t border-border/50 pt-4">
+        <Button variant="outline" size="sm" className="h-8 w-full bg-background" onClick={onClick}>
           {role.isSystem ? "View Permissions" : "Edit Permissions"}
         </Button>
-        
-        {canManage && !role.isSystem ? (
-          <div className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-            {onEdit && (
-              <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" onClick={onEdit} title="Rename Role">
-                <AppIcons.edit className="size-4" />
-              </Button>
-            )}
-            {onArchive && (
-              <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" onClick={onArchive} disabled={role.userCount > 0} title={role.userCount > 0 ? "Cannot archive role with active users" : "Archive Role"}>
-                <AppIcons.archive className="size-4" />
-              </Button>
-            )}
-          </div>
-        ) : null}
       </div>
     </div>
   );

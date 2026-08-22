@@ -15,6 +15,7 @@ import { PlatformAnalyticsModule } from './modules/platform-analytics/platform-a
 import { SystemModule } from './modules/system/system.module';
 import { SearchModule } from './modules/search/search.module';
 import { SupportModule } from './modules/support/support.module';
+import { StreamingModule } from './modules/streaming/streaming.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SupportModule } from './modules/support/support.module';
     SystemModule,
     SearchModule,
     SupportModule,
+    StreamingModule,
   ],
   controllers: [],
   providers: [

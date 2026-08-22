@@ -16,7 +16,7 @@ export function useAdminSupportSummary(options?: { enabled?: boolean }) {
     queryKey: queryKeys.support.summary(),
     queryFn: getAdminSupportSummary,
     enabled: status === "authenticated" && (options?.enabled ?? true),
-    refetchInterval: 30_000,
+    // refetchInterval removed
   });
 }
 
@@ -39,6 +39,6 @@ export function useAdminSupportConversation(id: string | undefined) {
     queryKey: queryKeys.support.detail(id ?? ""),
     queryFn: () => getAdminSupportConversation(id!),
     enabled: status === "authenticated" && Boolean(id),
-    refetchInterval: id ? 5_000 : false,
+    // refetchInterval removed
   });
 }

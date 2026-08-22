@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { AuditActorType, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
+import { NotificationCreatedEvent } from '../../../common/events/domain-event.types';
 import {
   IN_APP_NOTIFICATION_CHANNEL,
   NotificationDeliveryChannel,
@@ -11,7 +13,7 @@ import { NotificationDeliveryContext } from '../entities/notification.types';
 export class InAppNotificationChannel implements NotificationDeliveryChannel {
   readonly channelId = IN_APP_NOTIFICATION_CHANNEL;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
     await this.prisma.$transaction(async (tx) => {

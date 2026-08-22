@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@crmpro/shared": "workspace:*",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-table": "^8.21.3",
