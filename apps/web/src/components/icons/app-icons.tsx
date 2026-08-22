@@ -58,6 +58,11 @@ import {
   IconPhone,
   IconGripVertical,
   IconLifebuoy,
+  IconEye,
+  IconEyeOff,
+  IconRefresh,
+  IconArchive,
+  IconTrash,
 } from "@tabler/icons-react";
 
 /**
@@ -130,6 +135,11 @@ export const AppIcons = {
   grip: IconGripVertical,
   team: IconUsersGroup,
   lifeBuoy: IconLifebuoy,
+  eye: IconEye,
+  eyeOff: IconEyeOff,
+  refresh: IconRefresh,
+  archive: IconArchive,
+  trash: IconTrash,
 } satisfies Record<string, AppIcon>;
 
 export type AppIconName = keyof typeof AppIcons;

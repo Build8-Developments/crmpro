@@ -53,6 +53,8 @@ export const queryKeys = {
     all: () => ["users"] as const,
     list: (params?: ListQueryParams) => ["users", "list", params ?? {}] as const,
     detail: (id: string) => ["users", "detail", id] as const,
+    checkEmail: (email: string) => ["users", "check-email", email] as const,
+    quota: () => ["users", "quota"] as const,
   },
 
   roles: {

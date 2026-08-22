@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUserQuota } from "@/features/users/hooks";
 import { useUserUiStore } from "@/features/users/stores/user-ui-store";
 import type { RoleOption, UserStatusFilter } from "@/features/users/types";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -47,6 +48,9 @@ export function UsersToolbar({
 }: UsersToolbarProps) {
   const openCreateDialog = useUserUiStore((s) => s.openCreateDialog);
   const { can } = usePermissions();
+  const { data: quota } = useUserQuota();
+  
+  const isAtQuotaLimit = quota && quota.maxUsers !== null && quota.currentUsers >= quota.maxUsers;
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border/50 px-4 py-3">
@@ -120,14 +124,23 @@ export function UsersToolbar({
       </span>
 
       {can("user.create") ? (
-        <Button
-          size="sm"
-          className="ml-auto h-8"
-          onClick={openCreateDialog}
-        >
-          <AppIcons.create className="size-3.5" />
-          New user
-        </Button>
+        <div className="ml-auto flex items-center gap-3">
+          {quota && quota.maxUsers !== null ? (
+            <span className={cn("text-xs", isAtQuotaLimit ? "text-destructive font-medium" : "text-muted-foreground")}>
+              Quota: {quota.currentUsers} / {quota.maxUsers}
+            </span>
+          ) : null}
+          <Button
+            size="sm"
+            className="h-8"
+            onClick={openCreateDialog}
+            disabled={isAtQuotaLimit ?? false}
+            title={isAtQuotaLimit ? "User quota exceeded for current subscription plan" : undefined}
+          >
+            <AppIcons.create className="size-3.5" />
+            New user
+          </Button>
+        </div>
       ) : null}
     </div>
   );

@@ -184,7 +184,6 @@ export function FilesTable({
                   "border-b border-border/40 transition-colors last:border-b-0 hover:bg-muted/20",
                   (highlighted || selected) && "bg-primary/5",
                 )}
-                onMouseEnter={() => onHighlightFile?.(file.id)}
               >
                 {canSelect ? (
                   <td className="px-3 py-2">

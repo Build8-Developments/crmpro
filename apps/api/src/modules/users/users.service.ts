@@ -143,7 +143,7 @@ export class UsersService {
     actorUserId: string,
     dto: CreateUserDto,
   ): Promise<UserListItem> {
-    await this.assertEmailAvailable(dto.email);
+    await this.assertEmailAvailable(tenantId, dto.email);
     await this.userGuardService.assertActorCanAssignRole(
       tenantId,
       actorUserId,
@@ -427,9 +427,30 @@ export class UsersService {
     };
   }
 
-  private async assertEmailAvailable(email: string): Promise<void> {
+  async getUserQuota(tenantId: string): Promise<{ maxUsers: number | null; currentUsers: number }> {
+    const plan = await this.quotaService.getTenantPlanLimits(tenantId);
+    const currentUsers = await this.prisma.user.count({
+      where: { tenantId, deletedAt: null, isActive: true },
+    });
+    return { maxUsers: plan.maxUsers, currentUsers };
+  }
+
+  async checkEmailAvailable(tenantId: string, email: string): Promise<boolean> {
     const existing = await this.prisma.user.findFirst({
       where: {
+        tenantId,
+        email: { equals: email, mode: 'insensitive' },
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    return !existing;
+  }
+
+  private async assertEmailAvailable(tenantId: string, email: string): Promise<void> {
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
         email: { equals: email, mode: 'insensitive' },
         deletedAt: null,
       },

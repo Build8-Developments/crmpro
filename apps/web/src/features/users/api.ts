@@ -58,3 +58,13 @@ export function resetUserPassword(id: string, input: ResetUserPasswordInput) {
 export function revokeUserSessions(id: string) {
   return apiClient.post<{ revokedCount: number }>(`/users/${id}/revoke-sessions`);
 }
+
+export function checkEmail(email: string) {
+  return apiClient.get<{ available: boolean }>("/users/check-email", {
+    query: { email },
+  });
+}
+
+export function getUserQuota() {
+  return apiClient.get<{ maxUsers: number | null; currentUsers: number }>("/users/quota");
+}

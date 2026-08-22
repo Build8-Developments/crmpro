@@ -14,6 +14,7 @@ import { PermissionsGuard, RequirePermission } from '../../common/auth';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
+import { CheckEmailDto } from './dto/check-email.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
@@ -34,6 +35,26 @@ export class UsersController {
   ) {
     const data = await this.usersService.listUsers(user.tenantId, query);
     return { success: true, data };
+  }
+
+  @Get('quota')
+  @RequirePermission(PERMISSIONS.USER_READ)
+  async getUserQuota(@CurrentUser() user: AuthenticatedUser) {
+    const data = await this.usersService.getUserQuota(user.tenantId);
+    return { success: true, data };
+  }
+
+  @Get('check-email')
+  @RequirePermission(PERMISSIONS.USER_CREATE)
+  async checkEmail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: CheckEmailDto,
+  ) {
+    const available = await this.usersService.checkEmailAvailable(
+      user.tenantId,
+      query.email,
+    );
+    return { success: true, data: { available } };
   }
 
   @Get(':id')
