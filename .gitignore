@@ -40,3 +40,7 @@ Thumbs.db
 /generated/prisma
 *.db
 *.db-journal
+
+
+# turborepo
+.turbo
