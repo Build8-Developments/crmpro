@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <MobileSidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/80 bg-background shadow-sm transition-colors duration-200 dark:rounded-none dark:border-0 dark:shadow-none">
         <Topbar />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex flex-1 flex-col overflow-y-auto relative">{children}</main>
       </div>
       <CommandPalette />
     </div>

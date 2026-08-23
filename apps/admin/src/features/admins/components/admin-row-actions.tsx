@@ -11,6 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { useReactivateAdmin } from "@/features/admins/mutations";
 import { useAdminUiStore } from "@/features/admins/stores/admin-ui-store";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -94,3 +99,65 @@ export function AdminRowActions({ admin }: AdminRowActionsProps) {
     </DropdownMenu>
   );
 }
+
+export function AdminRowContextMenu({ admin }: AdminRowActionsProps) {
+  const currentAdminId = useAuthStore((s) => s.user?.id);
+  const openEditDialog = useAdminUiStore((s) => s.openEditDialog);
+  const openResetPasswordDialog = useAdminUiStore(
+    (s) => s.openResetPasswordDialog,
+  );
+  const openConfirmDialog = useAdminUiStore((s) => s.openConfirmDialog);
+  const reactivateAdmin = useReactivateAdmin();
+  const { can } = usePermissions();
+
+  const isSelf = currentAdminId === admin.id;
+  const canManage = can(ADMIN_PERMISSIONS.ADMIN_MANAGE);
+
+  if (!canManage) {
+    return (
+      <ContextMenuContent className="w-48">
+        <ContextMenuItem asChild>
+          <Link href={`/admins/${admin.id}`}>View profile</Link>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    );
+  }
+
+  return (
+    <ContextMenuContent className="w-48">
+      <ContextMenuItem asChild>
+        <Link href={`/admins/${admin.id}`}>View profile</Link>
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => openEditDialog(admin.id)}>
+        Edit admin
+      </ContextMenuItem>
+      {!isSelf ? (
+        admin.isActive ? (
+          <ContextMenuItem
+            onClick={() => openConfirmDialog("deactivate", admin.id)}
+          >
+            Deactivate
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem
+            onClick={() => void reactivateAdmin.mutateAsync(admin.id)}
+          >
+            Reactivate
+          </ContextMenuItem>
+        )
+      ) : null}
+      <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => openResetPasswordDialog(admin.id)}>
+        Reset password
+      </ContextMenuItem>
+      {!isSelf ? (
+        <ContextMenuItem
+          onClick={() => openConfirmDialog("revoke-sessions", admin.id)}
+        >
+          Revoke sessions
+        </ContextMenuItem>
+      ) : null}
+    </ContextMenuContent>
+  );
+}
+

@@ -13,7 +13,7 @@ export function useAuditLogs(
   const status = useAuthStore((state) => state.status);
 
   return useQuery({
-    queryKey: queryKeys.audit.list(params),
+    queryKey: queryKeys.audit.list(params as Record<string, unknown>),
     queryFn: () => getAuditLogs(params),
     enabled: status === "authenticated" && (options?.enabled ?? true),
     placeholderData: (previous) => previous,

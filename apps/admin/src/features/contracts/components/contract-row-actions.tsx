@@ -11,6 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import type { ContractListItem } from "@/features/contracts/types";
 import { usePermissions } from "@/hooks/use-permissions";
 
@@ -91,3 +96,61 @@ export function ContractRowActions({
     </DropdownMenu>
   );
 }
+
+export function ContractRowContextMenu({
+  contract,
+  onEdit,
+  onActivate,
+  onTerminate,
+  onArchive,
+}: ContractRowActionsProps) {
+  const { can } = usePermissions();
+  const canUpdate = can(ADMIN_PERMISSIONS.CONTRACT_UPDATE);
+  const canTerminate = can(ADMIN_PERMISSIONS.CONTRACT_TERMINATE);
+  const canActivate = canUpdate && contract.status === "DRAFT";
+  const canTerminateAction =
+    canTerminate &&
+    (contract.status === "ACTIVE" || contract.status === "EXPIRED");
+  const canArchiveAction =
+    canUpdate &&
+    (contract.status === "DRAFT" ||
+      contract.status === "TERMINATED" ||
+      contract.status === "EXPIRED");
+  const canEdit = canUpdate && contract.status === "DRAFT";
+
+  if (!canUpdate && !canTerminate && !can(ADMIN_PERMISSIONS.CONTRACT_READ)) {
+    return <ContextMenuContent className="w-44" />;
+  }
+
+  return (
+    <ContextMenuContent className="w-44">
+      <ContextMenuItem asChild>
+        <Link href={`/contracts/${contract.id}`}>View details</Link>
+      </ContextMenuItem>
+      {canEdit ? (
+        <ContextMenuItem onClick={() => onEdit(contract)}>
+          Edit contract
+        </ContextMenuItem>
+      ) : null}
+      {canActivate || canTerminateAction || canArchiveAction ? (
+        <ContextMenuSeparator />
+      ) : null}
+      {canActivate ? (
+        <ContextMenuItem onClick={() => onActivate(contract)}>
+          Activate
+        </ContextMenuItem>
+      ) : null}
+      {canTerminateAction ? (
+        <ContextMenuItem onClick={() => onTerminate(contract)}>
+          Terminate
+        </ContextMenuItem>
+      ) : null}
+      {canArchiveAction ? (
+        <ContextMenuItem onClick={() => onArchive(contract)}>
+          Archive
+        </ContextMenuItem>
+      ) : null}
+    </ContextMenuContent>
+  );
+}
+

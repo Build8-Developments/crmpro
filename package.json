@@ -7,10 +7,10 @@
     "dev:admin": "pnpm --filter admin dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:admin-api": "pnpm --filter admin-api start:dev",
-    "dev:web-stack": "concurrently -n web,api \"pnpm dev:web\" \"pnpm dev:api\"",
-    "dev:admin-stack": "concurrently -n admin,api,admin-api \"pnpm dev:admin\" \"pnpm dev:api\" \"pnpm dev:admin-api\"",
+    "dev:web-stack": "turbo run dev --filter=web --filter=api",
+    "dev:admin-stack": "turbo run dev --filter=admin --filter=api --filter=admin-api",
     "dev:admin-api-stack": "concurrently -n admin,admin-api \"pnpm dev:admin\" \"pnpm dev:admin-api\"",
-    "dev:all": "concurrently -n web,admin,api,admin-api \"pnpm dev:web\" \"pnpm dev:admin\" \"pnpm dev:api\" \"pnpm dev:admin-api\"",
+    "dev:all": "turbo run dev",
     "db:generate": "pnpm --filter @crmpro/database prisma:generate",
     "db:migrate": "pnpm --filter @crmpro/database prisma:migrate:dev",
     "db:deploy": "pnpm --filter @crmpro/database prisma:migrate:deploy",
@@ -19,11 +19,14 @@
     "db:studio": "pnpm --filter @crmpro/database prisma:studio",
     "docker:up": "docker compose -f docker/docker-compose.local.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.local.yml down",
-    "docker:logs": "docker compose -f docker/docker-compose.local.yml logs -f"
+    "docker:logs": "docker compose -f docker/docker-compose.local.yml logs -f",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint"
   },
   "devDependencies": {
-    "concurrently": "^10.0.3",
-    "color": "^5.0.1"
+    "color": "^5.0.1",
+    "turbo": "^2.10.11"
   },
   "packageManager": "pnpm@11.22.0+sha512.1ff870c4c6133dfd88fb2afc46dd13d47f09c9794b438c6fdb47ca98caf3bc16381ee0be93a091b8e3824cf01f889f46d7d9e20910fb0be1ab0fb5baa80dd621"
 }

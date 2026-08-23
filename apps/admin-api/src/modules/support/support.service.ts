@@ -11,7 +11,7 @@ import {
   SupportMessageAuthorType,
 } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { StreamingService } from '../streaming/streaming.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -30,7 +30,7 @@ function previewOf(body: string): string {
 
 @Injectable()
 export class AdminSupportService {
-  constructor(private readonly prisma: PrismaService, private readonly streamingService: StreamingService) {}
+  constructor(private readonly prisma: PrismaService, private readonly realtimeService: RealtimeService) {}
 
   async listConversations(
     query: GetAdminSupportConversationsQueryDto,
@@ -170,9 +170,9 @@ export class AdminSupportService {
       return created;
     });
 
-    this.streamingService.publishToRedis(conversation.createdByUserId, { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: admin.id } });
-    this.streamingService.publishToRedis(conversation.createdByUserId, { type: 'invalidate', data: { entity: 'notifications' } });
-    this.streamingService.publishToRedis('admin-broadcast', { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: admin.id } });
+    this.realtimeService.notifyUser(conversation.createdByUserId, { event: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: adminId } });
+    this.realtimeService.notifyUser(conversation.createdByUserId, { event: 'invalidate', data: { entity: 'notifications' } });
+    this.realtimeService.notifyAdmins({ event: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: adminId } });
     return toMessageItem(message);
   }
 
@@ -196,8 +196,8 @@ export class AdminSupportService {
       include: conversationInclude,
     });
 
-    this.streamingService.publishToRedis(updated.createdByUserId, { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
-    this.streamingService.publishToRedis('admin-broadcast', { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
+    this.realtimeService.notifyUser(updated.createdByUserId, { event: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
+    this.realtimeService.notifyAdmins({ event: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
 
     return toAdminConversationListItem(updated);
   }

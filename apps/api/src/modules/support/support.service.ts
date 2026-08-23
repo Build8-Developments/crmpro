@@ -8,7 +8,7 @@ import {
   SupportMessageAuthorType,
 } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { StreamingService } from '../streaming/streaming.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { SupportMessageCreatedEvent } from '../../common/events/domain-event.types';
 import {
@@ -29,7 +29,11 @@ function previewOf(body: string): string {
 
 @Injectable()
 export class SupportService {
-  constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: DomainEventBus,
+    private readonly realtimeService: RealtimeService,
+  ) {}
 
   async listConversations(
     tenantId: string,
@@ -236,8 +240,8 @@ export class SupportService {
       },
     });
 
-    this.streamingService.publishToRedis(userId, { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
-    this.streamingService.publishToRedis('admin-broadcast', { type: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
+    this.realtimeService.notifyUser(userId, { event: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
+    this.realtimeService.notifyAdmins({ event: 'invalidate', data: { entity: 'support-messages', conversationId, actorId: 'system' } });
     return toConversationListItem(updated);
   }
 

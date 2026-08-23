@@ -108,5 +108,6 @@ export class SupportMessageCreatedEvent implements DomainEvent {
     readonly tenantId: string,
     readonly conversationId: string,
     readonly userId: string,
+    readonly actorId?: string,
   ) {}
 }

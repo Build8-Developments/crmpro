@@ -12,6 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { useUnarchivePlan } from "@/features/plans/mutations";
 import type { PlanListItem } from "@/features/plans/types";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -77,3 +82,47 @@ export function PlanRowActions({
     </DropdownMenu>
   );
 }
+
+export function PlanRowContextMenu({
+  plan,
+  onEdit,
+  onArchive,
+}: PlanRowActionsProps) {
+  const { can } = usePermissions();
+  const unarchivePlan = useUnarchivePlan();
+  const canUpdate = can(ADMIN_PERMISSIONS.PLAN_UPDATE);
+
+  if (!canUpdate && !can(ADMIN_PERMISSIONS.PLAN_READ)) {
+    return <ContextMenuContent className="w-44" />;
+  }
+
+  return (
+    <ContextMenuContent className="w-44">
+      <ContextMenuItem asChild>
+        <Link href={`/plans/${plan.id}`}>View details</Link>
+      </ContextMenuItem>
+      {canUpdate ? (
+        <ContextMenuItem onClick={() => onEdit(plan)}>
+          Edit plan
+        </ContextMenuItem>
+      ) : null}
+      {canUpdate ? (
+        <>
+          <ContextMenuSeparator />
+          {plan.isActive ? (
+            <ContextMenuItem onClick={() => onArchive(plan)}>
+              Archive
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem
+              onClick={() => void unarchivePlan.mutateAsync(plan.id)}
+            >
+              Restore
+            </ContextMenuItem>
+          )}
+        </>
+      ) : null}
+    </ContextMenuContent>
+  );
+}
+

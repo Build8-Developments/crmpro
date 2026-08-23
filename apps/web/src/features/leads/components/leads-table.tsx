@@ -7,6 +7,8 @@ import type { LeadsSortField } from "@/features/leads/stores/leads-table-store";
 import { LEADS_SORTABLE_COLUMNS } from "@/features/leads/table/columns";
 import { flexRender } from "@/features/leads/table/use-leads-table";
 import { cn } from "@/lib/utils";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { LeadRowContextMenu } from "@/features/leads/components/lead-row-actions";
 
 interface LeadsTableProps {
   table: TanstackTable<Lead>;
@@ -86,31 +88,35 @@ export function LeadsTable({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row, index) => (
-              <tr
-                key={row.id}
-                data-state={row.getIsSelected() ? "selected" : undefined}
-                className={cn(
-                  "border-b border-border/40 transition-colors duration-100",
-                  "hover:bg-accent/50",
-                  row.getIsSelected() && "bg-primary/5",
-                  index % 2 === 1 && "bg-muted/15",
-                )}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
+              <ContextMenu key={row.id}>
+                <ContextMenuTrigger asChild>
+                  <tr
+                    data-state={row.getIsSelected() ? "selected" : undefined}
                     className={cn(
-                      "px-2 py-1.5 align-middle",
-                      cell.column.id === "select" && "w-8 px-1",
-                      cell.column.id === "actions" && "w-10 px-1",
-                      cell.column.id === "fullName" && "max-w-[14rem]",
-                      cell.column.id === "contact" && "max-w-[11rem]",
+                      "border-b border-border/40 transition-colors duration-100",
+                      "hover:bg-accent/50",
+                      row.getIsSelected() && "bg-primary/5",
+                      index % 2 === 1 && "bg-muted/15",
                     )}
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
+                    {row.getVisibleCells().map((cell) => (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-2 py-1.5 align-middle",
+                          cell.column.id === "select" && "w-8 px-1",
+                          cell.column.id === "actions" && "w-10 px-1",
+                          cell.column.id === "fullName" && "max-w-[14rem]",
+                          cell.column.id === "contact" && "max-w-[11rem]",
+                        )}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                </ContextMenuTrigger>
+                <LeadRowContextMenu lead={row.original} />
+              </ContextMenu>
             ))}
           </tbody>
         </table>

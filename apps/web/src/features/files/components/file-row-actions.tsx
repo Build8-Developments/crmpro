@@ -10,6 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { getFileDownloadUrl } from "@/features/files/api";
 import type { FileAsset } from "@/features/files/types";
 import { useFileUiStore } from "@/features/files/stores/file-ui-store";
@@ -94,3 +99,51 @@ export function FileRowActions({ file }: FileRowActionsProps) {
     </div>
   );
 }
+
+export function FileRowContextMenu({ file }: FileRowActionsProps) {
+  const openDeleteDialog = useFileUiStore((s) => s.openDeleteDialog);
+  const { can } = usePermissions();
+  const [downloading, setDownloading] = useState(false);
+
+  const canRead = can("file.read");
+  const canDelete = can("file.delete");
+
+  const handleDownload = async () => {
+    if (!canRead) return;
+
+    try {
+      setDownloading(true);
+      const { downloadUrl } = await getFileDownloadUrl(file.id);
+      window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  if (!canRead && !canDelete) return <ContextMenuContent className="w-36" />;
+
+  return (
+    <ContextMenuContent className="w-36">
+      {canRead ? (
+        <>
+          <ContextMenuItem
+            disabled={downloading}
+            onClick={() => void handleDownload()}
+          >
+            Download
+          </ContextMenuItem>
+          {canDelete ? <ContextMenuSeparator /> : null}
+        </>
+      ) : null}
+      {canDelete ? (
+        <ContextMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => openDeleteDialog(file.id)}
+        >
+          Delete
+        </ContextMenuItem>
+      ) : null}
+    </ContextMenuContent>
+  );
+}
+

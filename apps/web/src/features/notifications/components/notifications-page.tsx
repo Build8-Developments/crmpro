@@ -103,7 +103,7 @@ export function NotificationsPage() {
             size="sm"
             variant="outline"
             disabled={markAllRead.isPending}
-            onClick={() => void markAllRead.mutateAsync()}
+            onClick={() => void markAllRead.mutateAsync(undefined)}
           >
             {markAllRead.isPending ? "Updating..." : "Mark all as read"}
           </Button>

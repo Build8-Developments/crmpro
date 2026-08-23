@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
-import { ProjectRowActions } from "@/features/projects/components/project-row-actions";
+import { ProjectRowActions, ProjectRowContextMenu } from "@/features/projects/components/project-row-actions";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import type { Project, ProjectsSortField } from "@/features/projects/types";
 import { formatNumber, formatRelativeTime, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -144,73 +145,78 @@ function ProjectTableRow({
   }, [isHighlighted]);
 
   return (
-    <tr
-      ref={rowRef}
-      className={cn(
-        "border-b border-border/40 transition-colors last:border-0 hover:bg-muted/20",
-        isHighlighted && "bg-primary/5",
-        !project.isActive && "opacity-70",
-      )}
-      onClick={() => onHighlightProject?.(project.id)}
-    >
-      <td className="px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold tracking-wide text-muted-foreground">
-            {getInitials(project.name)}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">
-              {project.name}
-            </p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              {project.location?.trim() || "No location"}
-            </p>
-          </div>
-        </div>
-      </td>
-      <td className="px-3 py-2.5">
-        <Link
-          href={`/developers?developerId=${project.developer.id}&search=${encodeURIComponent(project.developer.name)}`}
-          className="text-xs font-medium text-foreground/80 transition-colors hover:text-foreground"
-          onClick={(event) => event.stopPropagation()}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <tr
+          ref={rowRef}
+          className={cn(
+            "border-b border-border/40 transition-colors last:border-0 hover:bg-muted/20",
+            isHighlighted && "bg-primary/5",
+            !project.isActive && "opacity-70",
+          )}
+          onClick={() => onHighlightProject?.(project.id)}
         >
-          {project.developer.name}
-        </Link>
-      </td>
-      <td className="px-3 py-2.5">
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span
-            className={cn(
-              "size-1.5 rounded-full",
-              project.isActive ? "bg-emerald-500" : "bg-muted-foreground/40",
+          <td className="px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-[10px] font-semibold tracking-wide text-muted-foreground">
+                {getInitials(project.name)}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {project.name}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {project.location?.trim() || "No location"}
+                </p>
+              </div>
+            </div>
+          </td>
+          <td className="px-3 py-2.5">
+            <Link
+              href={`/developers?developerId=${project.developer.id}&search=${encodeURIComponent(project.developer.name)}`}
+              className="text-xs font-medium text-foreground/80 transition-colors hover:text-foreground"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {project.developer.name}
+            </Link>
+          </td>
+          <td className="px-3 py-2.5">
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                className={cn(
+                  "size-1.5 rounded-full",
+                  project.isActive ? "bg-emerald-500" : "bg-muted-foreground/40",
+                )}
+              />
+              {project.isActive ? "Active" : "Inactive"}
+            </span>
+          </td>
+          <td className="px-3 py-2.5">
+            {leadCount > 0 ? (
+              <Link
+                href={`/leads?projectId=${project.id}`}
+                className="inline-flex items-center gap-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:text-primary"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <AppIcons.leads className="size-3 text-muted-foreground" />
+                {formatNumber(leadCount)}
+              </Link>
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
             )}
-          />
-          {project.isActive ? "Active" : "Inactive"}
-        </span>
-      </td>
-      <td className="px-3 py-2.5">
-        {leadCount > 0 ? (
-          <Link
-            href={`/leads?projectId=${project.id}`}
-            className="inline-flex items-center gap-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:text-primary"
+          </td>
+          <td className="hidden px-3 py-2.5 text-xs text-muted-foreground md:table-cell">
+            {formatRelativeTime(project.updatedAt)}
+          </td>
+          <td
+            className="px-2 py-2.5 text-right"
             onClick={(event) => event.stopPropagation()}
           >
-            <AppIcons.leads className="size-3 text-muted-foreground" />
-            {formatNumber(leadCount)}
-          </Link>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
-      </td>
-      <td className="hidden px-3 py-2.5 text-xs text-muted-foreground md:table-cell">
-        {formatRelativeTime(project.updatedAt)}
-      </td>
-      <td
-        className="px-2 py-2.5 text-right"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <ProjectRowActions project={project} />
-      </td>
-    </tr>
+            <ProjectRowActions project={project} />
+          </td>
+        </tr>
+      </ContextMenuTrigger>
+      <ProjectRowContextMenu project={project} />
+    </ContextMenu>
   );
 }

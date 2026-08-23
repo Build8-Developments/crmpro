@@ -29,7 +29,7 @@ export function SessionsSettingsCard() {
           size="sm"
           className="h-8 text-destructive hover:text-destructive"
           disabled={logoutAll.isPending || (sessions?.length ?? 0) <= 1}
-          onClick={() => void logoutAll.mutateAsync()}
+          onClick={() => void logoutAll.mutateAsync(undefined)}
         >
           {logoutAll.isPending ? "Signing out..." : "Sign out all"}
         </Button>

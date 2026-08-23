@@ -22,7 +22,7 @@ import { ExportJobsModule } from './modules/export-jobs/export-jobs.module';
 import { JobsCoreModule } from './modules/jobs/jobs-core.module';
 import { WorkersModule } from './modules/jobs/workers.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
-import { StreamingModule } from './modules/streaming/streaming.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -58,7 +58,7 @@ import { envValidationSchema } from './config/env.validation';
     ExportJobsModule,
     WorkersModule,
     MonitoringModule,
-    StreamingModule,
+    RealtimeModule,
     AnalyticsModule,
     NotificationsModule,
     AuditModule,

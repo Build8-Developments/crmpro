@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { createValidationPipeOptions } from './common/filters/validation-pipe.config';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,6 +22,11 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe(createValidationPipeOptions()));
 
   const port = configService.getOrThrow<number>('app.port');
+  
+  const redisIoAdapter = new RedisIoAdapter(app);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
+
   await app.listen(port);
 }
 bootstrap();

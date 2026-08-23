@@ -11,6 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import { useDeveloperUiStore } from "@/features/developers/stores/developer-ui-store";
 import { usePermissions } from "@/hooks/use-permissions";
 
@@ -72,3 +77,46 @@ export function DeveloperRowActions({ developer }: DeveloperRowActionsProps) {
     </DropdownMenu>
   );
 }
+
+export function DeveloperRowContextMenu({ developer }: DeveloperRowActionsProps) {
+  const openEditDialog = useDeveloperUiStore((s) => s.openEditDialog);
+  const openDeleteDialog = useDeveloperUiStore((s) => s.openDeleteDialog);
+  const { can } = usePermissions();
+
+  const canUpdate = can("developer.update");
+  const canDelete = can("developer.delete");
+  const canReadProjects = can("project.read");
+
+  if (!canUpdate && !canDelete && !canReadProjects) {
+    return <ContextMenuContent className="w-44" />;
+  }
+
+  return (
+    <ContextMenuContent className="w-44">
+      {canReadProjects ? (
+        <ContextMenuItem asChild>
+          <Link href={`/projects?developerId=${developer.id}`}>
+            View projects
+          </Link>
+        </ContextMenuItem>
+      ) : null}
+      {canUpdate ? (
+        <ContextMenuItem onClick={() => openEditDialog(developer.id)}>
+          Edit
+        </ContextMenuItem>
+      ) : null}
+      {canDelete ? (
+        <>
+          {canUpdate || canReadProjects ? <ContextMenuSeparator /> : null}
+          <ContextMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => openDeleteDialog(developer.id)}
+          >
+            Delete
+          </ContextMenuItem>
+        </>
+      ) : null}
+    </ContextMenuContent>
+  );
+}
+

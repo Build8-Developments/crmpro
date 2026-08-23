@@ -30,6 +30,7 @@ import type {
   SupportConversationStatus,
 } from "@/features/support/types";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useRealtimeStore } from "@/stores/realtime-store";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ export function SupportPage() {
   }, [conversations, selectedId, router]);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col md:h-[calc(100vh-4rem)]">
+    <div className="absolute inset-0 flex flex-col">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3 md:px-6">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Support</h1>
@@ -119,6 +120,7 @@ export function SupportPage() {
         <section className="min-h-0">
           {selectedId ? (
             <ThreadPane
+              key={selectedId}
               conversationId={selectedId}
               canUpdate={canUpdate}
             />
@@ -194,8 +196,43 @@ function ThreadPane({
     useSupportConversation(conversationId);
   const reply = useReplySupportConversation(conversationId);
   const resolve = useResolveSupportConversation();
-  const [draft, setDraft] = useState("");
+  const draftKey = `crmpro_support_draft_`;
+  const [draft, setDraft] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(draftKey) || "";
+    }
+    return "";
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const socket = useRealtimeStore((state) => state.socket);
+  const [isSupportTyping, setIsSupportTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey);
+    if (saved) setDraft(saved);
+    else setDraft("");
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (draft.trim()) {
+      localStorage.setItem(draftKey, draft);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [draft, draftKey]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onTyping = (payload: { conversationId: string, actorType: string, isTyping: boolean }) => {
+      if (payload.conversationId === conversationId && payload.actorType === 'ADMIN') {
+        setIsSupportTyping(payload.isTyping);
+      }
+    };
+    socket.on('typing', onTyping);
+    return () => { socket.off('typing', onTyping); };
+  }, [socket, conversationId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -206,11 +243,23 @@ function ThreadPane({
   const closed =
     data?.status === "RESOLVED" || data?.status === "CLOSED";
 
+  const handleDraftChange = (val: string) => {
+    setDraft(val);
+    if (socket) {
+      socket.emit('typing', { conversationId, isTyping: true });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('typing', { conversationId, isTyping: false });
+      }, 2000);
+    }
+  };
+
   const handleSend = async () => {
     const body = draft.trim();
     if (!body) return;
     await reply.mutateAsync({ body });
     setDraft("");
+    localStorage.removeItem(draftKey);
   };
 
   if (isLoading && !data) {
@@ -306,6 +355,20 @@ function ThreadPane({
             </div>
           );
         })}
+        {isSupportTyping && (
+          <div className="flex items-end gap-2 justify-start">
+            <div className="flex size-8 shrink-0 select-none items-center justify-center rounded-full bg-muted/60 text-xs font-semibold text-muted-foreground ring-1 ring-border">
+              SP
+            </div>
+            <div className="px-3.5 py-2.5 text-sm shadow-sm border bg-card text-foreground rounded-2xl rounded-bl-sm">
+              <span className="flex space-x-1">
+                <span className="animate-bounce inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground"></span>
+                <span className="animate-bounce inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground delay-75"></span>
+                <span className="animate-bounce inline-block h-1.5 w-1.5 rounded-full bg-muted-foreground delay-150"></span>
+              </span>
+            </div>
+          </div>
+        )}
         <div ref={scrollRef} />
       </div>
 
@@ -314,7 +377,7 @@ function ThreadPane({
           <div className="flex gap-2">
             <Input
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => handleDraftChange(event.target.value)}
               placeholder="Write a reply…"
               maxLength={10000}
               onKeyDown={(event) => {

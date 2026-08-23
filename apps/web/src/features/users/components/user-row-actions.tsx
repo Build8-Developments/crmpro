@@ -12,6 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
+import {
   useDeactivateUser,
   useReactivateUser,
   useRevokeUserSessions,
@@ -107,3 +112,73 @@ export function UserRowActions({ user }: UserRowActionsProps) {
     </DropdownMenu>
   );
 }
+
+export function UserRowContextMenu({ user }: UserRowActionsProps) {
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const openDrawer = useUserUiStore((s) => s.openDrawer);
+  const openEditDialog = useUserUiStore((s) => s.openEditDialog);
+  const openChangeRoleDialog = useUserUiStore((s) => s.openChangeRoleDialog);
+  const openResetPasswordDialog = useUserUiStore((s) => s.openResetPasswordDialog);
+  const deactivateUser = useDeactivateUser();
+  const reactivateUser = useReactivateUser();
+  const revokeSessions = useRevokeUserSessions();
+  const { can } = usePermissions();
+
+  const isSelf = currentUserId === user.id;
+  const canUpdate = can("user.update");
+  const canManage = can("user.manage");
+
+  if (!canUpdate && !canManage) return <ContextMenuContent className="w-48" />;
+
+  return (
+    <ContextMenuContent className="w-48">
+      <ContextMenuItem onClick={() => openDrawer(user.id)}>
+        View profile
+      </ContextMenuItem>
+      <ContextMenuItem asChild>
+        <Link href={`/leads?assignedUserId=${user.id}`}>View leads</Link>
+      </ContextMenuItem>
+      {canUpdate ? (
+        <ContextMenuItem onClick={() => openEditDialog(user.id)}>
+          Edit name
+        </ContextMenuItem>
+      ) : null}
+      {canUpdate && !isSelf ? (
+        <ContextMenuItem onClick={() => openChangeRoleDialog(user.id)}>
+          Change role
+        </ContextMenuItem>
+      ) : null}
+      {canUpdate && !isSelf ? (
+        user.isActive ? (
+          <ContextMenuItem
+            onClick={() => void deactivateUser.mutateAsync(user.id)}
+          >
+            Deactivate
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem
+            onClick={() => void reactivateUser.mutateAsync(user.id)}
+          >
+            Reactivate
+          </ContextMenuItem>
+        )
+      ) : null}
+      {canManage ? (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => openResetPasswordDialog(user.id)}>
+            Reset password
+          </ContextMenuItem>
+          {!isSelf ? (
+            <ContextMenuItem
+              onClick={() => void revokeSessions.mutateAsync(user.id)}
+            >
+              Revoke sessions
+            </ContextMenuItem>
+          ) : null}
+        </>
+      ) : null}
+    </ContextMenuContent>
+  );
+}
+

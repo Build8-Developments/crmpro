@@ -5,7 +5,8 @@ import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FileRowActions } from "@/features/files/components/file-row-actions";
+import { FileRowActions, FileRowContextMenu } from "@/features/files/components/file-row-actions";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import type { FileAsset, FilesSortField } from "@/features/files/types";
 import {
   formatFileCategory,
@@ -177,77 +178,81 @@ export function FilesTable({
             const highlighted = file.id === highlightedFileId;
             const selected = selectedFileIds.includes(file.id);
             return (
-              <tr
-                key={file.id}
-                ref={highlighted ? highlightRef : undefined}
-                className={cn(
-                  "border-b border-border/40 transition-colors last:border-b-0 hover:bg-muted/20",
-                  (highlighted || selected) && "bg-primary/5",
-                )}
-              >
-                {canSelect ? (
-                  <td className="px-3 py-2">
-                    <Checkbox
-                      checked={selected}
-                      onCheckedChange={() => onToggleFile(file.id)}
-                      aria-label={`Select ${file.originalFilename}`}
-                    />
-                  </td>
-                ) : null}
-                <td className="px-3 py-2">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <FileTypeIcon mimeType={file.mimeType} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {file.originalFilename}
-                      </p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {getFileTypeLabel(file.mimeType)} ·{" "}
-                        {file.uploadedBy.fullName}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-3 py-2">
-                  <Badge
-                    variant="outline"
+              <ContextMenu key={file.id}>
+                <ContextMenuTrigger asChild>
+                  <tr
+                    ref={highlighted ? highlightRef : undefined}
                     className={cn(
-                      "h-5 px-1.5 text-[10px] font-medium",
-                      getFileCategoryTone(file.category),
+                      "border-b border-border/40 transition-colors last:border-b-0 hover:bg-muted/20",
+                      (highlighted || selected) && "bg-primary/5",
                     )}
                   >
-                    {formatFileCategory(file.category)}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2 text-xs">
-                  {file.lead ? (
-                    <Link
-                      href={`/leads?id=${file.lead.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {file.lead.fullName}
-                    </Link>
-                  ) : file.project ? (
-                    <Link
-                      href={`/projects?projectId=${file.project.id}`}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {file.project.name}
-                    </Link>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
-                  {formatFileSize(file.sizeBytes)}
-                </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">
-                  {formatRelativeTime(file.createdAt)}
-                </td>
-                <td className="px-2 py-2">
-                  <FileRowActions file={file} />
-                </td>
-              </tr>
+                    {canSelect ? (
+                      <td className="px-3 py-2">
+                        <Checkbox
+                          checked={selected}
+                          onCheckedChange={() => onToggleFile(file.id)}
+                          aria-label={`Select ${file.originalFilename}`}
+                        />
+                      </td>
+                    ) : null}
+                    <td className="px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <FileTypeIcon mimeType={file.mimeType} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {file.originalFilename}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {getFileTypeLabel(file.mimeType)} ·{" "}
+                            {file.uploadedBy.fullName}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "h-5 px-1.5 text-[10px] font-medium",
+                          getFileCategoryTone(file.category),
+                        )}
+                      >
+                        {formatFileCategory(file.category)}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {file.lead ? (
+                        <Link
+                          href={`/leads?id=${file.lead.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {file.lead.fullName}
+                        </Link>
+                      ) : file.project ? (
+                        <Link
+                          href={`/projects?projectId=${file.project.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {file.project.name}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
+                      {formatFileSize(file.sizeBytes)}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {formatRelativeTime(file.createdAt)}
+                    </td>
+                    <td className="px-2 py-2">
+                      <FileRowActions file={file} />
+                    </td>
+                  </tr>
+                </ContextMenuTrigger>
+                <FileRowContextMenu file={file} />
+              </ContextMenu>
             );
           })}
         </tbody>

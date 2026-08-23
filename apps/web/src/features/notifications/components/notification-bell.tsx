@@ -147,7 +147,7 @@ function NotificationPanelContent({ onClose }: { onClose?: () => void }) {
             type="button"
             className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             disabled={markAllRead.isPending}
-            onClick={() => void markAllRead.mutateAsync()}
+            onClick={() => void markAllRead.mutateAsync(undefined)}
           >
             {markAllRead.isPending ? "Updating..." : "Mark all read"}
           </button>

@@ -3,10 +3,10 @@ import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { AuthModule } from '../auth/auth.module';
 import { AdminSupportController } from './support.controller';
 import { AdminSupportService } from './support.service';
-import { StreamingModule } from '../streaming/streaming.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports: [AuthModule, AuthRbacModule, StreamingModule],
+  imports: [AuthModule, AuthRbacModule, RealtimeModule],
   controllers: [AdminSupportController],
   providers: [AdminSupportService],
 })

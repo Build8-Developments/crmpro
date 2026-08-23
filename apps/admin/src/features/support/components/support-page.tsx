@@ -24,6 +24,7 @@ import type {
 } from "@/features/support/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useRealtimeStore } from "@/stores/realtime-store";
 import { formatNumber, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -75,7 +76,7 @@ export function SupportPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
+    <div className="absolute inset-0 flex flex-col">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3 md:px-6">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Support inbox</h1>
@@ -160,7 +161,7 @@ export function SupportPage() {
 
         <section className="min-h-0">
           {selectedId ? (
-            <AdminThreadPane conversationId={selectedId} />
+            <AdminThreadPane key={selectedId} conversationId={selectedId} />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
               Select a conversation to reply.
@@ -230,8 +231,43 @@ function AdminThreadPane({ conversationId }: { conversationId: string }) {
     useAdminSupportConversation(conversationId);
   const reply = useReplyAdminSupport(conversationId);
   const updateStatus = useUpdateAdminSupportStatus();
-  const [draft, setDraft] = useState("");
+  const draftKey = `crmpro_admin_support_draft_`;
+  const [draft, setDraft] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(draftKey) || "";
+    }
+    return "";
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const socket = useRealtimeStore((state) => state.socket);
+  const [isUserTyping, setIsUserTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey);
+    if (saved) setDraft(saved);
+    else setDraft("");
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (draft.trim()) {
+      localStorage.setItem(draftKey, draft);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [draft, draftKey]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onTyping = (payload: { conversationId: string, actorType: string, isTyping: boolean }) => {
+      if (payload.conversationId === conversationId && payload.actorType === 'USER') {
+        setIsUserTyping(payload.isTyping);
+      }
+    };
+    socket.on('typing', onTyping);
+    return () => { socket.off('typing', onTyping); };
+  }, [socket, conversationId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -242,11 +278,23 @@ function AdminThreadPane({ conversationId }: { conversationId: string }) {
   const closed =
     data?.status === "RESOLVED" || data?.status === "CLOSED";
 
+  const handleDraftChange = (val: string) => {
+    setDraft(val);
+    if (socket) {
+      socket.emit('typing', { conversationId, userId: data?.createdByUser?.id, isTyping: true });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit('typing', { conversationId, userId: data?.createdByUser?.id, isTyping: false });
+      }, 2000);
+    }
+  };
+
   const handleSend = async () => {
     const body = draft.trim();
     if (!body) return;
     await reply.mutateAsync(body);
     setDraft("");
+    localStorage.removeItem(draftKey);
   };
 
   if (isLoading && !data) {

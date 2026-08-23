@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ContractRowActions } from "@/features/contracts/components/contract-row-actions";
+import { ContractRowActions, ContractRowContextMenu } from "@/features/contracts/components/contract-row-actions";
+import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ContractStatusBadge } from "@/features/contracts/components/contract-status-badge";
 import type { ContractListItem } from "@/features/contracts/types";
 import {
@@ -53,52 +54,60 @@ export function ContractsTable({
         </thead>
         <tbody>
           {contracts.map((contract) => (
-            <tr
-              key={contract.id}
-              className="border-b border-border/40 transition-colors last:border-0 hover:bg-muted/20"
-            >
-              <td className="px-3 py-2">
-                <Link
-                  href={`/contracts/${contract.id}`}
-                  className="block min-w-0 text-left"
-                >
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {contract.contractName?.trim() || "Untitled contract"}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {PAYMENT_FREQUENCY_LABELS[contract.paymentFrequency]}
-                    {contract.autoRenew ? " · Auto-renew" : ""}
-                  </span>
-                </Link>
-              </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">
-                {contract.planName}
-              </td>
-              <td className="px-3 py-2">
-                <ContractStatusBadge status={contract.status} />
-              </td>
-              <td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
-                {formatMoney(contract.agreedPrice, contract.currency)}
-              </td>
-              <td className="hidden px-3 py-2 text-xs text-muted-foreground md:table-cell">
-                {PAYMENT_METHOD_LABELS[contract.paymentMethod]}
-              </td>
-              <td className="hidden px-3 py-2 text-xs text-muted-foreground lg:table-cell">
-                {formatDate(contract.contractStartAt)}
-                {contract.contractEndAt
-                  ? ` – ${formatDate(contract.contractEndAt)}`
-                  : " – Open"}
-              </td>
-              <td className="px-2 py-2 text-right">
-                <ContractRowActions
-                  contract={contract}
-                  onEdit={onEdit}
-                  onActivate={onActivate}
-                  onTerminate={onTerminate}
-                  onArchive={onArchive}
-                />
-              </td>
-            </tr>
+            <ContextMenu key={contract.id}>
+              <ContextMenuTrigger asChild>
+                <tr className="border-b border-border/40 transition-colors last:border-0 hover:bg-muted/20">
+                  <td className="px-3 py-2">
+                    <Link
+                      href={`/contracts/${contract.id}`}
+                      className="block min-w-0 text-left"
+                    >
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {contract.contractName?.trim() || "Untitled contract"}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {PAYMENT_FREQUENCY_LABELS[contract.paymentFrequency]}
+                        {contract.autoRenew ? " · Auto-renew" : ""}
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {contract.planName}
+                  </td>
+                  <td className="px-3 py-2">
+                    <ContractStatusBadge status={contract.status} />
+                  </td>
+                  <td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
+                    {formatMoney(contract.agreedPrice, contract.currency)}
+                  </td>
+                  <td className="hidden px-3 py-2 text-xs text-muted-foreground md:table-cell">
+                    {PAYMENT_METHOD_LABELS[contract.paymentMethod]}
+                  </td>
+                  <td className="hidden px-3 py-2 text-xs text-muted-foreground lg:table-cell">
+                    {formatDate(contract.contractStartAt)}
+                    {contract.contractEndAt
+                      ? ` – ${formatDate(contract.contractEndAt)}`
+                      : " – Open"}
+                  </td>
+                  <td className="px-2 py-2 text-right">
+                    <ContractRowActions
+                      contract={contract}
+                      onEdit={onEdit}
+                      onActivate={onActivate}
+                      onTerminate={onTerminate}
+                      onArchive={onArchive}
+                    />
+                  </td>
+                </tr>
+              </ContextMenuTrigger>
+              <ContractRowContextMenu
+                contract={contract}
+                onEdit={onEdit}
+                onActivate={onActivate}
+                onTerminate={onTerminate}
+                onArchive={onArchive}
+              />
+            </ContextMenu>
           ))}
         </tbody>
       </table>
