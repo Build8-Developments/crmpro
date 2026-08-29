@@ -1,9 +1,9 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@crmpro/database';
 import { LoggingService } from '../logging/logging.service';
+import { createPrismaPgAdapter } from './prisma-adapter.factory';
 import { createSlowQueryExtension } from './prisma-extension.factory';
 
 @Injectable()
@@ -17,7 +17,7 @@ export class PrismaService
   ) {
     const connectionString = configService.getOrThrow<string>('database.url');
     const pool = new Pool({ connectionString });
-    const adapter = new PrismaPg(pool);
+    const adapter = createPrismaPgAdapter(pool);
     super({ adapter });
 
     const extension = createSlowQueryExtension(loggingService, configService);
