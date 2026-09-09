@@ -7,9 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
-import {
-  RedisConnectionConfig,
-} from '../../../common/redis/redis.config';
+import { RedisConnectionConfig } from '@crmpro/shared';
 import {
   BULL_CONFIG_KEYS,
   CLEANUP_QUEUE,

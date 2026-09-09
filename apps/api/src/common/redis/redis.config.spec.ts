@@ -1,6 +1,7 @@
-import { resolveRedisConnectionConfig, parseRedisUrl } from './redis.config';
+import { resolveRedisConnectionConfig, parseRedisUrl } from '@crmpro/shared';
 
-describe('redis.config', () => {
+// Lives here because packages/shared has no test runner; this is the only place it executes.
+describe('shared redis connection config', () => {
   it('parses REDIS_URL into host, port, and password', () => {
     expect(parseRedisUrl('redis://:secret@redis.internal:6380')).toEqual({
       host: 'redis.internal',

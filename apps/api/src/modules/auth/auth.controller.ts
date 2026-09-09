@@ -39,6 +39,9 @@ export class AuthController {
       refreshTokenExpiration: this.configService.getOrThrow<string>(
         'auth.refreshTokenExpiration',
       ),
+      refreshCookieCrossOrigin:
+        this.configService.get<boolean>('auth.refreshCookieCrossOrigin') ??
+        false,
     };
   }
 

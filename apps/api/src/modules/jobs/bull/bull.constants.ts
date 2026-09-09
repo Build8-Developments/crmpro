@@ -30,6 +30,16 @@ export const BULL_CONFIG_KEYS = {
   jobBackoffDelayMs: 'bull.jobBackoffDelayMs',
 } as const;
 
+export interface BullConfig {
+  prefix: string;
+  importConcurrency: number;
+  exportConcurrency: number;
+  cleanupConcurrency: number;
+  notificationConcurrency: number;
+  jobAttempts: number;
+  jobBackoffDelayMs: number;
+}
+
 export const REDIS_CONFIG_KEYS = {
   host: 'redis.host',
   port: 'redis.port',

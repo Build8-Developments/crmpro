@@ -4,16 +4,6 @@ export interface RedisConnectionConfig {
   password?: string;
 }
 
-export interface BullConfig {
-  prefix: string;
-  importConcurrency: number;
-  exportConcurrency: number;
-  cleanupConcurrency: number;
-  notificationConcurrency: number;
-  jobAttempts: number;
-  jobBackoffDelayMs: number;
-}
-
 export function parseRedisUrl(url: string): RedisConnectionConfig {
   const parsed = new URL(url);
 

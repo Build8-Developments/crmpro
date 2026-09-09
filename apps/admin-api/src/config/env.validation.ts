@@ -7,13 +7,15 @@ export const envValidationSchema = Joi.object({
   PORT: Joi.number().port().default(3100),
   DATABASE_URL: Joi.string().required(),
   REDIS_URL: Joi.string().optional(),
+  REDIS_HOST: Joi.string().optional(),
+  REDIS_PORT: Joi.number().port().optional(),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
   TENANT_API_URL: Joi.string().uri().optional(),
   INTERNAL_MONITORING_KEY: Joi.string().min(16).optional(),
   STUCK_JOB_TIMEOUT_MINUTES: Joi.number().integer().min(1).optional(),
   JWT_ACCESS_SECRET: Joi.string().min(1).required(),
   JWT_ACCESS_EXPIRATION: Joi.string().default('15m'),
-  JWT_REFRESH_SECRET: Joi.string().min(1).required(),
   JWT_REFRESH_EXPIRATION: Joi.string().default('30d'),
-  CORS_ORIGINS: Joi.string().optional(),
+  CORS_ORIGINS: Joi.string().min(1).required(),
   API_VERSION: Joi.string().optional(),
-});
+}).or('REDIS_URL', 'REDIS_HOST');

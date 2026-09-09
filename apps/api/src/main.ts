@@ -19,7 +19,8 @@ async function bootstrap() {
   const corsOrigins = configService.get<string[]>('cors.origins');
 
   app.enableCors({
-    origin: corsOrigins?.length ? corsOrigins : true,
+    // Fail closed: an empty allowlist must deny, never reflect the caller's origin.
+    origin: corsOrigins?.length ? corsOrigins : false,
     credentials: true,
   });
   const swaggerConfig = new DocumentBuilder()

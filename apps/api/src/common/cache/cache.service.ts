@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
-import { resolveRedisConnectionConfig } from '../redis/redis.config';
+import { resolveRedisConnectionConfig } from '@crmpro/shared';
 import {
   ANALYTICS_CACHE_PREFIX,
   CACHE_CONFIG_KEYS,
