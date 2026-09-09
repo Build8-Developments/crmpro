@@ -2,6 +2,7 @@ import { CanActivate } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermissionsGuard } from '../../common/auth/guards/permissions.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InternalMonitoringGuard } from './guards/internal-monitoring.guard';
 import { MonitoringController } from './monitoring.controller';
 import { MonitoringService } from './monitoring.service';
 
@@ -67,6 +68,8 @@ describe('MonitoringController', () => {
       .overrideGuard(JwtAuthGuard)
       .useValue(mockGuard)
       .overrideGuard(PermissionsGuard)
+      .useValue(mockGuard)
+      .overrideGuard(InternalMonitoringGuard)
       .useValue(mockGuard)
       .compile();
 

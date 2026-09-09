@@ -16,11 +16,11 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
   constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const notificationId = await this.createNotificationIfAbsent(tx, context);
+    const notificationId = await this.prisma.$transaction(async (tx) => {
+      const createdId = await this.createNotificationIfAbsent(tx, context);
 
-      if (!notificationId) {
-        return;
+      if (!createdId) {
+        return null;
       }
 
       await tx.auditLog.create({
@@ -31,7 +31,7 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
             : AuditActorType.SYSTEM,
           actorUserId: context.createdByUserId ?? null,
           entityType: 'Notification',
-          entityId: notificationId,
+          entityId: createdId,
           action: 'NOTIFICATION_CREATED',
           metadata: {
             type: context.type,
@@ -41,7 +41,22 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
           } satisfies Prisma.InputJsonValue,
         },
       });
+
+      return createdId;
     });
+
+    if (!notificationId) {
+      return;
+    }
+
+    // Published after commit so a rollback cannot emit a phantom invalidation.
+    void this.eventBus.publish(
+      new NotificationCreatedEvent(
+        context.tenantId,
+        context.recipientUserId,
+        context.createdByUserId ?? undefined,
+      ),
+    );
   }
 
   private async createNotificationIfAbsent(

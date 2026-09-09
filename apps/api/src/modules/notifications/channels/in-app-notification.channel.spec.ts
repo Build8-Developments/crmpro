@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationPriority, NotificationType } from '@crmpro/database';
+import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
+import { NotificationCreatedEvent } from '../../../common/events/domain-event.types';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { InAppNotificationChannel } from './in-app-notification.channel';
 
@@ -8,6 +10,7 @@ describe('InAppNotificationChannel', () => {
   let prisma: {
     $transaction: jest.Mock;
   };
+  let eventBus: { publish: jest.Mock };
   let tx: {
     notification: {
       create: jest.Mock;
@@ -30,11 +33,13 @@ describe('InAppNotificationChannel', () => {
     prisma = {
       $transaction: jest.fn(async (callback) => callback(tx)),
     };
+    eventBus = { publish: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InAppNotificationChannel,
         { provide: PrismaService, useValue: prisma },
+        { provide: DomainEventBus, useValue: eventBus },
       ],
     }).compile();
 
@@ -71,6 +76,13 @@ describe('InAppNotificationChannel', () => {
         data: expect.objectContaining({ entityId: 'notification-1' }),
       }),
     );
+
+    expect(eventBus.publish).toHaveBeenCalledTimes(1);
+
+    const event = eventBus.publish.mock.calls[0][0] as NotificationCreatedEvent;
+    expect(event).toBeInstanceOf(NotificationCreatedEvent);
+    expect(event.tenantId).toBe(context.tenantId);
+    expect(event.userId).toBe(context.recipientUserId);
   });
 
   it('skips duplicate deliveries with the same dedupe key', async () => {
@@ -80,5 +92,6 @@ describe('InAppNotificationChannel', () => {
 
     expect(tx.notification.findFirst).not.toHaveBeenCalled();
     expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(eventBus.publish).not.toHaveBeenCalled();
   });
 });

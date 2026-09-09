@@ -12,6 +12,9 @@ describe('ContractsService terminateContract', () => {
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
     fingerprint: 'fp',
+    deviceName: null,
+    country: null,
+    city: null,
   };
 
   let prisma: {
@@ -92,6 +95,7 @@ describe('ContractsService terminateContract', () => {
     expect(auditService.logContractTerminated).toHaveBeenCalledWith(
       'admin-1',
       'contract-1',
+      metadata,
       expect.objectContaining({
         tenantId: 'tenant-1',
         gracePeriodDays: 14,

@@ -20,7 +20,7 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
       (event: NotificationCreatedEvent) => {
         this.notifyUser(event.userId, {
           event: 'invalidate',
-          data: { entity: 'notifications' },
+          data: { entity: 'notifications', actorId: event.actorId },
         });
       },
     );
