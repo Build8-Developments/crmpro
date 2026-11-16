@@ -1,105 +1,16 @@
-export const PERMISSION_GROUPS = {
-  LEADS: [
-    "lead.create",
-    "lead.read",
-    "lead.update",
-    "lead.delete",
-    "lead.assign",
-  ],
-  LEAD_NOTES: [
-    "lead-note.create",
-    "lead-note.read",
-    "lead-note.update",
-    "lead-note.delete",
-  ],
-  LEAD_SOURCES: [
-    "lead-source.create",
-    "lead-source.read",
-    "lead-source.update",
-    "lead-source.delete",
-  ],
-  DEVELOPERS: [
-    "developer.create",
-    "developer.read",
-    "developer.update",
-    "developer.delete",
-  ],
-  PROJECTS: [
-    "project.create",
-    "project.read",
-    "project.update",
-    "project.delete",
-  ],
-  PIPELINES: [
-    "pipeline.create",
-    "pipeline.read",
-    "pipeline.update",
-    "pipeline.delete",
-  ],
-  USERS: [
-    "user.create",
-    "user.read",
-    "user.update",
-    "user.delete",
-    "user.manage",
-  ],
-  ROLES: [
-    "role.create",
-    "role.read",
-    "role.update",
-    "role.delete",
-    "role.manage",
-  ],
-  FILES: ["file.upload", "file.read", "file.delete"],
-  IMPORT_JOBS: ["import-job.create", "import-job.read"],
-  EXPORT_JOBS: ["export-job.create", "export-job.read"],
-  ANALYTICS: ["analytics.read"],
-  NOTIFICATIONS: [
-    "notification.read",
-    "notification.update",
-    "notification.delete",
-  ],
-  AUDIT: ["audit.read"],
-  TENANT: ["tenant.manage", "billing.manage"],
-} as const;
+import {
+  PERMISSION_GROUPS,
+  PERMISSION_GROUP_LABELS,
+  type PermissionGroupKey,
+} from "@crmpro/shared";
 
-export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
+// Groups and labels come from @crmpro/shared so the role editor can never
+// drift from the permissions the API actually enforces.
+export { PERMISSION_GROUPS, PERMISSION_GROUP_LABELS, type PermissionGroupKey };
 
-export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
-  LEADS: "Leads",
-  LEAD_NOTES: "Lead Notes",
-  LEAD_SOURCES: "Lead Sources",
-  DEVELOPERS: "Developers",
-  PROJECTS: "Projects",
-  PIPELINES: "Pipelines",
-  USERS: "Users",
-  ROLES: "Roles",
-  FILES: "Files",
-  IMPORT_JOBS: "Import Jobs",
-  EXPORT_JOBS: "Export Jobs",
-  ANALYTICS: "Analytics",
-  NOTIFICATIONS: "Notifications",
-  AUDIT: "Audit",
-  TENANT: "Organization",
-};
-
-export const PERMISSION_GROUP_ORDER: PermissionGroupKey[] = [
-  "LEADS",
-  "LEAD_NOTES",
-  "LEAD_SOURCES",
-  "DEVELOPERS",
-  "PROJECTS",
-  "PIPELINES",
-  "USERS",
-  "ROLES",
-  "FILES",
-  "IMPORT_JOBS",
-  "EXPORT_JOBS",
-  "ANALYTICS",
-  "NOTIFICATIONS",
-  "AUDIT",
-  "TENANT",
-];
+export const PERMISSION_GROUP_ORDER = Object.keys(
+  PERMISSION_GROUPS,
+) as PermissionGroupKey[];
 
 const ACTION_LABELS: Record<string, string> = {
   create: "Create",
@@ -176,6 +87,7 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "file.upload": "Upload files",
   "file.read": "View and download files",
   "file.delete": "Delete files",
+  "file.manage": "Manage all folders and reset folder passwords",
   "import-job.create": "Create import jobs",
   "import-job.read": "View import jobs",
   "export-job.create": "Create export jobs",
@@ -190,5 +102,7 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "audit.read": "View business audit logs",
   "tenant.manage": "Manage tenant settings",
   "billing.manage": "Manage billing and subscription",
+  "settings.read": "View organization settings, plan and usage",
+  "settings.manage": "Change organization settings and branding",
 };
 

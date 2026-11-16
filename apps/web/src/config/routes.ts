@@ -27,9 +27,10 @@ export interface NavGroup {
   routes: NavRoute[];
 }
 
+/** Primary sidebar: daily work only. Admin pages live in Organization settings. */
 export const navGroups: NavGroup[] = [
   {
-    label: "Main",
+    label: "Sales",
     routes: [
       {
         label: "Dashboard",
@@ -49,29 +50,11 @@ export const navGroups: NavGroup[] = [
         searchable: true,
         keywords: ["contacts", "prospects", "clients"],
       },
-      {
-        label: "Pipelines",
-        href: "/pipelines",
-        subtitle: "Track leads through your sales stages",
-        icon: AppIcons.pipelines,
-        requiredPermissions: ["pipeline.read"],
-        searchable: true,
-        keywords: ["stages", "funnel", "board"],
-      },
     ],
   },
   {
     label: "Catalog",
     routes: [
-      {
-        label: "Developers",
-        href: "/developers",
-        subtitle: "Real estate developers catalog",
-        icon: AppIcons.developers,
-        requiredPermissions: ["developer.read"],
-        searchable: true,
-        keywords: ["builders", "companies"],
-      },
       {
         label: "Projects",
         href: "/projects",
@@ -82,41 +65,18 @@ export const navGroups: NavGroup[] = [
         keywords: ["properties", "developments"],
       },
       {
-        label: "Lead Sources",
-        href: "/lead-sources",
-        subtitle: "Where your leads come from",
-        icon: AppIcons.leadSources,
-        requiredPermissions: ["lead_source.read"],
+        label: "Developers",
+        href: "/developers",
+        subtitle: "Real estate developers catalog",
+        icon: AppIcons.developers,
+        requiredPermissions: ["developer.read"],
         searchable: true,
-        keywords: ["channels", "campaigns", "origin"],
+        keywords: ["builders", "companies"],
       },
     ],
   },
   {
-    label: "Team",
-    routes: [
-      {
-        label: "Users",
-        href: "/users",
-        subtitle: "Manage agency members",
-        icon: AppIcons.users,
-        requiredPermissions: ["user.read"],
-        searchable: true,
-        keywords: ["team", "staff", "members", "agents"],
-      },
-      {
-        label: "Roles",
-        href: "/roles",
-        subtitle: "Roles and permissions",
-        icon: AppIcons.roles,
-        requiredPermissions: ["role.read"],
-        searchable: true,
-        keywords: ["permissions", "access", "rbac"],
-      },
-    ],
-  },
-  {
-    label: "Operations",
+    label: "Data",
     routes: [
       {
         label: "Files",
@@ -145,29 +105,115 @@ export const navGroups: NavGroup[] = [
         searchable: true,
         keywords: ["download", "csv", "reports"],
       },
+    ],
+  },
+];
+
+/** Pinned to the sidebar footer (help, not daily work). */
+export const utilityRoutes: NavRoute[] = [
+  {
+    label: "Help & support",
+    href: "/support",
+    subtitle: "Chat with CRMPro platform support",
+    icon: AppIcons.lifeBuoy,
+    requiredPermissions: ["support.read"],
+    searchable: true,
+    keywords: ["help", "ticket", "contact", "chat", "support", "inbox"],
+  },
+];
+
+/**
+ * Organization settings sections (/settings/*), shown in the settings shell.
+ * Each section is gated by its own permission; the settings entry point is
+ * visible when at least one section is.
+ */
+export const settingsNavGroups: NavGroup[] = [
+  {
+    label: "Organization",
+    routes: [
       {
-        label: "Audit",
-        href: "/audit",
+        label: "General",
+        href: "/settings",
+        subtitle: "Organization name, logo and regional formats",
+        icon: AppIcons.building,
+        requiredPermissions: ["settings.read"],
+        searchable: true,
+        keywords: ["organization", "workspace", "company", "logo", "timezone", "currency", "country"],
+      },
+      {
+        label: "Plan & usage",
+        href: "/settings/plan",
+        subtitle: "Your plan, contract and limits",
+        icon: AppIcons.chartBar,
+        requiredPermissions: ["settings.read"],
+        searchable: true,
+        keywords: ["billing", "subscription", "quota", "limits", "storage"],
+      },
+    ],
+  },
+  {
+    label: "Team",
+    routes: [
+      {
+        label: "Users",
+        href: "/settings/users",
+        subtitle: "Manage agency members",
+        icon: AppIcons.users,
+        requiredPermissions: ["user.read"],
+        searchable: true,
+        keywords: ["team", "staff", "members", "agents"],
+      },
+      {
+        label: "Roles",
+        href: "/settings/roles",
+        subtitle: "Roles and permissions",
+        icon: AppIcons.roles,
+        requiredPermissions: ["role.read"],
+        searchable: true,
+        keywords: ["permissions", "access", "rbac"],
+      },
+    ],
+  },
+  {
+    label: "Leads & sales",
+    routes: [
+      {
+        label: "Pipelines",
+        href: "/settings/pipelines",
+        subtitle: "Sales stages for your leads",
+        icon: AppIcons.pipelines,
+        requiredPermissions: ["pipeline.read"],
+        searchable: true,
+        keywords: ["stages", "funnel", "board"],
+      },
+      {
+        label: "Lead Sources",
+        href: "/settings/lead-sources",
+        subtitle: "Where your leads come from",
+        icon: AppIcons.leadSources,
+        requiredPermissions: ["lead-source.read"],
+        searchable: true,
+        keywords: ["channels", "campaigns", "origin"],
+      },
+    ],
+  },
+  {
+    label: "Activity",
+    routes: [
+      {
+        label: "Audit log",
+        href: "/settings/audit",
         subtitle: "Activity and change history",
         icon: AppIcons.audit,
         requiredPermissions: ["audit.read"],
         searchable: true,
         keywords: ["logs", "history", "activity"],
       },
-      {
-        label: "Support",
-        href: "/support",
-        subtitle: "Chat with CRMPro platform support",
-        icon: AppIcons.lifeBuoy,
-        requiredPermissions: ["support.read"],
-        searchable: true,
-        keywords: ["help", "ticket", "contact", "chat", "support", "inbox"],
-      },
     ],
   },
 ];
 
-/** Account routes available via topbar / command palette (not primary sidebar). */
+/** Personal routes available via topbar / command palette (not primary sidebar). */
 export const accountRoutes: NavRoute[] = [
   {
     label: "Notifications",
@@ -179,27 +225,98 @@ export const accountRoutes: NavRoute[] = [
     keywords: ["alerts", "inbox", "unread", "activity"],
   },
   {
-    label: "Settings",
-    href: "/settings",
-    subtitle: "Profile, sessions, and preferences",
-    icon: AppIcons.settings,
+    label: "My account",
+    href: "/account",
+    subtitle: "Your profile, password and notification preferences",
+    icon: AppIcons.profile,
     requiredPermissions: [],
     searchable: true,
-    keywords: ["account", "profile", "preferences", "security", "workspace"],
+    keywords: ["profile", "password", "security", "sessions", "preferences"],
+  },
+];
+
+/** Sections of My account (/account/*), shown in the account settings shell. */
+export const accountSectionRoutes: NavRoute[] = [
+  {
+    label: "Profile",
+    href: "/account",
+    subtitle: "Your name and contact details",
+    icon: AppIcons.profile,
+    requiredPermissions: [],
+    searchable: false,
+    keywords: [],
+  },
+  {
+    label: "Security",
+    href: "/account/security",
+    subtitle: "Password and signed-in devices",
+    icon: AppIcons.lock,
+    requiredPermissions: [],
+    searchable: true,
+    keywords: ["password", "sessions", "devices", "sign out"],
+  },
+  {
+    label: "Notifications",
+    href: "/account/notifications",
+    subtitle: "Which alerts you receive",
+    icon: AppIcons.notifications,
+    requiredPermissions: [],
+    searchable: true,
+    keywords: ["alerts", "preferences", "email"],
   },
 ];
 
 /** Flat list of every navigable route. */
 export const allRoutes: NavRoute[] = [
   ...navGroups.flatMap((group) => group.routes),
+  ...utilityRoutes,
+  ...settingsNavGroups.flatMap((group) => group.routes),
   ...accountRoutes,
+  ...accountSectionRoutes,
 ];
 
-/** Find the route whose href best matches a pathname (for topbar/breadcrumbs). */
-export function findRouteByPath(pathname: string): NavRoute | undefined {
-  return allRoutes.find(
-    (route) => pathname === route.href || pathname.startsWith(`${route.href}/`),
+export interface RouteCrumb {
+  label: string;
+  href?: string;
+}
+
+/**
+ * Breadcrumbs for a pathname. Settings and account pages are two levels
+ * (Settings › Users); everything else is a single crumb. Pages can append
+ * deeper levels with `usePageBreadcrumbs`.
+ */
+export function getRouteBreadcrumbs(pathname: string): RouteCrumb[] {
+  // Account sections share /account with the "My account" entry; prefer the
+  // section so the trail reads "My account › Profile".
+  const route =
+    accountSectionRoutes.find((section) => section.href === pathname) ??
+    findRouteByPath(pathname);
+  if (!route) return [];
+
+  const sectionOf = (prefix: string, label: string, href: string) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+      ? [{ label, href }, { label: route.label, href: route.href }]
+      : null;
+
+  return (
+    sectionOf("/settings", "Settings", "/settings") ??
+    sectionOf("/account", "My account", "/account") ?? [
+      { label: route.label, href: route.href },
+    ]
   );
+}
+
+/**
+ * Find the route whose href best matches a pathname (for topbar/breadcrumbs).
+ * Longest match wins so `/settings/users` beats `/settings`.
+ */
+export function findRouteByPath(pathname: string): NavRoute | undefined {
+  return allRoutes
+    .filter(
+      (route) =>
+        pathname === route.href || pathname.startsWith(`${route.href}/`),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0];
 }
 
 /** Look up a route by its exact href (used by placeholder pages). */

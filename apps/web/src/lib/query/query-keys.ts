@@ -14,6 +14,12 @@ export const queryKeys = {
     sessions: () => ["auth", "sessions"] as const,
   },
 
+  organization: {
+    all: () => ["organization"] as const,
+    detail: () => ["organization", "detail"] as const,
+    usage: () => ["organization", "usage"] as const,
+  },
+
   settings: {
     all: () => ["settings"] as const,
     notificationPreferences: () =>
@@ -81,6 +87,8 @@ export const queryKeys = {
     all: () => ["files"] as const,
     list: (params?: ListQueryParams) =>
       ["files", "list", params ?? {}] as const,
+    folders: () => ["files", "folders"] as const,
+    stats: (params?: object) => ["files", "stats", params ?? {}] as const,
   },
 
   imports: {

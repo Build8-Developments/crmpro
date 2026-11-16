@@ -2,10 +2,22 @@
 
 import {
   completeFileUpload,
+  createFolder,
   deleteFile,
+  deleteFolder,
+  lockFolder,
+  moveFiles,
   requestFileUpload,
+  setFolderPassword,
+  unlockFolder,
+  updateFolder,
 } from "@/features/files/api";
-import type { CompleteUploadInput } from "@/features/files/types";
+import type {
+  CompleteUploadInput,
+  CreateFolderInput,
+  SetFolderPasswordInput,
+  UpdateFolderInput,
+} from "@/features/files/types";
 import { queryKeys } from "@/lib/query/query-keys";
 import { useApiMutation } from "@/lib/query/use-api-mutation";
 
@@ -39,7 +51,7 @@ export function useBulkDeleteFiles() {
   });
 }
 
-function putFileWithProgress(
+export function putFileWithProgress(
   uploadUrl: string,
   file: File,
   onProgress?: (progress: number) => void,
@@ -74,6 +86,7 @@ function putFileWithProgress(
 export async function uploadFileWithProgress(
   file: File,
   onProgress?: (progress: number) => void,
+  folderId?: string,
 ) {
   onProgress?.(0);
 
@@ -91,6 +104,7 @@ export async function uploadFileWithProgress(
   const input: CompleteUploadInput = {
     objectKey: intent.objectKey,
     category: "OTHER",
+    ...(folderId ? { folderId } : {}),
   };
 
   const result = await completeFileUpload(input);
@@ -128,6 +142,102 @@ export function useUploadFiles() {
       return uploaded;
     },
     successMessage: "Files uploaded",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+/* ─── Gallery folders ─────────────────────────────────────────────────────── */
+
+export function useCreateFolder() {
+  return useApiMutation({
+    mutationFn: (input: CreateFolderInput) => createFolder(input),
+    successMessage: "Folder created",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useUpdateFolder() {
+  return useApiMutation({
+    mutationFn: ({
+      folderId,
+      input,
+    }: {
+      folderId: string;
+      input: UpdateFolderInput;
+    }) => updateFolder(folderId, input),
+    successMessage: "Folder updated",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useDeleteFolder() {
+  return useApiMutation({
+    mutationFn: (folderId: string) => deleteFolder(folderId),
+    successMessage: "Folder deleted",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useSetFolderPassword() {
+  return useApiMutation({
+    mutationFn: ({
+      folderId,
+      input,
+    }: {
+      folderId: string;
+      input: SetFolderPasswordInput;
+    }) => setFolderPassword(folderId, input),
+    successMessage: "Folder privacy updated",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useUnlockFolder() {
+  return useApiMutation({
+    mutationFn: ({ folderId, password }: { folderId: string; password: string }) =>
+      unlockFolder(folderId, password),
+    successMessage: "Folder unlocked for 30 minutes",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useLockFolder() {
+  return useApiMutation({
+    mutationFn: (folderId: string) => lockFolder(folderId),
+    successMessage: "Folder locked",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useMoveFiles() {
+  return useApiMutation({
+    mutationFn: ({
+      fileIds,
+      folderId,
+    }: {
+      fileIds: string[];
+      folderId: string | null;
+    }) => moveFiles(fileIds, folderId),
+    successMessage: "Files moved",
+    invalidateKeys: [...filesInvalidateKeys],
+  });
+}
+
+export function useUploadToFolder() {
+  return useApiMutation({
+    mutationFn: async ({
+      files,
+      folderId,
+    }: {
+      files: File[];
+      folderId?: string;
+    }) => {
+      for (const file of files) {
+        await uploadFileWithProgress(file, undefined, folderId);
+      }
+      return { count: files.length };
+    },
+    successMessage: "Upload complete",
     invalidateKeys: [...filesInvalidateKeys],
   });
 }

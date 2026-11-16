@@ -54,8 +54,18 @@ export function CredentialsStep({
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <AppIcons.building className="size-4" stroke={1.75} />
+            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary/10 text-primary">
+              {workspace.logoUrl ? (
+                // Signed storage URL from the workspace lookup.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={workspace.logoUrl}
+                  alt=""
+                  className="size-full bg-white object-contain"
+                />
+              ) : (
+                <AppIcons.building className="size-4" stroke={1.75} />
+              )}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{workspace.name}</p>

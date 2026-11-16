@@ -280,7 +280,7 @@ function PermissionGroupSection({
             checked={allSelected ? true : someSelected ? "indeterminate" : false}
             onCheckedChange={onToggleGroup} 
             disabled={isReadOnly}
-            className="data-[state=checked]:bg-primary"
+            className="data-[checked]:bg-primary"
           />
           <Label 
             htmlFor={`group-${groupKey}`} 

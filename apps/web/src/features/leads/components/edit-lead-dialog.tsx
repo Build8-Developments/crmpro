@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,8 +24,11 @@ import type { FilterOption } from "@/features/leads/api";
 import { useLead, useLeadFilterOptions } from "@/features/leads/hooks";
 import { useUpdateLead } from "@/features/leads/mutations";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
-import { INTEREST_LEVEL_OPTIONS } from "@/features/leads/utils/lead-filters";
-import { getPrimaryProjectInterest } from "@/features/leads/utils/lead-formatters";
+import {
+  ProjectInterestsField,
+  toProjectInterestsInput,
+  type ProjectInterestDraft,
+} from "@/features/leads/components/project-interests-field";
 import { usePermissions } from "@/hooks/use-permissions";
 
 export function EditLeadDialog() {
@@ -44,20 +47,37 @@ export function EditLeadDialog() {
   const [secondaryPhone, setSecondaryPhone] = useState("");
   const [email, setEmail] = useState("");
   const [sourceId, setSourceId] = useState<string>();
-  const [projectId, setProjectId] = useState<string>();
-  const [interestLevel, setInterestLevel] = useState<string>();
+  const [projectInterests, setProjectInterests] = useState<
+    ProjectInterestDraft[]
+  >([]);
+
+  // Include the lead's own projects so interests in projects outside the
+  // option list (inactive, or beyond the first page) are still shown and kept.
+  const projectOptions = useMemo(() => {
+    const options = [...(projects.data ?? [])];
+    const known = new Set(options.map((option) => option.id));
+    for (const interest of lead?.projectInterests ?? []) {
+      if (!known.has(interest.projectId)) {
+        options.push({ id: interest.projectId, name: interest.project.name });
+      }
+    }
+    return options;
+  }, [projects.data, lead]);
 
   useEffect(() => {
     if (!open || !lead) return;
 
-    const interest = getPrimaryProjectInterest(lead);
     setFullName(lead.fullName);
     setPrimaryPhone(lead.primaryPhone);
     setSecondaryPhone(lead.secondaryPhone ?? "");
     setEmail(lead.email ?? "");
     setSourceId(lead.source?.id);
-    setProjectId(interest?.projectId);
-    setInterestLevel(interest?.interestLevel ?? undefined);
+    setProjectInterests(
+      lead.projectInterests.map((interest) => ({
+        projectId: interest.projectId,
+        interestLevel: interest.interestLevel,
+      })),
+    );
   }, [open, lead]);
 
   const handleClose = () => {
@@ -79,17 +99,7 @@ export function EditLeadDialog() {
         secondaryPhone: trimmedSecondary.length > 0 ? trimmedSecondary : null,
         email: trimmedEmail.length > 0 ? trimmedEmail : null,
         sourceId: sourceId ?? null,
-        projectInterests: projectId
-          ? [
-              {
-                projectId,
-                interestLevel:
-                  interestLevel && interestLevel !== "__none__"
-                    ? (interestLevel as "LOW" | "MEDIUM" | "HIGH" | "HOT")
-                    : undefined,
-              },
-            ]
-          : [],
+        projectInterests: toProjectInterestsInput(projectInterests),
       },
     });
 
@@ -104,7 +114,7 @@ export function EditLeadDialog() {
         <DialogHeader>
           <DialogTitle>Edit lead</DialogTitle>
           <DialogDescription>
-            Update contact details and project interest.
+            Update contact details and project interests.
           </DialogDescription>
         </DialogHeader>
 
@@ -169,37 +179,11 @@ export function EditLeadDialog() {
               onChange={setSourceId}
             />
 
-            <div className="grid grid-cols-2 gap-3">
-              <SelectField
-                label="Project"
-                value={projectId}
-                options={projects.data ?? []}
-                placeholder="No project"
-                onChange={setProjectId}
-              />
-              <div className="space-y-2">
-                <Label>Interest</Label>
-                <Select
-                  value={interestLevel ?? "__none__"}
-                  disabled={!projectId}
-                  onValueChange={(next) =>
-                    setInterestLevel(next === "__none__" ? undefined : next)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Optional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Not set</SelectItem>
-                    {INTEREST_LEVEL_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <ProjectInterestsField
+              value={projectInterests}
+              options={projectOptions}
+              onChange={setProjectInterests}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>

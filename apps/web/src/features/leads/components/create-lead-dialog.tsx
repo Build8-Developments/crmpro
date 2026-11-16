@@ -26,7 +26,11 @@ import {
 import { useLeadFilterOptions } from "@/features/leads/hooks";
 import { useCreateLead } from "@/features/leads/mutations";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
-import { INTEREST_LEVEL_OPTIONS } from "@/features/leads/utils/lead-filters";
+import {
+  ProjectInterestsField,
+  toProjectInterestsInput,
+  type ProjectInterestDraft,
+} from "@/features/leads/components/project-interests-field";
 import { usePermissions } from "@/hooks/use-permissions";
 
 export function CreateLeadDialog() {
@@ -42,8 +46,9 @@ export function CreateLeadDialog() {
   const [email, setEmail] = useState("");
   const [sourceId, setSourceId] = useState<string>();
   const [assignedUserId, setAssignedUserId] = useState<string>();
-  const [projectId, setProjectId] = useState<string>();
-  const [interestLevel, setInterestLevel] = useState<string>();
+  const [projectInterests, setProjectInterests] = useState<
+    ProjectInterestDraft[]
+  >([]);
   const [pipelineId, setPipelineId] = useState<string>();
   const [pipelineStageId, setPipelineStageId] = useState<string>();
 
@@ -75,8 +80,7 @@ export function CreateLeadDialog() {
     setEmail("");
     setSourceId(undefined);
     setAssignedUserId(undefined);
-    setProjectId(undefined);
-    setInterestLevel(undefined);
+    setProjectInterests([]);
   };
 
   const handleClose = () => {
@@ -96,18 +100,8 @@ export function CreateLeadDialog() {
       pipelineStageId,
       ...(sourceId ? { sourceId } : {}),
       ...(assignedUserId ? { assignedUserId } : {}),
-      ...(projectId
-        ? {
-            projectInterests: [
-              {
-                projectId,
-                interestLevel:
-                  interestLevel && interestLevel !== "__none__"
-                    ? (interestLevel as "LOW" | "MEDIUM" | "HIGH" | "HOT")
-                    : undefined,
-              },
-            ],
-          }
+      ...(projectInterests.length > 0
+        ? { projectInterests: toProjectInterestsInput(projectInterests) }
         : {}),
     });
 
@@ -202,37 +196,11 @@ export function CreateLeadDialog() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <SelectField
-              label="Project"
-              value={projectId}
-              options={projects.data ?? []}
-              placeholder="Optional"
-              onChange={setProjectId}
-            />
-            <div className="space-y-2">
-              <Label>Interest</Label>
-              <Select
-                value={interestLevel ?? "__none__"}
-                disabled={!projectId}
-                onValueChange={(next) =>
-                  setInterestLevel(next === "__none__" ? undefined : next)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Optional" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Not set</SelectItem>
-                  {INTEREST_LEVEL_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <ProjectInterestsField
+            value={projectInterests}
+            options={projects.data ?? []}
+            onChange={setProjectInterests}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

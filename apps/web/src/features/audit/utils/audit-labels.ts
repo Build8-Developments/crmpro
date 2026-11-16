@@ -154,9 +154,9 @@ export function getAuditEntityHref(
 
   switch (entityType) {
     case "User":
-      return `/users?userId=${entityId}`;
+      return `/settings/users?userId=${entityId}`;
     case "Role":
-      return `/roles?roleId=${entityId}`;
+      return `/settings/roles?roleId=${entityId}`;
     case "Lead":
       return `/leads?id=${entityId}`;
     case "Project":

@@ -1,5 +1,11 @@
-import { FilesPage } from "@/features/files/components/files-page";
+import { Suspense } from "react";
+import { FilesGallerySkeleton } from "@/features/files/components/gallery/files-gallery-skeleton";
+import { FilesGalleryPage } from "@/features/files/components/gallery/files-gallery-page";
 
-export default function Page() {
-  return <FilesPage />;
+export default function FilesRoutePage() {
+  return (
+    <Suspense fallback={<FilesGallerySkeleton />}>
+      <FilesGalleryPage />
+    </Suspense>
+  );
 }

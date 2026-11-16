@@ -54,7 +54,7 @@ export function getNotificationHref(notification: Notification): string | null {
     case "FILE_DELETED":
       return "/files";
     case "SECURITY":
-      return "/settings";
+      return "/account/security";
     case "REMINDER":
       return "/leads";
     case "SUPPORT_REPLY":

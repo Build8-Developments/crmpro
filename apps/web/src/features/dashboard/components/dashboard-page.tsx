@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
   getDashboardListPanelHeight,
   getDashboardListRowCount,
 } from "@/features/dashboard/utils";
+import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { ActivityFeed } from "./activity-feed";
 import { DashboardChartsRow } from "./dashboard-charts-row";
@@ -35,12 +37,38 @@ import { TrendsChart } from "./trends-chart";
 
 export function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>("30d");
-  const { data, isLoading, isError, refetch, isFetching } = useDashboardSummary({
-    range,
-  });
+  const { data, error, isLoading, isError, refetch, isFetching } =
+    useDashboardSummary({
+      range,
+    });
 
   if (isLoading) {
     return <DashboardSkeleton />;
+  }
+
+  if (error instanceof ApiError && error.status === 403) {
+    return (
+      <div className="space-y-4 px-6 py-5 md:px-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AppIcons.dashboard className="size-5 text-muted-foreground" />
+              Dashboard analytics aren&apos;t available
+            </CardTitle>
+            <CardDescription>
+              Your workspace plan or your role doesn&apos;t include analytics.
+              Ask your workspace owner if you need access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/leads">Go to leads</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <QuickActions />
+      </div>
+    );
   }
 
   if (isError || !data) {
