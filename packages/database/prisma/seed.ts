@@ -33,6 +33,7 @@ import {
   MANAGER_PERMISSION_KEYS,
   OWNER_PERMISSION_KEYS,
 } from '@crmpro/shared/bootstrap';
+import { normalizePhone } from '@crmpro/shared/leads';
 
 const GB = 1024n ** 3n;
 const MB = 1024n ** 2n;
@@ -200,6 +201,7 @@ const PERMISSIONS = [
   { key: 'file.upload', description: 'Upload files' },
   { key: 'file.read', description: 'View and download files' },
   { key: 'file.delete', description: 'Delete files' },
+  { key: 'file.manage', description: 'Manage all folders and reset folder passwords' },
   { key: 'import-job.create', description: 'Create import jobs' },
   { key: 'import-job.read', description: 'View import jobs' },
   { key: 'export-job.create', description: 'Create export jobs' },
@@ -214,6 +216,8 @@ const PERMISSIONS = [
   { key: 'audit.read', description: 'View business audit logs' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
+  { key: 'settings.read', description: 'View organization settings, plan and usage' },
+  { key: 'settings.manage', description: 'Change organization settings and branding' },
 ] as const;
 
 const ADMIN_ROLE_IDS = {
@@ -444,20 +448,9 @@ function initFaker(): void {
   faker.setDefaultRefDate(new Date('2026-06-01'));
 }
 
-function normalizeEgyptPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('20')) {
-    return `+${digits}`;
-  }
-  if (digits.startsWith('0')) {
-    return `+20${digits.slice(1)}`;
-  }
-  return `+20${digits}`;
-}
-
 function egyptLocalPhone(): { raw: string; normalized: string } {
   const raw = `01${faker.string.numeric(9)}`;
-  return { raw, normalized: normalizeEgyptPhone(raw) };
+  return { raw, normalized: normalizePhone(raw) };
 }
 
 function objectKey(
@@ -794,6 +787,14 @@ async function seedTenants(): Promise<void> {
       subscriptionPlanId: PLAN_IDS.starter,
     },
   });
+
+  for (const tenantId of [TENANT_ID, SECOND_TENANT_ID]) {
+    await prisma.tenantSettings.upsert({
+      where: { tenantId },
+      create: { tenantId },
+      update: {},
+    });
+  }
 }
 
 async function seedRoles(tenantId: string, roleDefs: typeof TENANT_ROLES): Promise<void> {

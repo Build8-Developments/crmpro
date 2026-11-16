@@ -45,6 +45,7 @@ export const PERMISSIONS = {
   FILE_UPLOAD: 'file.upload',
   FILE_READ: 'file.read',
   FILE_DELETE: 'file.delete',
+  FILE_MANAGE: 'file.manage',
 
   IMPORT_JOB_CREATE: 'import-job.create',
   IMPORT_JOB_READ: 'import-job.read',
@@ -66,6 +67,9 @@ export const PERMISSIONS = {
 
   TENANT_MANAGE: 'tenant.manage',
   BILLING_MANAGE: 'billing.manage',
+
+  SETTINGS_READ: 'settings.read',
+  SETTINGS_MANAGE: 'settings.manage',
 } as const;
 
 export const ADMIN_PERMISSIONS = {
@@ -153,6 +157,7 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.FILE_UPLOAD,
     PERMISSIONS.FILE_READ,
     PERMISSIONS.FILE_DELETE,
+    PERMISSIONS.FILE_MANAGE,
   ],
   IMPORT_JOBS: [
     PERMISSIONS.IMPORT_JOB_CREATE,
@@ -175,6 +180,7 @@ export const PERMISSION_GROUPS = {
   ],
   AUDIT: [PERMISSIONS.AUDIT_READ],
   TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
+  SETTINGS: [PERMISSIONS.SETTINGS_READ, PERMISSIONS.SETTINGS_MANAGE],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
 export const ADMIN_PERMISSION_GROUPS = {
@@ -220,6 +226,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   SUPPORT: 'Support',
   AUDIT: 'Audit',
   TENANT: 'Organization',
+  SETTINGS: 'Organization Settings',
 };
 
 export type AdminPermissionGroupKey = keyof typeof ADMIN_PERMISSION_GROUPS;

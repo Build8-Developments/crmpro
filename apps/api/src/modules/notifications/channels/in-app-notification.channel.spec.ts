@@ -57,7 +57,7 @@ describe('InAppNotificationChannel', () => {
     dedupeKey: 'import:job-1:IMPORT_COMPLETED:user-1',
   };
 
-  it('creates notification and audit log on first delivery', async () => {
+  it('creates the notification without an audit row on first delivery', async () => {
     tx.notification.createMany.mockResolvedValue({ count: 1 });
     tx.notification.findFirst.mockResolvedValue({ id: 'notification-1' });
 
@@ -71,11 +71,7 @@ describe('InAppNotificationChannel', () => {
       ],
       skipDuplicates: true,
     });
-    expect(tx.auditLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ entityId: 'notification-1' }),
-      }),
-    );
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
 
     expect(eventBus.publish).toHaveBeenCalledTimes(1);
 

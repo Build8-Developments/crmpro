@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditActorType, Prisma } from '@crmpro/database';
+import { Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { NotificationCreatedEvent } from '../../../common/events/domain-event.types';
@@ -16,34 +16,11 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
   constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
-    const notificationId = await this.prisma.$transaction(async (tx) => {
-      const createdId = await this.createNotificationIfAbsent(tx, context);
-
-      if (!createdId) {
-        return null;
-      }
-
-      await tx.auditLog.create({
-        data: {
-          tenantId: context.tenantId,
-          actorType: context.createdByUserId
-            ? AuditActorType.USER
-            : AuditActorType.SYSTEM,
-          actorUserId: context.createdByUserId ?? null,
-          entityType: 'Notification',
-          entityId: createdId,
-          action: 'NOTIFICATION_CREATED',
-          metadata: {
-            type: context.type,
-            recipientUserId: context.recipientUserId,
-            channel: this.channelId,
-            dedupeKey: context.dedupeKey ?? null,
-          } satisfies Prisma.InputJsonValue,
-        },
-      });
-
-      return createdId;
-    });
+    // No audit row per notification: notifications are a side effect of an
+    // already-audited action, and one row each flooded the tenant audit log.
+    const notificationId = await this.prisma.$transaction((tx) =>
+      this.createNotificationIfAbsent(tx, context),
+    );
 
     if (!notificationId) {
       return;

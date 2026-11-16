@@ -316,8 +316,14 @@ export class CleanupService {
       if (listing.keys.length > 0) {
         const [assets, intents] = await Promise.all([
           this.prisma.fileAsset.findMany({
-            where: { objectKey: { in: listing.keys } },
-            select: { objectKey: true },
+            where: {
+              OR: [
+                { objectKey: { in: listing.keys } },
+                // Thumbnails live next to their file and are not orphans.
+                { thumbnailObjectKey: { in: listing.keys } },
+              ],
+            },
+            select: { objectKey: true, thumbnailObjectKey: true },
           }),
           this.prisma.fileUploadIntent.findMany({
             where: { objectKey: { in: listing.keys } },
@@ -326,7 +332,11 @@ export class CleanupService {
         ]);
 
         const knownKeys = new Set([
-          ...assets.map((asset) => asset.objectKey),
+          ...assets.flatMap((asset) =>
+            asset.thumbnailObjectKey
+              ? [asset.objectKey, asset.thumbnailObjectKey]
+              : [asset.objectKey],
+          ),
           ...intents.map((intent) => intent.objectKey),
         ]);
 

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -16,13 +17,29 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { CompleteUploadDto } from './dto/complete-upload.dto';
 import { GetFilesQueryDto } from './dto/get-files-query.dto';
+import { GetFilesStatsQueryDto } from './dto/get-files-stats-query.dto';
 import { RequestUploadDto } from './dto/request-upload.dto';
 import { FilesService } from './files.service';
+import { FolderAccessService } from './folders/folder-access.service';
 
 @Controller('files')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class FilesController {
-  constructor(private readonly filesService: FilesService) {}
+  constructor(
+    private readonly filesService: FilesService,
+    private readonly folderAccess: FolderAccessService,
+  ) {}
+
+  /** Throws FOLDER_LOCKED if the file sits in a folder this session can't open. */
+  private async assertFileAccessible(user: AuthenticatedUser, fileId: string) {
+    const folderId = await this.filesService.getFileFolderId(
+      fileId,
+      user.tenantId,
+    );
+    if (folderId) {
+      await this.folderAccess.assertFolderAccessible(user, folderId);
+    }
+  }
 
   @Get()
   @RequirePermission(PERMISSIONS.FILE_READ)
@@ -30,7 +47,30 @@ export class FilesController {
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: GetFilesQueryDto,
   ) {
-    const data = await this.filesService.listFiles(user.tenantId, query);
+    const snapshot = await this.folderAccess.snapshot(user);
+    if (query.folderId && query.folderId !== 'root') {
+      this.folderAccess.assertAccessible(snapshot, query.folderId);
+    }
+    const data = await this.filesService.listFiles(user.tenantId, query, {
+      lockedFolderIds: [...snapshot.lockedIds],
+    });
+    return { success: true, data };
+  }
+
+  /** Totals, kinds and top uploaders for the gallery info panel. */
+  @Get('stats')
+  @RequirePermission(PERMISSIONS.FILE_READ)
+  async getStats(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: GetFilesStatsQueryDto,
+  ) {
+    const snapshot = await this.folderAccess.snapshot(user);
+    if (query.folderId && query.folderId !== 'root') {
+      this.folderAccess.assertAccessible(snapshot, query.folderId);
+    }
+    const data = await this.filesService.getStats(user.tenantId, query, {
+      lockedFolderIds: [...snapshot.lockedIds],
+    });
     return { success: true, data };
   }
 
@@ -55,6 +95,14 @@ export class FilesController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CompleteUploadDto,
   ) {
+    if (dto.folderId) {
+      if (dto.category !== 'OTHER') {
+        throw new BadRequestException(
+          'Only general uploads can be placed in a folder',
+        );
+      }
+      await this.folderAccess.assertFolderAccessible(user, dto.folderId);
+    }
     const data = await this.filesService.completeUpload(
       user.tenantId,
       user.id,
@@ -64,12 +112,24 @@ export class FilesController {
     return { success: true, data };
   }
 
+  @Get(':id/preview-url')
+  @RequirePermission(PERMISSIONS.FILE_READ)
+  async getPreviewUrl(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.assertFileAccessible(user, id);
+    const data = await this.filesService.getPreviewUrl(id, user.tenantId);
+    return { success: true, data };
+  }
+
   @Get(':id/download-url')
   @RequirePermission(PERMISSIONS.FILE_READ)
   async getDownloadUrl(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
+    await this.assertFileAccessible(user, id);
     const data = await this.filesService.getDownloadUrl(id, user.tenantId);
 
     return { success: true, data };
@@ -81,6 +141,7 @@ export class FilesController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
+    await this.assertFileAccessible(user, id);
     const data = await this.filesService.deleteFile(
       id,
       user.tenantId,

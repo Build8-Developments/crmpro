@@ -44,6 +44,7 @@ describe('TenantProvisioningService contract concurrency', () => {
   let tx: {
     $queryRaw: jest.Mock;
     tenant: { create: jest.Mock };
+    tenantSettings: { create: jest.Mock };
     tenantContract: { updateMany: jest.Mock };
     role: { createMany: jest.Mock };
     permission: { findMany: jest.Mock };
@@ -68,6 +69,7 @@ describe('TenantProvisioningService contract concurrency', () => {
           slug: dto.slug,
         }),
       },
+      tenantSettings: { create: jest.fn().mockResolvedValue({}) },
       tenantContract: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -141,6 +143,14 @@ describe('TenantProvisioningService contract concurrency', () => {
         deletedAt: null,
         status: ContractStatus.ACTIVE,
       },
+      data: { tenantId: 'tenant-1' },
+    });
+  });
+
+  it('creates default organization settings for the new tenant', async () => {
+    await service.provisionTenant(dto, 'admin-1', metadata);
+
+    expect(tx.tenantSettings.create).toHaveBeenCalledWith({
       data: { tenantId: 'tenant-1' },
     });
   });

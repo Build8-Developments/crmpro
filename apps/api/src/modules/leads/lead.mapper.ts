@@ -41,6 +41,7 @@ export const leadSelect = {
     },
   },
   leadProjectInterests: {
+    orderBy: { createdAt: 'asc' },
     select: {
       projectId: true,
       interestLevel: true,

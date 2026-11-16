@@ -99,6 +99,32 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     await this.redis.set(key, JSON.stringify(value), 'EX', ttlSeconds);
   }
 
+  async delete(key: string): Promise<void> {
+    if (!this.redis) {
+      return;
+    }
+
+    await this.redis.del(key);
+  }
+
+  /**
+   * Increments a counter, starting its TTL on the first hit.
+   * Returns the new count (0 when Redis is unavailable).
+   */
+  async incrementWithTtl(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.redis) {
+      return 0;
+    }
+
+    // EXPIRE ... NX would be atomic but needs Redis 7+; setting the TTL on
+    // the first increment is equivalent for rate-limit windows.
+    const count = await this.redis.incr(key);
+    if (count === 1) {
+      await this.redis.expire(key, ttlSeconds);
+    }
+    return count;
+  }
+
   async deleteByPattern(pattern: string): Promise<number> {
     if (!this.redis) {
       return 0;

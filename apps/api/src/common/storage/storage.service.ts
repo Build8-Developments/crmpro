@@ -176,6 +176,17 @@ export class StorageService {
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: params.objectKey,
+        ...(params.disposition
+          ? {
+              ResponseContentDisposition: contentDisposition(
+                params.disposition,
+                params.fileName,
+              ),
+            }
+          : {}),
+        ...(params.contentType
+          ? { ResponseContentType: params.contentType }
+          : {}),
       }),
       { expiresIn: expiresInSeconds },
     );
@@ -205,4 +216,14 @@ export class StorageService {
 
     return Buffer.from(bytes);
   }
+}
+
+/** RFC 6266 header with an ASCII fallback and a UTF-8 (Arabic-safe) name. */
+function contentDisposition(
+  type: 'inline' | 'attachment',
+  fileName?: string,
+): string {
+  if (!fileName) return type;
+  const ascii = fileName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '');
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }

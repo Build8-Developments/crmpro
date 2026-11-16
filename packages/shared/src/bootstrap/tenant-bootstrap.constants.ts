@@ -34,6 +34,7 @@ export const MANAGER_PERMISSION_KEYS: readonly PermissionKey[] =
   ALL_TENANT_PERMISSION_KEYS.filter(
     (key) =>
       key !== PERMISSIONS.BILLING_MANAGE &&
+      key !== PERMISSIONS.SETTINGS_MANAGE &&
       key !== PERMISSIONS.NOTIFICATION_DELETE &&
       key !== PERMISSIONS.USER_MANAGE &&
       key !== PERMISSIONS.ROLE_MANAGE,

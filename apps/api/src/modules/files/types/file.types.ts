@@ -46,8 +46,11 @@ export type FileAssetListItem = {
   sizeBytes: string;
   leadId: string | null;
   projectId: string | null;
+  folderId: string | null;
   createdAt: string;
   uploadedBy: FileUploaderSummary;
   lead: FileLeadSummary | null;
   project: FileProjectSummary | null;
+  /** Short-lived signed URL for image thumbnails; null for other types. */
+  previewUrl?: string | null;
 };

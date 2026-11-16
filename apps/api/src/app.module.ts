@@ -30,6 +30,8 @@ import { PublicModule } from './modules/public/public.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { SupportModule } from './modules/support/support.module';
+import { AccountModule } from './modules/account/account.module';
+import { OrganizationModule } from './modules/organization/organization.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -65,6 +67,8 @@ import { envValidationSchema } from './config/env.validation';
     UsersModule,
     RolesModule,
     SupportModule,
+    AccountModule,
+    OrganizationModule,
     PublicModule,
   ],
   controllers: [],

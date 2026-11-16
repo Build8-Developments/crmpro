@@ -100,4 +100,15 @@ describe('MonitoringController', () => {
       }),
     });
   });
+
+  it.each(['getJobsHealth', 'getMetrics'] as const)(
+    '%s is only reachable with the internal monitoring key',
+    (handler) => {
+      const guards = Reflect.getMetadata(
+        '__guards__',
+        MonitoringController.prototype[handler],
+      ) as unknown[];
+      expect(guards).toEqual([InternalMonitoringGuard]);
+    },
+  );
 });

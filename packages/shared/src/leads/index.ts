@@ -5,3 +5,8 @@ export {
   type LeadStageCloseInfo,
   type PipelineCloseType,
 } from './lead-stage.util';
+export {
+  normalizePhone,
+  phoneSearchCore,
+  toAsciiDigits,
+} from './phone-normalization.util';

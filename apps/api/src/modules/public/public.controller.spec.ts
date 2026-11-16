@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { API_ERROR_CODES, mapExceptionToApiErrorResponse } from '@crmpro/shared/errors';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { StorageService } from '../../common/storage/storage.service';
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
 
@@ -12,6 +13,7 @@ describe('PublicService', () => {
       findFirst: jest.Mock;
     };
   };
+  let storage: { getSignedDownloadUrl: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -19,11 +21,17 @@ describe('PublicService', () => {
         findFirst: jest.fn(),
       },
     };
+    storage = {
+      getSignedDownloadUrl: jest
+        .fn()
+        .mockResolvedValue({ url: 'https://signed.example/logo.png' }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PublicService,
         { provide: PrismaService, useValue: prisma },
+        { provide: StorageService, useValue: storage },
       ],
     }).compile();
 
@@ -45,8 +53,27 @@ describe('PublicService', () => {
 
     expect(prisma.tenant.findFirst).toHaveBeenCalledWith({
       where: { slug: 'prime-estates', deletedAt: null },
-      select: { name: true, slug: true },
+      select: {
+        name: true,
+        slug: true,
+        logoFile: { select: { objectKey: true, deletedAt: true } },
+      },
     });
+  });
+
+  it('returns a signed logo URL when the workspace has a logo', async () => {
+    prisma.tenant.findFirst.mockResolvedValue({
+      name: 'Prime Estates',
+      slug: 'prime-estates',
+      logoFile: { objectKey: 'tenants/t/logo.png', deletedAt: null },
+    });
+
+    await expect(
+      service.lookupWorkspaceBySlug('prime-estates'),
+    ).resolves.toMatchObject({ logoUrl: 'https://signed.example/logo.png' });
+    expect(storage.getSignedDownloadUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ objectKey: 'tenants/t/logo.png' }),
+    );
   });
 
   it('throws NOT_FOUND for a missing workspace slug', async () => {

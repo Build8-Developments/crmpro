@@ -24,4 +24,9 @@ export class CompleteUploadDto {
   @IsOptional()
   @IsUUID()
   leadId?: string;
+
+  /** Gallery folder for an OTHER upload. */
+  @IsOptional()
+  @IsUUID()
+  folderId?: string;
 }

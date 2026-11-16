@@ -15,6 +15,7 @@ enum TenantStatus {
 
 enum FileAssetCategory {
   AVATAR
+  LOGO
   LEAD_ATTACHMENT
   PROJECT_BROCHURE
   IMPORT_FILE
@@ -216,11 +217,15 @@ model Tenant {
   status             TenantStatus @default(TRIAL)
   subscriptionPlanId String       @db.Uuid
   storageUsedBytes   BigInt       @default(0) @db.BigInt
+  /// Workspace logo, set by the organization from Settings → General.
+  logoFileId         String?      @unique @db.Uuid
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   deletedAt          DateTime?
 
   subscriptionPlan SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id])
+  logoFile         FileAsset?       @relation("TenantLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  settings         TenantSettings?
   contracts        TenantContract[]
   roles            Role[]
   users            User[]
@@ -236,8 +241,29 @@ model Tenant {
   notifications         Notification[]
   supportNotes          TenantNote[]
   supportConversations  SupportConversation[]
+  fileFolders           FileFolder[]
 
   @@index([subscriptionPlanId])
+}
+
+/// Organization-wide settings. One row per tenant, created at provisioning
+/// (and backfilled for existing tenants) with defaults. Typed columns on
+/// purpose: validated by the DB and never drifting from the API/UI.
+/// See docs/product/settings-spec.md.
+model TenantSettings {
+  tenantId        String   @id @db.Uuid
+  /// ISO-3166 alpha-2. Default country for phone numbers without a code.
+  countryCode     String   @default("EG")
+  /// IANA timezone used for "today", reports and reminders.
+  timezone        String   @default("Africa/Cairo")
+  /// ISO-4217 currency for budgets, prices and deals.
+  currency        String   @default("EGP")
+  /// 0 = Sunday … 6 = Saturday.
+  weekStartsOn    Int      @default(6)
+  updatedAt       DateTime @updatedAt
+  updatedByUserId String?  @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model Permission {
@@ -263,7 +289,9 @@ model Role {
   permissions RolePermission[]
   users       User[]
 
-  @@unique([tenantId, name])
+  // (tenantId, name) is unique among live rows via a partial unique index
+  // (WHERE "deletedAt" IS NULL) created in migration
+  // 20261116121000_partial_unique_names. It is not expressible here.
   @@index([tenantId])
   @@index([tenantId, deletedAt])
 }
@@ -308,6 +336,7 @@ model User {
   notificationPreferences NotificationPreference[]
   supportConversations SupportConversation[] @relation("SupportConversationCreator")
   supportMessages      SupportMessage[]      @relation("SupportMessageUserAuthor")
+  fileFoldersCreated   FileFolder[]          @relation("FoldersCreated")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -344,7 +373,9 @@ model Developer {
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   projects Project[]
 
-  @@unique([tenantId, name])
+  // (tenantId, name) is unique among live rows via a partial unique index
+  // (WHERE "deletedAt" IS NULL) created in migration
+  // 20261116121000_partial_unique_names. It is not expressible here.
   @@index([tenantId])
 }
 
@@ -365,7 +396,9 @@ model Project {
   fileAssets          FileAsset[]
   leadProjectInterests LeadProjectInterest[]
 
-  @@unique([tenantId, name])
+  // (tenantId, name) is unique among live rows via a partial unique index
+  // (WHERE "deletedAt" IS NULL) created in migration
+  // 20261116121000_partial_unique_names. It is not expressible here.
   @@index([tenantId])
   @@index([developerId])
 }
@@ -529,6 +562,12 @@ model FileAsset {
   sizeBytes        BigInt            @db.BigInt
   leadId           String?           @db.Uuid
   projectId        String?           @db.Uuid
+  /// Gallery folder for user-uploaded files (null = root). System files
+  /// (lead attachments, imports, exports, logos) are not placed in folders.
+  folderId         String?           @db.Uuid
+  /// Small WebP preview (first PDF page / downscaled image), generated
+  /// server-side in the background. Null until generated or if unsupported.
+  thumbnailObjectKey String?         @unique
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
@@ -540,13 +579,44 @@ model FileAsset {
   project    Project?    @relation(fields: [projectId], references: [id])
   importJobs ImportJob[]
   exportJobs ExportJob[]
+  logoForTenant Tenant? @relation("TenantLogo")
+  // Restrict: removing a private folder must never drop its files to the
+  // unprotected root.
+  folder        FileFolder? @relation(fields: [folderId], references: [id], onDelete: Restrict)
 
   @@index([tenantId])
+  @@index([tenantId, folderId])
   @@index([tenantId, category])
   @@index([uploadedByUserId])
   @@index([avatarForUserId])
   @@index([leadId])
   @@index([projectId])
+}
+
+/// Folder in the Files gallery. Nested via parentId. A folder with a
+/// passwordHash is private: it and everything below it stay locked until a
+/// user unlocks it with the password (per session, time-limited).
+model FileFolder {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  parentId        String?   @db.Uuid
+  name            String
+  /// Argon2 hash. Null = not password-protected (may still inherit a lock).
+  passwordHash    String?
+  createdByUserId String    @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  parent    FileFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  FileFolder[] @relation("FolderTree")
+  createdBy User         @relation("FoldersCreated", fields: [createdByUserId], references: [id])
+  files     FileAsset[]
+
+  // Sibling names are unique among live folders (case-insensitive) via a
+  // partial expression index in migration 20261116140000_file_folders.
+  @@index([tenantId, parentId])
 }
 
 model FileUploadIntent {

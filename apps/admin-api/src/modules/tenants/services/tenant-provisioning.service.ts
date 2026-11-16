@@ -64,6 +64,9 @@ export class TenantProvisioningService {
 
       await this.linkContractToTenantInTx(tx, contract.id, tenant.id);
 
+      // Organization settings start from schema defaults (Egypt, Africa/Cairo, EGP).
+      await tx.tenantSettings.create({ data: { tenantId: tenant.id } });
+
       const ownerRoleId = await this.createDefaultRoles(tx, tenant.id);
       await this.createOwnerUser(tx, {
         tenantId: tenant.id,

@@ -6,6 +6,8 @@ export const API_ERROR_CODES = {
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
   RATE_LIMITED: 'RATE_LIMITED',
+  /** A password-protected Files folder that this session has not unlocked. */
+  FOLDER_LOCKED: 'FOLDER_LOCKED',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
 } as const;
 

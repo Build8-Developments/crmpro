@@ -10,7 +10,10 @@ import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
 import { normalizeDisplayName } from '../../common/utils/name-normalization.util';
-import { normalizePhone } from '../../common/utils/phone-normalization.util';
+import {
+  normalizePhone,
+  phoneSearchCore,
+} from '../../common/utils/phone-normalization.util';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { GetLeadsQueryDto } from './dto/get-leads-query.dto';
 import { ProjectInterestDto } from './dto/project-interest.dto';
@@ -412,17 +415,35 @@ export class LeadsService {
       });
 
       if (dto.projectInterests !== undefined) {
+        // Diff instead of delete-all/recreate so untouched interests keep their
+        // original createdAt (analytics buckets project interest by that date).
+        const keepProjectIds = dto.projectInterests.map(
+          (interest) => interest.projectId,
+        );
+
         await tx.leadProjectInterest.deleteMany({
-          where: { leadId: existing.id },
+          where: {
+            leadId: existing.id,
+            ...(keepProjectIds.length > 0
+              ? { projectId: { notIn: keepProjectIds } }
+              : {}),
+          },
         });
 
-        if (dto.projectInterests.length > 0) {
-          await tx.leadProjectInterest.createMany({
-            data: dto.projectInterests.map((interest) => ({
+        for (const interest of dto.projectInterests) {
+          await tx.leadProjectInterest.upsert({
+            where: {
+              leadId_projectId: {
+                leadId: existing.id,
+                projectId: interest.projectId,
+              },
+            },
+            create: {
               leadId: existing.id,
               projectId: interest.projectId,
               interestLevel: interest.interestLevel ?? null,
-            })),
+            },
+            update: { interestLevel: interest.interestLevel ?? null },
           });
         }
       }
@@ -476,16 +497,45 @@ export class LeadsService {
             assignedUserId: null,
           }
         : {}),
-      ...(filters.staleOnly ? this.buildStaleLeadWhereInput() : {}),
-      ...(search && {
-        OR: [
-          { fullName: { contains: search, mode: 'insensitive' } },
-          { primaryPhone: { contains: search, mode: 'insensitive' } },
-          { secondaryPhone: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
+      // Stale and search both need an OR; combine them with AND so neither
+      // overwrites the other.
+      ...this.combineAnd([
+        filters.staleOnly ? this.buildStaleLeadWhereInput() : null,
+        search ? this.buildSearchWhereInput(search) : null,
+      ]),
     };
+  }
+
+  private combineAnd(
+    parts: Array<Prisma.LeadWhereInput | null>,
+  ): Prisma.LeadWhereInput {
+    const present = parts.filter(
+      (part): part is Prisma.LeadWhereInput => part !== null,
+    );
+    if (present.length === 0) return {};
+    if (present.length === 1) return present[0];
+    return { AND: present };
+  }
+
+  private buildSearchWhereInput(search: string): Prisma.LeadWhereInput {
+    const or: Prisma.LeadWhereInput[] = [
+      { fullName: { contains: search, mode: 'insensitive' } },
+      { primaryPhone: { contains: search, mode: 'insensitive' } },
+      { secondaryPhone: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ];
+
+    // Match phone fragments regardless of how they were typed or stored
+    // (01…, +20…, 0020…, Arabic digits).
+    const phoneCore = phoneSearchCore(search);
+    if (phoneCore) {
+      or.push(
+        { primaryPhoneNormalized: { contains: phoneCore } },
+        { secondaryPhoneNormalized: { contains: phoneCore } },
+      );
+    }
+
+    return { OR: or };
   }
 
   private buildStaleLeadWhereInput(): Prisma.LeadWhereInput {

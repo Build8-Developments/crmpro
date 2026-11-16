@@ -20,6 +20,11 @@ export {
   type PipelineCloseType,
 } from './leads/lead-stage.util';
 export {
+  normalizePhone,
+  phoneSearchCore,
+  toAsciiDigits,
+} from './leads/phone-normalization.util';
+export {
   TENANT_ROLE_NAMES,
   DEFAULT_TENANT_ROLES,
   OWNER_PERMISSION_KEYS,
