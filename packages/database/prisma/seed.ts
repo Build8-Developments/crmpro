@@ -4,10 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
   AuditActorType,
   FileAssetCategory,
-  InterestLevel,
   JobStatus,
-  LeadActivityEventType,
-  LeadStatus,
   PipelineCloseType,
   Prisma,
   PrismaClient,
@@ -33,7 +30,14 @@ import {
   MANAGER_PERMISSION_KEYS,
   OWNER_PERMISSION_KEYS,
 } from '@crmpro/shared/bootstrap';
-import { normalizePhone } from '@crmpro/shared/leads';
+import {
+  DEMO_HISTORY_DAYS,
+  seedDemoDataset,
+  type DemoAgentProfile,
+  type DemoLeadSummary,
+  type DemoProjectProfile,
+  type DemoSourceProfile,
+} from './demo-dataset';
 
 const GB = 1024n ** 3n;
 const MB = 1024n ** 2n;
@@ -313,7 +317,27 @@ const DEMO_EXTRA_LEAD_SOURCE_NAMES = [
   'WhatsApp',
   'Call Center',
   'Walk-in',
+  'Instagram Ads',
+  'Property Finder',
+  'Events & Expos',
 ] as const;
+
+/**
+ * Volume vs. quality per source: ads bring many weak leads, referrals and
+ * walk-ins bring few strong ones. Campaigns are [startDaysAgo, endDaysAgo, x].
+ */
+const DEMO_SOURCE_PROFILES: readonly DemoSourceProfile[] = [
+  { name: 'Facebook Ads', volume: 30, quality: 0.6, campaigns: [[26, 18, 2.4], [118, 104, 1.8]] },
+  { name: 'Instagram Ads', volume: 9, quality: 0.7, campaigns: [[26, 18, 1.8]] },
+  { name: 'Website', volume: 14, quality: 1.05 },
+  { name: 'WhatsApp', volume: 12, quality: 1.1 },
+  { name: 'Property Finder', volume: 8, quality: 1.25 },
+  { name: 'Call Center', volume: 7, quality: 0.9 },
+  { name: 'Referral', volume: 7, quality: 2.3 },
+  { name: 'Walk-in', volume: 4, quality: 1.9 },
+  { name: 'Events & Expos', volume: 3, quality: 1.4, campaigns: [[70, 66, 9]] },
+  { name: 'Manual', volume: 6, quality: 1 },
+];
 
 const SAMPLE_USERS = [
   {
@@ -325,18 +349,86 @@ const SAMPLE_USERS = [
   },
   {
     id: '55555555-5555-4555-8555-555555555502',
-    name: 'Sales Manager',
+    name: 'Karim Fathy',
     email: 'manager@primeestates.com',
     phone: '+201009876543',
     roleId: ROLE_IDS.manager,
   },
   {
     id: '55555555-5555-4555-8555-555555555503',
-    name: 'Senior Agent',
+    name: 'Nour El-Sayed',
     email: 'agent@primeestates.com',
     roleId: ROLE_IDS.agent,
   },
+  {
+    id: '55555555-5555-4555-8555-555555555504',
+    name: 'Dina Mansour',
+    email: 'dina.mansour@primeestates.com',
+    phone: '+201112345678',
+    roleId: ROLE_IDS.manager,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555505',
+    name: 'Mona Adel',
+    email: 'mona.adel@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555506',
+    name: 'Omar Khaled',
+    email: 'omar.khaled@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555507',
+    name: 'Yasmin Tarek',
+    email: 'yasmin.tarek@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555508',
+    name: 'Ahmed Samir',
+    email: 'ahmed.samir@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555509',
+    name: 'Mahmoud Reda',
+    email: 'mahmoud.reda@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555510',
+    name: 'Salma Ibrahim',
+    email: 'salma.ibrahim@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
+  {
+    id: '55555555-5555-4555-8555-555555555511',
+    name: 'Hana Mostafa',
+    email: 'hana.mostafa@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
 ] as const;
+
+/**
+ * Who sells how: capacity = share of routed leads, skill = win-rate
+ * multiplier, responseHours = typical time to first call. Hana joined
+ * recently; Ahmed is slow and converts poorly — the dashboard should show it.
+ */
+const DEMO_AGENT_PROFILES: Record<string, Omit<DemoAgentProfile, 'userId'>> = {
+  '55555555-5555-4555-8555-555555555501': { capacity: 0.15, skill: 1.5, responseHours: 5 },
+  '55555555-5555-4555-8555-555555555502': { capacity: 0.5, skill: 1.35, responseHours: 1.5 },
+  '55555555-5555-4555-8555-555555555503': { capacity: 1.4, skill: 1.4, responseHours: 0.4 },
+  '55555555-5555-4555-8555-555555555504': { capacity: 0.4, skill: 1.2, responseHours: 2 },
+  '55555555-5555-4555-8555-555555555505': { capacity: 1.25, skill: 1.15, responseHours: 0.8 },
+  '55555555-5555-4555-8555-555555555506': { capacity: 1.1, skill: 0.9, responseHours: 3 },
+  '55555555-5555-4555-8555-555555555507': { capacity: 1.1, skill: 1.25, responseHours: 0.7 },
+  '55555555-5555-4555-8555-555555555508': { capacity: 1.0, skill: 0.6, responseHours: 9 },
+  '55555555-5555-4555-8555-555555555509': { capacity: 0.95, skill: 1.0, responseHours: 1.8 },
+  '55555555-5555-4555-8555-555555555510': { capacity: 0.9, skill: 1.05, responseHours: 1.2, joinedDaysAgo: 150 },
+  '55555555-5555-4555-8555-555555555511': { capacity: 0.85, skill: 0.85, responseHours: 2.5, joinedDaysAgo: 45 },
+};
 
 const SAMPLE_DEVELOPERS = [
   { id: DEVELOPER_IDS.palmHills, name: 'Palm Hills Developments' },
@@ -434,6 +526,27 @@ const SAMPLE_PROJECTS = [
   },
 ] as const;
 
+/** Popularity and typical unit prices (EGP) per project, for demo leads. */
+const DEMO_PROJECT_PROFILES: Record<
+  string,
+  Omit<DemoProjectProfile, 'id' | 'name'>
+> = {
+  [PROJECT_IDS.palmHillsNewCairo]: { popularity: 8, priceMin: 12_000_000, priceMax: 35_000_000, units: ['Apartment', 'Townhouse', 'Twin House'] },
+  [PROJECT_IDS.palmHillsOctober]: { popularity: 5, priceMin: 8_000_000, priceMax: 22_000_000, units: ['Apartment', 'Townhouse', 'Villa'] },
+  [PROJECT_IDS.badya]: { popularity: 6, priceMin: 4_500_000, priceMax: 14_000_000, units: ['Apartment', 'Duplex', 'Townhouse'] },
+  [PROJECT_IDS.uptownCairo]: { popularity: 5, priceMin: 15_000_000, priceMax: 60_000_000, units: ['Apartment', 'Penthouse', 'Villa'] },
+  [PROJECT_IDS.mivida]: { popularity: 7, priceMin: 10_000_000, priceMax: 30_000_000, units: ['Apartment', 'Townhouse', 'Twin House'] },
+  [PROJECT_IDS.madinaty]: { popularity: 9, priceMin: 4_000_000, priceMax: 14_000_000, units: ['Apartment', 'Apartment', 'Villa'] },
+  [PROJECT_IDS.alRehab]: { popularity: 4, priceMin: 3_000_000, priceMax: 9_000_000, units: ['Apartment', 'Resale apartment'] },
+  [PROJECT_IDS.sarai]: { popularity: 6, priceMin: 3_500_000, priceMax: 10_000_000, units: ['Apartment', 'Duplex', 'Townhouse'] },
+  [PROJECT_IDS.eastown]: { popularity: 4, priceMin: 8_000_000, priceMax: 20_000_000, units: ['Apartment', 'Penthouse'] },
+  [PROJECT_IDS.mountainViewICity]: { popularity: 7, priceMin: 6_000_000, priceMax: 18_000_000, units: ['Apartment', 'iVilla', 'Townhouse'] },
+  [PROJECT_IDS.ilBosco]: { popularity: 5, priceMin: 5_000_000, priceMax: 14_000_000, units: ['Apartment', 'Duplex'] },
+  [PROJECT_IDS.theWaterway]: { popularity: 3, priceMin: 25_000_000, priceMax: 80_000_000, units: ['Apartment', 'Penthouse'] },
+  [PROJECT_IDS.vyeKarnak]: { popularity: 4, priceMin: 6_000_000, priceMax: 16_000_000, units: ['Apartment', 'Duplex'] },
+  [PROJECT_IDS.hydeParkNewCairo]: { popularity: 5, priceMin: 9_000_000, priceMax: 28_000_000, units: ['Apartment', 'Townhouse', 'Villa'] },
+};
+
 const prisma = new PrismaClient({
   adapter: new PrismaPg({
     connectionString: process.env.DATABASE_URL!,
@@ -445,12 +558,8 @@ function initFaker(): void {
     ? Number.parseInt(process.env.SEED_RANDOM_SEED, 10)
     : 42_026;
   faker.seed(seed);
-  faker.setDefaultRefDate(new Date('2026-06-01'));
-}
-
-function egyptLocalPhone(): { raw: string; normalized: string } {
-  const raw = `01${faker.string.numeric(9)}`;
-  return { raw, normalized: normalizePhone(raw) };
+  // Dates are relative to today so the 7/30/90-day dashboards are always full.
+  faker.setDefaultRefDate(new Date());
 }
 
 function objectKey(
@@ -1000,24 +1109,30 @@ async function seedProjects(tenantId: string): Promise<string[]> {
   return ids;
 }
 
-async function seedLeadSources(tenantId: string): Promise<string[]> {
-  const ids: string[] = [];
+async function seedLeadSources(tenantId: string): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
   const names = [...DEFAULT_LEAD_SOURCES, ...DEMO_EXTRA_LEAD_SOURCE_NAMES];
 
   for (const name of names) {
     const source = await prisma.leadSource.create({
       data: { tenantId, name },
     });
-    ids.push(source.id);
+    ids.set(name, source.id);
   }
 
   return ids;
 }
 
-type StageRecord = { id: string; isClosed: boolean; closeType: PipelineCloseType | null };
+type StageRecord = {
+  id: string;
+  name: string;
+  isClosed: boolean;
+  closeType: PipelineCloseType | null;
+};
 
 async function seedPipelines(tenantId: string): Promise<{
   defaultPipelineId: string;
+  commercialPipelineId: string;
   stages: StageRecord[];
   commercialStages: StageRecord[];
 }> {
@@ -1047,6 +1162,7 @@ async function seedPipelines(tenantId: string): Promise<{
     });
     stages.push({
       id: stage.id,
+      name: stage.name,
       isClosed: stage.isClosed,
       closeType: stage.closeType,
     });
@@ -1085,7 +1201,7 @@ async function seedPipelines(tenantId: string): Promise<{
         tenantId,
         pipelineId: commercialPipeline.id,
         name,
-        color: faker.color.rgb(),
+        color: ['#60a5fa', '#818cf8', '#f59e0b', '#22c55e', '#ef4444'][i],
         sortOrder: i + 1,
         isSystem: isClosed,
         isClosed,
@@ -1094,6 +1210,7 @@ async function seedPipelines(tenantId: string): Promise<{
     });
     commercialStages.push({
       id: stage.id,
+      name: stage.name,
       isClosed: stage.isClosed,
       closeType: stage.closeType,
     });
@@ -1101,180 +1218,10 @@ async function seedPipelines(tenantId: string): Promise<{
 
   return {
     defaultPipelineId: defaultPipeline.id,
+    commercialPipelineId: commercialPipeline.id,
     stages,
     commercialStages,
   };
-}
-
-async function seedLeadsAndRelated(params: {
-  tenantId: string;
-  pipelineId: string;
-  stages: StageRecord[];
-  sourceIds: string[];
-  projectIds: string[];
-  agentUserIds: string[];
-  leadCount: number;
-}): Promise<string[]> {
-  const {
-    tenantId,
-    pipelineId,
-    stages,
-    sourceIds,
-    projectIds,
-    agentUserIds,
-    leadCount,
-  } = params;
-
-  const openStages = stages.filter((s) => !s.isClosed);
-  const leadIds: string[] = [];
-
-  for (let i = 0; i < leadCount; i++) {
-    const primary = egyptLocalPhone();
-    const hasSecondary = faker.datatype.boolean({ probability: 0.3 });
-    const secondary = hasSecondary ? egyptLocalPhone() : null;
-    const stage = faker.helpers.arrayElement(openStages);
-    const assignedUserId = faker.datatype.boolean({ probability: 0.85 })
-      ? faker.helpers.arrayElement(agentUserIds)
-      : null;
-    const hasEmail = faker.datatype.boolean({ probability: 0.6 });
-
-    const lead = await prisma.lead.create({
-      data: {
-        tenantId,
-        sourceId: faker.datatype.boolean({ probability: 0.9 })
-          ? faker.helpers.arrayElement(sourceIds)
-          : null,
-        pipelineId,
-        pipelineStageId: stage.id,
-        assignedUserId,
-        status: LeadStatus.OPEN,
-        fullName: faker.person.fullName(),
-        primaryPhone: primary.raw,
-        primaryPhoneNormalized: primary.normalized,
-        secondaryPhone: secondary?.raw,
-        secondaryPhoneNormalized: secondary?.normalized,
-        email: hasEmail ? faker.internet.email().toLowerCase() : null,
-        budgetMin: new Prisma.Decimal(
-          faker.number.int({ min: 1_000_000, max: 5_000_000 }),
-        ),
-        budgetMax: new Prisma.Decimal(
-          faker.number.int({ min: 5_000_000, max: 15_000_000 }),
-        ),
-        notesSummary: faker.datatype.boolean({ probability: 0.4 })
-          ? faker.lorem.sentence()
-          : null,
-        customFields: faker.datatype.boolean({ probability: 0.2 })
-          ? { preferredUnit: faker.helpers.arrayElement(['2BR', '3BR', 'Villa']) }
-          : undefined,
-        lastContactedAt: faker.date.recent({ days: 30 }),
-        createdAt: faker.date.recent({ days: 60 }),
-      },
-    });
-
-    leadIds.push(lead.id);
-
-    await prisma.leadActivity.create({
-      data: {
-        tenantId,
-        leadId: lead.id,
-        actorUserId: assignedUserId,
-        eventType: LeadActivityEventType.LEAD_CREATED,
-        metadata: { source: 'seed' },
-        createdAt: lead.createdAt,
-      },
-    });
-
-    if (assignedUserId) {
-      await prisma.leadActivity.create({
-        data: {
-          tenantId,
-          leadId: lead.id,
-          actorUserId: assignedUserId,
-          eventType: LeadActivityEventType.ASSIGNED,
-          metadata: { toUserId: assignedUserId },
-          createdAt: faker.date.soon({ days: 1, refDate: lead.createdAt }),
-        },
-      });
-    }
-
-    const noteCount = faker.number.int({ min: 0, max: 3 });
-    for (let n = 0; n < noteCount; n++) {
-      const authorId = faker.helpers.arrayElement(agentUserIds);
-      const note = await prisma.leadNote.create({
-        data: {
-          tenantId,
-          leadId: lead.id,
-          authorId,
-          content: faker.lorem.paragraph(),
-          createdAt: faker.date.between({
-            from: lead.createdAt,
-            to: new Date(),
-          }),
-        },
-      });
-
-      await prisma.leadActivity.create({
-        data: {
-          tenantId,
-          leadId: lead.id,
-          actorUserId: authorId,
-          eventType: LeadActivityEventType.NOTE_ADDED,
-          metadata: { noteId: note.id },
-          createdAt: note.createdAt,
-        },
-      });
-    }
-
-    const interestCount = faker.number.int({ min: 0, max: 3 });
-    const pickedProjects = faker.helpers.arrayElements(
-      projectIds,
-      interestCount,
-    );
-    for (const projectId of pickedProjects) {
-      await prisma.leadProjectInterest.create({
-        data: {
-          leadId: lead.id,
-          projectId,
-          interestLevel: faker.helpers.arrayElement([
-            InterestLevel.LOW,
-            InterestLevel.MEDIUM,
-            InterestLevel.HIGH,
-            InterestLevel.HOT,
-          ]),
-        },
-      });
-
-      await prisma.leadActivity.create({
-        data: {
-          tenantId,
-          leadId: lead.id,
-          actorUserId: assignedUserId,
-          eventType: LeadActivityEventType.PROJECT_LINKED,
-          metadata: { projectId },
-          createdAt: faker.date.recent({ days: 14 }),
-        },
-      });
-    }
-
-    if (faker.datatype.boolean({ probability: 0.15 })) {
-      await prisma.leadActivity.create({
-        data: {
-          tenantId,
-          leadId: lead.id,
-          actorUserId: assignedUserId,
-          eventType: faker.helpers.arrayElement([
-            LeadActivityEventType.CALL_LOGGED,
-            LeadActivityEventType.WHATSAPP_LOGGED,
-            LeadActivityEventType.EMAIL_LOGGED,
-          ]),
-          metadata: { durationMinutes: faker.number.int({ min: 2, max: 45 }) },
-          createdAt: faker.date.recent({ days: 7 }),
-        },
-      });
-    }
-  }
-
-  return leadIds;
 }
 
 async function seedFileAssets(params: {
@@ -1323,14 +1270,21 @@ async function seedFileAssets(params: {
     });
   }
 
-  for (const leadId of faker.helpers.arrayElements(leadIds, 15)) {
+  for (const leadId of faker.helpers.arrayElements(leadIds, 40)) {
     await track({
       tenantId,
-      uploadedByUserId: uploaderId,
+      uploadedByUserId: faker.helpers.arrayElement(userIds),
       category: FileAssetCategory.LEAD_ATTACHMENT,
       leadId,
       objectKey: objectKey(tenantId, 'attachments', 'document.pdf'),
-      originalFilename: faker.system.commonFileName('pdf'),
+      originalFilename: faker.helpers.arrayElement([
+        'national-id.pdf',
+        'reservation-form.pdf',
+        'payment-plan.pdf',
+        'unit-layout.pdf',
+        'bank-transfer-receipt.pdf',
+        'signed-contract.pdf',
+      ]),
       mimeType: 'application/pdf',
       sizeBytes: BigInt(faker.number.int({ min: 100_000, max: 2_000_000 })),
     });
@@ -1509,36 +1463,41 @@ async function seedNotificationPreferences(
 async function seedNotifications(params: {
   tenantId: string;
   userIds: string[];
-  leadIds: string[];
+  leads: DemoLeadSummary[];
 }): Promise<void> {
-  const { tenantId, userIds, leadIds } = params;
+  const { tenantId, userIds, leads } = params;
   const ownerId = userIds[0];
   const managerId = userIds[1] ?? userIds[0];
   const agentId = userIds[2] ?? userIds[0];
-  const sampleLeadId = leadIds[0];
+  const agentLeads = leads
+    .filter((l) => l.assignedUserId === agentId)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const sampleLead = agentLeads.find((l) => l.outcome === 'OPEN') ?? leads[0];
+  const wonLead = agentLeads.find((l) => l.outcome === 'WON') ?? leads[1] ?? leads[0];
+  const sampleLeadId = sampleLead.id;
 
   const samples = [
     {
       recipientUserId: agentId,
       type: NotificationType.LEAD_ASSIGNED,
       title: 'New Lead Assigned',
-      message: 'A new lead has been assigned to you: Ahmed Hassan.',
+      message: `A new lead has been assigned to you: ${sampleLead.fullName}.`,
       priority: NotificationPriority.HIGH,
       status: NotificationStatus.UNREAD,
-      metadata: { leadId: sampleLeadId, leadName: 'Ahmed Hassan' },
+      metadata: { leadId: sampleLeadId, leadName: sampleLead.fullName },
       createdByUserId: managerId,
     },
     {
       recipientUserId: agentId,
       type: NotificationType.LEAD_STAGE_CHANGED,
       title: 'Lead Stage Changed',
-      message: 'Ahmed Hassan moved from New to Qualified.',
+      message: `${sampleLead.fullName} moved from Contacted to Qualified.`,
       priority: NotificationPriority.NORMAL,
       status: NotificationStatus.UNREAD,
       metadata: {
         leadId: sampleLeadId,
-        leadName: 'Ahmed Hassan',
-        fromStageName: 'New',
+        leadName: sampleLead.fullName,
+        fromStageName: 'Contacted',
         toStageName: 'Qualified',
       },
       createdByUserId: managerId,
@@ -1576,10 +1535,10 @@ async function seedNotifications(params: {
       recipientUserId: agentId,
       type: NotificationType.LEAD_WON,
       title: 'Lead Won',
-      message: 'Sara Mohamed has been marked as won.',
+      message: `${wonLead.fullName} has been marked as won.`,
       priority: NotificationPriority.HIGH,
       status: NotificationStatus.UNREAD,
-      metadata: { leadId: leadIds[1] ?? sampleLeadId, leadName: 'Sara Mohamed' },
+      metadata: { leadId: wonLead.id, leadName: wonLead.fullName },
       createdByUserId: managerId,
     },
     {
@@ -1626,27 +1585,106 @@ async function seedNotifications(params: {
   }
 }
 
+/** Assignment and win notifications that match the generated leads. */
+async function seedLeadNotifications(params: {
+  tenantId: string;
+  userIds: string[];
+  leads: DemoLeadSummary[];
+}): Promise<void> {
+  const { tenantId, userIds, leads } = params;
+  const ownerId = userIds[0];
+  const managerId = userIds[1] ?? ownerId;
+  const now = Date.now();
+  const data: Prisma.NotificationCreateManyInput[] = [];
+
+  for (const lead of leads) {
+    const age = now - lead.createdAt.getTime();
+    if (lead.assignedUserId && age < 4 * 24 * 60 * 60 * 1000) {
+      data.push({
+        tenantId,
+        recipientUserId: lead.assignedUserId,
+        type: NotificationType.LEAD_ASSIGNED,
+        title: 'New Lead Assigned',
+        message: `A new lead has been assigned to you: ${lead.fullName}.`,
+        priority: NotificationPriority.HIGH,
+        status: age < 24 * 60 * 60 * 1000 ? NotificationStatus.UNREAD : NotificationStatus.READ,
+        metadata: { leadId: lead.id, leadName: lead.fullName },
+        createdByUserId: managerId,
+        createdAt: new Date(lead.createdAt.getTime() + 15 * 60 * 1000),
+        readAt: age < 24 * 60 * 60 * 1000 ? null : new Date(lead.createdAt.getTime() + 2 * 60 * 60 * 1000),
+      });
+    }
+    if (lead.outcome === 'WON' && lead.closedAt && now - lead.closedAt.getTime() < 14 * 24 * 60 * 60 * 1000) {
+      for (const recipientUserId of new Set([ownerId, managerId, lead.assignedUserId ?? ownerId])) {
+        const fresh = now - lead.closedAt.getTime() < 2 * 24 * 60 * 60 * 1000;
+        data.push({
+          tenantId,
+          recipientUserId,
+          type: NotificationType.LEAD_WON,
+          title: 'Lead Won',
+          message: `${lead.fullName} has been marked as won.`,
+          priority: NotificationPriority.HIGH,
+          status: fresh ? NotificationStatus.UNREAD : NotificationStatus.READ,
+          metadata: { leadId: lead.id, leadName: lead.fullName },
+          createdByUserId: lead.assignedUserId ?? managerId,
+          createdAt: lead.closedAt,
+          readAt: fresh ? null : new Date(lead.closedAt.getTime() + 3 * 60 * 60 * 1000),
+        });
+      }
+    }
+  }
+
+  await prisma.notification.createMany({ data });
+}
+
 async function seedTenantCrmData(
   tenantId: string,
   userIds: string[],
-  leadCount: number,
 ): Promise<void> {
   await seedDevelopers(tenantId);
   const projectIds = await seedProjects(tenantId);
   const sourceIds = await seedLeadSources(tenantId);
-  const { defaultPipelineId, stages } = await seedPipelines(tenantId);
+  const { defaultPipelineId, commercialPipelineId, stages, commercialStages } =
+    await seedPipelines(tenantId);
 
-  const agentUserIds = userIds;
   const ownerId = userIds[0];
-  const leadIds = await seedLeadsAndRelated({
+  const managerIds = SAMPLE_USERS.filter((u) => u.roleId === ROLE_IDS.manager).map(
+    (u) => u.id as string,
+  );
+
+  const leads = await seedDemoDataset(prisma, {
     tenantId,
-    pipelineId: defaultPipelineId,
-    stages,
-    sourceIds,
-    projectIds,
-    agentUserIds,
-    leadCount,
+    ownerId,
+    managerIds,
+    agents: SAMPLE_USERS.map((u) => ({
+      userId: u.id,
+      ...DEMO_AGENT_PROFILES[u.id],
+    })),
+    sources: DEMO_SOURCE_PROFILES.map((profile) => ({
+      ...profile,
+      id: sourceIds.get(profile.name)!,
+    })),
+    projects: SAMPLE_PROJECTS.map((p) => ({
+      id: p.id,
+      name: p.name,
+      ...DEMO_PROJECT_PROFILES[p.id],
+    })),
+    pipelines: [
+      {
+        pipelineId: defaultPipelineId,
+        stages,
+        targetLeads: 700,
+        historyDays: DEMO_HISTORY_DAYS,
+      },
+      {
+        pipelineId: commercialPipelineId,
+        stages: commercialStages,
+        targetLeads: 45,
+        historyDays: 120,
+      },
+    ],
   });
+  const leadIds = leads.map((l) => l.id);
 
   const { totalBytes } = await seedFileAssets({
     tenantId,
@@ -1665,12 +1703,19 @@ async function seedTenantCrmData(
   });
 
   await seedNotificationPreferences(tenantId, userIds);
-  await seedNotifications({ tenantId, userIds, leadIds });
+  await seedNotifications({ tenantId, userIds, leads });
+  await seedLeadNotifications({ tenantId, userIds, leads });
 
   await prisma.tenant.update({
     where: { id: tenantId },
     data: { storageUsedBytes: totalBytes },
   });
+
+  const won = leads.filter((l) => l.outcome === 'WON').length;
+  const lost = leads.filter((l) => l.outcome === 'LOST').length;
+  console.log(
+    `  ${leads.length} leads (${won} won, ${lost} lost, ${leads.length - won - lost} open) over ${DEMO_HISTORY_DAYS} days`,
+  );
 }
 
 async function main(): Promise<void> {
@@ -1722,7 +1767,7 @@ async function main(): Promise<void> {
   await seedUserSessions(TENANT_ID, userIds);
   console.log('✓ User sessions');
 
-  await seedTenantCrmData(TENANT_ID, userIds, 50);
+  await seedTenantCrmData(TENANT_ID, userIds);
   console.log('✓ Developers, projects, lead sources, pipelines');
   console.log('✓ Leads, activities, notes, project interests');
   console.log('✓ File assets, import/export jobs');
@@ -1735,6 +1780,7 @@ async function main(): Promise<void> {
   console.log('  owner@primeestates.com / Password123!');
   console.log('  manager@primeestates.com / Password123!');
   console.log('  agent@primeestates.com / Password123!');
+  console.log('  (+ 8 more team members, e.g. mona.adel@primeestates.com, same password)');
   console.log('\nLogin (admin-api):');
   console.log('  admin@crmpro.local / Admin123!');
   console.log('\nAdmin audit explorer sample IDs:');
