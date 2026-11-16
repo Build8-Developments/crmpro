@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobStatus } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { TenantStatusService } from '../../../common/tenant/tenant-status.service';
+import { TenantAccessService } from '../../../common/tenant-access/tenant-access.service';
 import { FilesService } from '../../files/files.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
@@ -61,8 +61,10 @@ describe('ExportJobsService job claiming', () => {
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         { provide: NotificationTriggerService, useValue: { notifyExportCompleted: jest.fn() } },
         {
-          provide: TenantStatusService,
-          useValue: { assertTenantActive: jest.fn().mockResolvedValue(undefined) },
+          provide: TenantAccessService,
+          useValue: {
+            assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
+          },
         },
         { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
       ],

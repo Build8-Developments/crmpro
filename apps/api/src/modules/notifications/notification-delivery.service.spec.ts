@@ -6,7 +6,7 @@ import { InAppNotificationChannel } from './channels/in-app-notification.channel
 import { NotificationDeliveryService } from './notification-delivery.service';
 import { NotificationMetricsStore } from './metrics/notification-metrics.store';
 import { NotificationTemplateService } from './notification-template.service';
-import { TenantStatusService } from '../../common/tenant/tenant-status.service';
+import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
 
 describe('NotificationDeliveryService', () => {
   let service: NotificationDeliveryService;
@@ -30,8 +30,10 @@ describe('NotificationDeliveryService', () => {
         NotificationMetricsStore,
         { provide: CacheService, useValue: cacheService },
         {
-          provide: TenantStatusService,
-          useValue: { isTenantActive: jest.fn().mockResolvedValue(true) },
+          provide: TenantAccessService,
+          useValue: {
+            assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

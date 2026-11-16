@@ -1,10 +1,15 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ContractStatus, TenantStatus } from '@crmpro/database';
 import { isWithinContractGrace } from '@crmpro/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { TENANT_ACCESS_MESSAGES } from './tenant-access.constants';
+import { TenantInactiveException } from './tenant-access.exception';
 
-const ACCESSIBLE_TENANT_STATUSES = new Set<TenantStatus>([TenantStatus.ACTIVE]);
+// TRIAL is the schema default, so tenants created outside provisioning land there.
+const ACCESSIBLE_TENANT_STATUSES = new Set<TenantStatus>([
+  TenantStatus.ACTIVE,
+  TenantStatus.TRIAL,
+]);
 
 const contractGraceSelect = {
   contractEndAt: true,
@@ -20,27 +25,18 @@ export class TenantAccessService {
     const tenant = await this.loadTenant(tenantId);
 
     if (!tenant) {
-      throw new ForbiddenException(TENANT_ACCESS_MESSAGES.INACTIVE);
+      throw new TenantInactiveException(TENANT_ACCESS_MESSAGES.INACTIVE);
     }
 
     if (tenant.status === TenantStatus.SUSPENDED) {
-      throw new ForbiddenException(TENANT_ACCESS_MESSAGES.SUSPENDED);
+      throw new TenantInactiveException(TENANT_ACCESS_MESSAGES.SUSPENDED);
     }
 
     if (!ACCESSIBLE_TENANT_STATUSES.has(tenant.status)) {
-      throw new ForbiddenException(TENANT_ACCESS_MESSAGES.INACTIVE);
+      throw new TenantInactiveException(TENANT_ACCESS_MESSAGES.INACTIVE);
     }
 
     await this.assertTenantBillingAccess(tenantId);
-  }
-
-  async isTenantAccessible(tenantId: string): Promise<boolean> {
-    try {
-      await this.assertTenantAccessible(tenantId);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   private async assertTenantBillingAccess(tenantId: string): Promise<void> {
@@ -81,7 +77,12 @@ export class TenantAccessService {
       return;
     }
 
-    throw new ForbiddenException(TENANT_ACCESS_MESSAGES.CONTRACT_LAPSED);
+    // Never contracted (e.g. a fresh TRIAL tenant) is not a billing lapse.
+    if (!activeContract && !lapsedContract) {
+      return;
+    }
+
+    throw new TenantInactiveException(TENANT_ACCESS_MESSAGES.CONTRACT_LAPSED);
   }
 
   private async loadTenant(tenantId: string) {

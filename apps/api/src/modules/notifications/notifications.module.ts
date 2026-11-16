@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
-import { TenantModule } from '../../common/tenant/tenant.module';
+import { TenantAccessModule } from '../../common/tenant-access/tenant-access.module';
 import { InAppNotificationChannel } from './channels/in-app-notification.channel';
 import { NotificationMetricsStore } from './metrics/notification-metrics.store';
 import { NotificationDeliveryService } from './notification-delivery.service';
@@ -13,7 +13,7 @@ import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 
 @Module({
-  imports: [AuthRbacModule, TenantModule],
+  imports: [AuthRbacModule, TenantAccessModule],
   controllers: [NotificationsController, NotificationPreferencesController],
   providers: [
     NotificationsService,

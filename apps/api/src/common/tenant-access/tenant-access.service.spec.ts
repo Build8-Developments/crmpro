@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContractStatus, TenantStatus } from '@crmpro/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { TENANT_ACCESS_MESSAGES } from './tenant-access.constants';
+import { TenantInactiveException } from './tenant-access.exception';
 import { TenantAccessService } from './tenant-access.service';
 
 describe('TenantAccessService', () => {
@@ -101,7 +102,9 @@ describe('TenantAccessService', () => {
     await expect(service.assertTenantAccessible('tenant-1')).rejects.toThrow(
       new ForbiddenException(TENANT_ACCESS_MESSAGES.SUSPENDED),
     );
-    await expect(service.isTenantAccessible('tenant-1')).resolves.toBe(false);
+    await expect(service.assertTenantAccessible('tenant-1')).rejects.toBeInstanceOf(
+      TenantInactiveException,
+    );
   });
 
   it('blocks CANCELLED tenants with inactive message', async () => {
@@ -133,6 +136,50 @@ describe('TenantAccessService', () => {
 
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-02-01T00:00:00.000Z'));
+
+    await expect(service.assertTenantAccessible('tenant-1')).rejects.toThrow(
+      TENANT_ACCESS_MESSAGES.CONTRACT_LAPSED,
+    );
+
+    jest.useRealTimers();
+  });
+
+  it('allows TRIAL tenants that have never had a contract', async () => {
+    prisma.tenant.findFirst.mockResolvedValue({
+      id: 'tenant-1',
+      status: TenantStatus.TRIAL,
+    });
+    prisma.tenantContract.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.assertTenantAccessible('tenant-1'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('allows ACTIVE tenants that have never had a contract', async () => {
+    mockActiveTenant();
+    prisma.tenantContract.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.assertTenantAccessible('tenant-1'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('blocks TRIAL tenants once a contract has lapsed past grace', async () => {
+    prisma.tenant.findFirst.mockResolvedValue({
+      id: 'tenant-1',
+      status: TenantStatus.TRIAL,
+    });
+    prisma.tenantContract.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        contractEndAt: new Date('2026-05-01T00:00:00.000Z'),
+        gracePeriodDays: 7,
+        updatedAt: new Date('2026-05-02T00:00:00.000Z'),
+      });
+
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
 
     await expect(service.assertTenantAccessible('tenant-1')).rejects.toThrow(
       TENANT_ACCESS_MESSAGES.CONTRACT_LAPSED,

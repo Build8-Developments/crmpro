@@ -11,9 +11,8 @@ import { NotificationMetricsStore } from './metrics/notification-metrics.store';
 import { NotificationTemplateService } from './notification-template.service';
 import { normalizeMetadata, resolvePriority } from './mappers/notification.mapper';
 import { CacheService } from '../../common/cache/cache.service';
-import {
-  TenantStatusService,
-} from '../../common/tenant/tenant-status.service';
+import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
+import { TenantInactiveException } from '../../common/tenant-access/tenant-access.exception';
 
 @Injectable()
 export class NotificationDeliveryService {
@@ -25,23 +24,25 @@ export class NotificationDeliveryService {
     private readonly loggingService: LoggingService,
     private readonly metricsStore: NotificationMetricsStore,
     private readonly cacheService: CacheService,
-    private readonly tenantStatusService: TenantStatusService,
+    private readonly tenantAccessService: TenantAccessService,
   ) {
     this.channels = [this.inAppChannel];
   }
 
   async deliver(payload: NotificationJobPayload): Promise<void> {
-    const tenantActive = await this.tenantStatusService.isTenantActive(
-      payload.tenantId,
-    );
+    try {
+      await this.tenantAccessService.assertTenantAccessible(payload.tenantId);
+    } catch (error) {
+      if (!(error instanceof TenantInactiveException)) {
+        throw error;
+      }
 
-    if (!tenantActive) {
       this.loggingService.info({
         module: 'Notifications',
         operation: 'deliver',
         status: 'skipped',
         metadata: {
-          reason: 'Tenant is inactive.',
+          reason: error.message,
           type: payload.type,
           recipientUserId: payload.recipientUserId,
           tenantId: payload.tenantId,

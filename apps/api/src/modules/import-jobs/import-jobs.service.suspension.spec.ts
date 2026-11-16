@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobStatus } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { TenantInactiveException, TenantStatusService } from '../../common/tenant/tenant-status.service';
+import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
+import { TenantInactiveException } from '../../common/tenant-access/tenant-access.exception';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
@@ -12,7 +13,7 @@ import { ImportJobsService } from './import-jobs.service';
 
 describe('ImportJobsService tenant suspension', () => {
   let service: ImportJobsService;
-  let tenantStatusService: { assertTenantActive: jest.Mock };
+  let tenantAccessService: { assertTenantAccessible: jest.Mock };
   let prisma: {
     importJob: {
       findUnique: jest.Mock;
@@ -21,8 +22,8 @@ describe('ImportJobsService tenant suspension', () => {
   };
 
   beforeEach(async () => {
-    tenantStatusService = {
-      assertTenantActive: jest.fn(),
+    tenantAccessService = {
+      assertTenantAccessible: jest.fn(),
     };
 
     prisma = {
@@ -47,7 +48,7 @@ describe('ImportJobsService tenant suspension', () => {
         { provide: QueueService, useValue: {} },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         { provide: NotificationTriggerService, useValue: {} },
-        { provide: TenantStatusService, useValue: tenantStatusService },
+        { provide: TenantAccessService, useValue: tenantAccessService },
         { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
       ],
     }).compile();
@@ -56,7 +57,7 @@ describe('ImportJobsService tenant suspension', () => {
   });
 
   it('fails import job when tenant is inactive without throwing', async () => {
-    tenantStatusService.assertTenantActive.mockRejectedValue(
+    tenantAccessService.assertTenantAccessible.mockRejectedValue(
       new TenantInactiveException(),
     );
 
@@ -70,6 +71,16 @@ describe('ImportJobsService tenant suspension', () => {
           errorSummary: [{ row: 0, reason: 'Tenant is inactive.' }],
         }),
       }),
+    );
+  });
+
+  it('propagates non-tenant errors so BullMQ can retry', async () => {
+    tenantAccessService.assertTenantAccessible.mockRejectedValue(
+      new Error('connection lost'),
+    );
+
+    await expect(service.processImportJob('job-1')).rejects.toThrow(
+      'connection lost',
     );
   });
 });
