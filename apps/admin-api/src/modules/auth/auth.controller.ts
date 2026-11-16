@@ -12,6 +12,8 @@ import {
 import type { Request } from 'express';
 import { AdminPermissionsService } from '../../common/auth/services/admin-permissions.service';
 import { toListResponseData } from '../../common/http/list-response';
+import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
+import { AuthRateLimit } from '../../common/rate-limit/rate-limit.decorator';
 import { AuthService } from './auth.service';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -28,6 +30,8 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @UseGuards(RateLimitGuard)
+  @AuthRateLimit('login')
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
     const result = await this.authService.login(
       loginDto,
@@ -43,6 +47,8 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @UseGuards(RateLimitGuard)
+  @AuthRateLimit('refresh')
   async refresh(@Body() refreshDto: RefreshDto, @Req() req: Request) {
     const result = await this.authService.refresh(
       refreshDto.refreshToken,

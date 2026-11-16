@@ -176,4 +176,66 @@ describe('AuthService', () => {
       data: { revokedAt: expect.any(Date) },
     });
   });
+
+  it('rotates the refresh token with a compare-and-swap on the previous hash', async () => {
+    tokenService.parseRefreshToken.mockReturnValue({
+      sessionId: session.id,
+      rawSecret: 'old-secret',
+    });
+    adminSessionService.findById.mockResolvedValue(session);
+    tokenService.verifyRefreshToken.mockResolvedValue(true);
+    prisma.platformAdmin.findFirst.mockResolvedValue(admin);
+
+    const tx = {
+      adminSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    prisma.$transaction.mockImplementation(
+      async (callback: (client: typeof tx) => unknown) => callback(tx),
+    );
+
+    const result = await service.refresh('session.old-secret', metadata);
+
+    expect(tx.adminSession.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: session.id,
+        hashedRefreshToken: session.hashedRefreshToken,
+        revokedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+      },
+      data: { hashedRefreshToken: 'hashed-secret' },
+    });
+    expect(adminSecurityService.logTokenRefresh).toHaveBeenCalledWith(
+      admin.id,
+      metadata,
+      tx,
+    );
+    expect(result.accessToken).toBe('access-token');
+    expect(result.refreshToken).toBe('session.raw-secret');
+  });
+
+  it('rejects a lost rotation race without revoking other sessions', async () => {
+    tokenService.parseRefreshToken.mockReturnValue({
+      sessionId: session.id,
+      rawSecret: 'old-secret',
+    });
+    adminSessionService.findById.mockResolvedValue(session);
+    tokenService.verifyRefreshToken.mockResolvedValue(true);
+    prisma.platformAdmin.findFirst.mockResolvedValue(admin);
+
+    const tx = {
+      adminSession: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    };
+    prisma.$transaction.mockImplementation(
+      async (callback: (client: typeof tx) => unknown) => callback(tx),
+    );
+
+    await expect(
+      service.refresh('session.old-secret', metadata),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(adminSecurityService.logTokenReuse).not.toHaveBeenCalled();
+    expect(adminSecurityService.logTokenRefresh).not.toHaveBeenCalled();
+    // The revoke-all path uses this same mock, so one call proves it never ran.
+    expect(tx.adminSession.updateMany).toHaveBeenCalledTimes(1);
+  });
 });

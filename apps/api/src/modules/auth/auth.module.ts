@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { StringValue } from 'ms';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
+import { RateLimitModule } from '../../common/rate-limit/rate-limit.module';
 import { TenantAccessModule } from '../../common/tenant-access/tenant-access.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
@@ -14,6 +15,7 @@ import { TokenService } from './token.service';
 @Module({
   imports: [
     AuthRbacModule,
+    RateLimitModule,
     TenantAccessModule,
     UsersModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),

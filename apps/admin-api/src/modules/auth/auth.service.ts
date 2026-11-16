@@ -168,10 +168,21 @@ export class AuthService {
       await this.tokenService.hashRefreshToken(newRawSecret);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.adminSession.update({
-        where: { id: session.id },
+      const rotated = await tx.adminSession.updateMany({
+        where: {
+          id: session.id,
+          hashedRefreshToken: session.hashedRefreshToken,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
         data: { hashedRefreshToken: newHashedRefreshToken },
       });
+
+      // A lost race is not token theft: reject it without revoking other sessions.
+      if (rotated.count !== 1) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
       await this.adminSecurityService.logTokenRefresh(admin.id, metadata, tx);
     });
 
