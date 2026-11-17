@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -36,4 +37,8 @@ export class CreateUserDto {
 
   @IsUUID()
   roleId: string;
+
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
 }

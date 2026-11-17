@@ -8,6 +8,10 @@ export class GetUsersQueryDto extends ListQueryDto {
   roleId?: string;
 
   @IsOptional()
+  @IsUUID()
+  teamId?: string;
+
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) => {
     if (value === 'true' || value === true) {
       return true;

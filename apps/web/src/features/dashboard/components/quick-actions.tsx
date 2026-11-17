@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
+import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_ENTER_CLASS, dashboardEnterStyle } from "../utils";
 
@@ -8,25 +11,34 @@ const actions = [
     label: "Add Lead",
     href: "/leads",
     icon: AppIcons.create,
+    permission: "lead.create",
   },
   {
     label: "Import CSV",
     href: "/imports",
     icon: AppIcons.imports,
+    permission: "import-job.create",
   },
   {
     label: "Pipelines",
     href: "/pipelines",
     icon: AppIcons.pipelines,
+    permission: "pipeline.read",
   },
   {
     label: "New Project",
     href: "/projects",
     icon: AppIcons.projects,
+    permission: "project.create",
   },
 ] as const;
 
 export function QuickActions() {
+  const { can } = usePermissions();
+  const visibleActions = actions.filter((action) => can(action.permission));
+
+  if (visibleActions.length === 0) return null;
+
   return (
     <section
       className={`${DASHBOARD_ENTER_CLASS} space-y-2`}
@@ -36,7 +48,7 @@ export function QuickActions() {
         Quick Actions
       </h2>
       <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
-        {actions.map((action, index) => {
+        {visibleActions.map((action, index) => {
           const Icon = action.icon;
           return (
             <Link

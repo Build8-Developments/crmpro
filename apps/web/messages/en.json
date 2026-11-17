@@ -68,5 +68,69 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "working": "Working..."
+  },
+  "settings": {
+    "sections": {
+      "teams": {
+        "label": "Teams",
+        "description": "Sales teams & leaders"
+      }
+    }
+  },
+  "teams": {
+    "title": "Teams",
+    "description": "Group agents under a leader. Leaders and members with team visibility see the team's leads.",
+    "newTeam": "New team",
+    "emptyTitle": "No teams yet",
+    "emptyDescription": "Create a team to let a manager see and distribute their agents' leads.",
+    "leader": "Leader",
+    "noLeader": "No leader",
+    "members": "{count, plural, =0 {No members} one {# member} other {# members}}",
+    "edit": "Edit",
+    "delete": "Delete",
+    "form": {
+      "createTitle": "New team",
+      "editTitle": "Edit team",
+      "description": "Each user can belong to one team. Adding someone here moves them out of their current team.",
+      "nameLabel": "Team name",
+      "namePlaceholder": "e.g. New Cairo sales",
+      "leaderLabel": "Team leader",
+      "membersLabel": "Members",
+      "searchMembers": "Search users...",
+      "currentTeam": "In {team}",
+      "noUsers": "No users match your search.",
+      "selectedCount": "{count} selected",
+      "save": "Save team",
+      "saving": "Saving..."
+    },
+    "deleteDialog": {
+      "title": "Delete team \"{name}\"?",
+      "description": "Members stay in the workspace but leave the team. Their leaders will no longer see their leads through this team.",
+      "confirm": "Delete team"
+    },
+    "toast": {
+      "created": "Team created",
+      "updated": "Team updated",
+      "deleted": "Team deleted"
+    }
+  },
+  "users": {
+    "teamLabel": "Team",
+    "noTeam": "No team"
+  },
+  "leads": {
+    "duplicate": {
+      "title": "Possible duplicate",
+      "ownedBy": "{name} (owned by {owner})",
+      "hiddenOwnedBy": "A lead owned by {owner}",
+      "hiddenUnassigned": "An unassigned lead"
+    }
+  },
+  "dashboard": {
+    "scope": {
+      "own": "Showing your leads",
+      "team": "Showing your team's leads",
+      "all": "Showing all leads"
+    }
   }
 }

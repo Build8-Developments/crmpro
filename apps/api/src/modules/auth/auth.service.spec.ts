@@ -28,6 +28,7 @@ describe('AuthService tenant suspension enforcement', () => {
     verifyRefreshToken: jest.Mock;
   };
   let prisma: {
+    user: { update: jest.Mock };
     userSession: {
       create: jest.Mock;
       findUnique: jest.Mock;
@@ -81,6 +82,7 @@ describe('AuthService tenant suspension enforcement', () => {
       verifyRefreshToken: jest.fn().mockResolvedValue(true),
     };
     prisma = {
+      user: { update: jest.fn().mockResolvedValue({}) },
       userSession: {
         create: jest.fn().mockResolvedValue({ id: 'session-1' }),
         findUnique: jest.fn().mockResolvedValue({
@@ -206,6 +208,7 @@ describe('AuthService refresh token rotation', () => {
     verifyRefreshToken: jest.Mock;
   };
   let prisma: {
+    user: { update: jest.Mock };
     userSession: {
       findUnique: jest.Mock;
       updateMany: jest.Mock;
@@ -249,6 +252,7 @@ describe('AuthService refresh token rotation', () => {
       verifyRefreshToken: jest.fn().mockResolvedValue(true),
     };
     prisma = {
+      user: { update: jest.fn().mockResolvedValue({}) },
       userSession: {
         findUnique: jest.fn().mockResolvedValue(session),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),

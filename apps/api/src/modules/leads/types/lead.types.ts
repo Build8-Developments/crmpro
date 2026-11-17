@@ -1,3 +1,4 @@
+import type { LeadScope } from '../scope/lead-scope.types';
 import { InterestLevel, LeadStatus, PipelineCloseType } from '@crmpro/database';
 
 export interface LeadSourceSummary {
@@ -52,13 +53,22 @@ export interface LeadResponse {
 }
 
 export interface DuplicateMatch {
-  id: string;
-  fullName: string;
+  /** null when the matching lead is outside the actor's scope */
+  id: string | null;
+  fullName: string | null;
+  ownerName: string | null;
+  accessible: boolean;
 }
 
 export interface DuplicateWarning {
   detected: true;
   matches: DuplicateMatch[];
+}
+
+export interface LeadActorAccess {
+  scope: LeadScope;
+  /** actor holds lead.assign */
+  canAssign: boolean;
 }
 
 export interface LeadMutationResult {

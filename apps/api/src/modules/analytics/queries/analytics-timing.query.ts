@@ -1,5 +1,7 @@
 import { Prisma } from '@crmpro/database';
 import { AnalyticsDateRange } from '../analytics.types';
+import type { LeadScope } from '../../leads/scope/lead-scope.types';
+import { buildLeadScopeSql } from './analytics-scope.util';
 
 const RESPONSE_EVENTS_IN_SQL = Prisma.sql`
   'ASSIGNED', 'REASSIGNED', 'STAGE_CHANGED',
@@ -34,6 +36,7 @@ export async function queryAvgResponseTimeHours(
   },
   tenantId: string,
   range: AnalyticsDateRange,
+  scope: LeadScope,
 ): Promise<number | null> {
   const dateFilter = buildLeadCreatedAtSql(range);
 
@@ -51,6 +54,7 @@ export async function queryAvgResponseTimeHours(
     WHERE l."tenantId" = ${tenantId}::uuid
       AND l."deletedAt" IS NULL
       AND ${dateFilter}
+      ${buildLeadScopeSql(scope)}
   `;
 
   return rows[0]?.avg_hours ?? null;
@@ -65,6 +69,7 @@ export async function queryAvgLeadAgeDays(
   },
   tenantId: string,
   range: AnalyticsDateRange,
+  scope: LeadScope,
 ): Promise<number | null> {
   const dateFilter = buildLeadCreatedAtSql(range);
 
@@ -79,6 +84,7 @@ export async function queryAvgLeadAgeDays(
       AND l."status" = 'OPEN'
       AND ps."isClosed" = false
       AND ${dateFilter}
+      ${buildLeadScopeSql(scope)}
   `;
 
   return rows[0]?.avg_days ?? null;
@@ -99,6 +105,7 @@ export async function queryAgentTimingMetrics(
   },
   tenantId: string,
   range: AnalyticsDateRange,
+  scope: LeadScope,
 ): Promise<AgentTimingRow[]> {
   const dateFilter = buildLeadCreatedAtSql(range);
 
@@ -133,6 +140,7 @@ export async function queryAgentTimingMetrics(
       AND l."deletedAt" IS NULL
       AND l."assignedUserId" IS NOT NULL
       AND ${dateFilter}
+      ${buildLeadScopeSql(scope)}
     GROUP BY l."assignedUserId"
   `;
 }

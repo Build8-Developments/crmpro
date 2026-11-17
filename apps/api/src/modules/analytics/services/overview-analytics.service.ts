@@ -7,6 +7,10 @@ import type {
   DashboardOverviewData,
 } from '../analytics.types';
 import { AnalyticsQueryService } from '../queries/analytics-query.service';
+import {
+  leadScopeWhere,
+  type LeadScope,
+} from '../../leads/scope/lead-scope.types';
 
 @Injectable()
 export class OverviewAnalyticsService {
@@ -18,11 +22,12 @@ export class OverviewAnalyticsService {
   async getOverview(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<DashboardOverviewData> {
     const [base, staleLeads, unassignedLeads] = await Promise.all([
-      this.queryService.getOverview(tenantId, range),
-      this.countStaleLeads(tenantId),
-      this.countUnassignedLeads(tenantId),
+      this.queryService.getOverview(tenantId, range, scope),
+      this.countStaleLeads(tenantId, scope),
+      this.countUnassignedLeads(tenantId, scope),
     ]);
 
     return {
@@ -32,7 +37,10 @@ export class OverviewAnalyticsService {
     };
   }
 
-  private async countStaleLeads(tenantId: string): Promise<number> {
+  private async countStaleLeads(
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<number> {
     const staleBefore = new Date();
     staleBefore.setUTCDate(staleBefore.getUTCDate() - STALE_LEAD_DAYS);
 
@@ -42,20 +50,33 @@ export class OverviewAnalyticsService {
         deletedAt: null,
         status: LeadStatus.OPEN,
         pipelineStage: { isClosed: false },
-        OR: [
+        AND: [
+          leadScopeWhere(scope),
           {
-            lastContactedAt: null,
-            createdAt: { lt: staleBefore },
-          },
-          {
-            lastContactedAt: { lt: staleBefore },
+            OR: [
+              {
+                lastContactedAt: null,
+                createdAt: { lt: staleBefore },
+              },
+              {
+                lastContactedAt: { lt: staleBefore },
+              },
+            ],
           },
         ],
       },
     });
   }
 
-  private async countUnassignedLeads(tenantId: string): Promise<number> {
+  private async countUnassignedLeads(
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<number> {
+    // Own-scope users can never see unassigned leads.
+    if (scope.kind === 'own') {
+      return 0;
+    }
+
     return this.prisma.lead.count({
       where: {
         tenantId,

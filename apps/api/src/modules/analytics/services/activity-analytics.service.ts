@@ -8,6 +8,11 @@ import {
 } from '../../audit/audit.constants';
 import { ACTIVITY_FEED_LIMIT } from '../analytics.constants';
 import type { ActivityFeedItem } from '../analytics.types';
+import {
+  leadScopeWhere,
+  type LeadScope,
+} from '../../leads/scope/lead-scope.types';
+import { jobScopeWhere } from '../queries/analytics-scope.util';
 
 @Injectable()
 export class ActivityAnalyticsService {
@@ -16,11 +21,13 @@ export class ActivityAnalyticsService {
   async getActivity(
     tenantId: string,
     options: { includeAudit: boolean },
+    scope: LeadScope,
   ): Promise<ActivityFeedItem[]> {
     const [activities, importJobs, exportJobs] = await Promise.all([
       this.prisma.leadActivity.findMany({
         where: {
           tenantId,
+          ...(scope.kind === 'all' ? {} : { lead: leadScopeWhere(scope) }),
           eventType: {
             in: [
               LeadActivityEventType.LEAD_CREATED,
@@ -44,6 +51,7 @@ export class ActivityAnalyticsService {
       this.prisma.importJob.findMany({
         where: {
           tenantId,
+          ...jobScopeWhere(scope),
           status: JobStatus.COMPLETED,
           completedAt: { not: null },
         },
@@ -59,6 +67,7 @@ export class ActivityAnalyticsService {
       this.prisma.exportJob.findMany({
         where: {
           tenantId,
+          ...jobScopeWhere(scope),
           status: JobStatus.COMPLETED,
           completedAt: { not: null },
         },
@@ -73,29 +82,30 @@ export class ActivityAnalyticsService {
       }),
     ]);
 
-    const auditLogs = options.includeAudit
-      ? await this.prisma.auditLog.findMany({
-          where: {
-            tenantId,
-            action: {
-              in: [
-                BULK_LEAD_AUDIT_ACTIONS.ASSIGNED,
-                BULK_LEAD_AUDIT_ACTIONS.STAGE_CHANGED,
-                IMPORT_AUDIT_ACTIONS.COMPLETED,
-                EXPORT_AUDIT_ACTIONS.COMPLETED,
-              ],
+    const auditLogs =
+      options.includeAudit && scope.kind === 'all'
+        ? await this.prisma.auditLog.findMany({
+            where: {
+              tenantId,
+              action: {
+                in: [
+                  BULK_LEAD_AUDIT_ACTIONS.ASSIGNED,
+                  BULK_LEAD_AUDIT_ACTIONS.STAGE_CHANGED,
+                  IMPORT_AUDIT_ACTIONS.COMPLETED,
+                  EXPORT_AUDIT_ACTIONS.COMPLETED,
+                ],
+              },
             },
-          },
-          select: {
-            id: true,
-            action: true,
-            metadata: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 100,
-        })
-      : [];
+            select: {
+              id: true,
+              action: true,
+              metadata: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+          })
+        : [];
 
     const merged: ActivityFeedItem[] = [
       ...activities.map((activity) => ({

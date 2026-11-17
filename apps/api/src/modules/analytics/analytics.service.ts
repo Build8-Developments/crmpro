@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CacheService } from '../../common/cache/cache.service';
+import {
+  leadScopeCacheKey,
+  type LeadScope,
+} from '../leads/scope/lead-scope.types';
 import { LoggingService } from '../../common/logging/logging.service';
 import { ANALYTICS_ENDPOINTS } from './analytics.constants';
 import {
@@ -41,49 +45,70 @@ export class AnalyticsService {
     private readonly loggingService: LoggingService,
   ) {}
 
+  // Every method takes the caller's lead scope: results are filtered to the
+  // leads the caller may see and cached under a scope-specific key.
+
   getOverview(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<DashboardOverviewData>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.overview, range, () =>
-      this.overviewService.getOverview(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.overview,
+      range,
+      () => this.overviewService.getOverview(tenantId, range, scope),
     );
   }
 
   getPipelineAnalytics(
     tenantId: string,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<PipelineAnalyticsData>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.pipeline, {}, () =>
-      this.pipelineService.getPipeline(tenantId),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.pipeline,
+      {},
+      () => this.pipelineService.getPipeline(tenantId, scope),
     );
   }
 
   getTrendAnalytics(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<TrendAnalyticsData>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.trends, range, () =>
-      this.trendService.getTrends(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.trends,
+      range,
+      () => this.trendService.getTrends(tenantId, range, scope),
     );
   }
 
   getTeamAnalytics(
     tenantId: string,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<TeamAnalyticsData>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.team, {}, () =>
-      this.teamService.getTeam(tenantId),
+    return this.withCache(tenantId, scope, ANALYTICS_ENDPOINTS.team, {}, () =>
+      this.teamService.getTeam(tenantId, scope),
     );
   }
 
   getActivityFeed(
     tenantId: string,
     includeAudit: boolean,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<ActivityFeedItem[]>> {
     return this.withCache(
       tenantId,
+      scope,
       ANALYTICS_ENDPOINTS.activity,
       {},
-      () => this.activityService.getActivity(tenantId, { includeAudit }),
+      () => this.activityService.getActivity(tenantId, { includeAudit }, scope),
       includeAudit ? 'audit' : 'lead',
     );
   }
@@ -91,63 +116,98 @@ export class AnalyticsService {
   getPipelineFunnel(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<PipelineFunnelAnalytics[]>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.pipeline, range, () =>
-      this.queryService.getPipelineFunnel(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.pipeline,
+      range,
+      () => this.queryService.getPipelineFunnel(tenantId, range, scope),
     );
   }
 
   getLeadSources(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<LeadSourceAnalytics[]>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.sources, range, () =>
-      this.queryService.getLeadSources(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.sources,
+      range,
+      () => this.queryService.getLeadSources(tenantId, range, scope),
     );
   }
 
   getAgentPerformance(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<AgentPerformanceAnalytics[]>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.agents, range, () =>
-      this.queryService.getAgentPerformance(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.agents,
+      range,
+      () => this.queryService.getAgentPerformance(tenantId, range, scope),
     );
   }
 
   getProjectPerformance(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<ProjectPerformanceAnalytics[]>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.projects, range, () =>
-      this.queryService.getProjectPerformance(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.projects,
+      range,
+      () => this.queryService.getProjectPerformance(tenantId, range, scope),
     );
   }
 
   getDeveloperPerformance(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<DeveloperPerformanceAnalytics[]>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.developers, range, () =>
-      this.queryService.getDeveloperPerformance(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.developers,
+      range,
+      () => this.queryService.getDeveloperPerformance(tenantId, range, scope),
     );
   }
 
   getLeadTrends(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<LeadTrendPoint[]>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.trends, range, () =>
-      this.queryService.getLeadTrends(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.trends,
+      range,
+      () => this.queryService.getLeadTrends(tenantId, range, scope),
     );
   }
 
   getStatusDistribution(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<LeadStatusDistribution>> {
-    return this.withCache(tenantId, ANALYTICS_ENDPOINTS.status, range, () =>
-      this.queryService.getStatusDistribution(tenantId, range),
+    return this.withCache(
+      tenantId,
+      scope,
+      ANALYTICS_ENDPOINTS.status,
+      range,
+      () => this.queryService.getStatusDistribution(tenantId, range, scope),
     );
   }
 
@@ -156,6 +216,7 @@ export class AnalyticsService {
     range: AnalyticsDateRange,
     page: number,
     limit: number,
+    scope: LeadScope,
   ): Promise<AnalyticsCacheResult<RecentActivityResult>> {
     const fromKey = range.from?.toISOString();
     const toKey = range.to?.toISOString();
@@ -163,9 +224,17 @@ export class AnalyticsService {
 
     return this.withCache(
       tenantId,
+      scope,
       ANALYTICS_ENDPOINTS.recentActivity,
       { from: range.from, to: range.to },
-      () => this.queryService.getRecentActivity(tenantId, range, page, limit),
+      () =>
+        this.queryService.getRecentActivity(
+          tenantId,
+          range,
+          page,
+          limit,
+          scope,
+        ),
       extra,
       fromKey,
       toKey,
@@ -174,6 +243,7 @@ export class AnalyticsService {
 
   private async withCache<T>(
     tenantId: string,
+    scope: LeadScope,
     endpoint: string,
     range: AnalyticsDateRange,
     handler: AnalyticsHandler<T>,
@@ -187,7 +257,7 @@ export class AnalyticsService {
       endpoint,
       fromKey ?? range.from?.toISOString(),
       toKey ?? range.to?.toISOString(),
-      extra,
+      [leadScopeCacheKey(scope), extra].filter(Boolean).join(':'),
     );
 
     const cached = await this.cacheService.get<T>(cacheKey);

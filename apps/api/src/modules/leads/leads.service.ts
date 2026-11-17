@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -27,8 +28,15 @@ import {
   LeadUpdatedEvent,
 } from '../../common/events/domain-event.types';
 import {
+  isAssigneeInScope,
+  leadScopeWhere,
+  SYSTEM_LEAD_SCOPE,
+  type LeadScope,
+} from './scope';
+import {
   DefaultPipelinePlacement,
   DuplicateWarning,
+  LeadActorAccess,
   ImportLeadRowInput,
   ImportLeadRowResult,
   LeadListFilters,
@@ -61,9 +69,10 @@ export class LeadsService {
   async listLeads(
     tenantId: string,
     query: GetLeadsQueryDto,
+    scope: LeadScope,
   ): Promise<PaginatedResponse<LeadResponse>> {
     const { page, limit, skip, take } = getPaginationParams(query);
-    const where = this.buildWhereClause(tenantId, query);
+    const where = this.buildWhereClause(tenantId, query, scope);
     const orderBy = this.buildOrderBy(query);
 
     const [leads, totalItems] = await this.prisma.$transaction([
@@ -85,8 +94,12 @@ export class LeadsService {
     );
   }
 
-  async getLead(id: string, tenantId: string): Promise<LeadResponse> {
-    const lead = await this.getLeadOrThrow(id, tenantId);
+  async getLead(
+    id: string,
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<LeadResponse> {
+    const lead = await this.getLeadOrThrow(id, tenantId, scope);
     return toLeadResponse(lead);
   }
 
@@ -94,6 +107,7 @@ export class LeadsService {
     tenantId: string,
     actorUserId: string,
     dto: CreateLeadDto,
+    access: LeadActorAccess,
   ): Promise<LeadMutationResult> {
     await this.validateSource(dto.sourceId, tenantId);
     await this.validatePipelineAndStage(
@@ -101,7 +115,10 @@ export class LeadsService {
       dto.pipelineStageId,
       tenantId,
     );
-    const assignee = await this.resolveAssignee(dto.assignedUserId, tenantId);
+    const assignee = await this.resolveAssignee(
+      this.resolveCreateAssigneeId(dto.assignedUserId, actorUserId, access),
+      tenantId,
+    );
     await this.validateProjects(dto.projectInterests, tenantId);
 
     const fullName = normalizeDisplayName(dto.fullName);
@@ -118,6 +135,7 @@ export class LeadsService {
       tenantId,
       primaryPhoneNormalized,
       secondaryPhoneNormalized,
+      access.scope,
     );
 
     const leadId = await this.prisma.$transaction(async (tx) => {
@@ -181,7 +199,7 @@ export class LeadsService {
       return lead.id;
     });
 
-    const lead = await this.getLeadOrThrow(leadId, tenantId);
+    const lead = await this.getLeadOrThrow(leadId, tenantId, SYSTEM_LEAD_SCOPE);
 
     void this.domainEventBus.publish(new LeadCreatedEvent(tenantId, leadId));
 
@@ -278,6 +296,7 @@ export class LeadsService {
       tenantId,
       primaryPhoneNormalized,
       secondaryPhoneNormalized,
+      SYSTEM_LEAD_SCOPE,
     );
 
     if (duplicateWarning) {
@@ -353,8 +372,9 @@ export class LeadsService {
     id: string,
     tenantId: string,
     dto: UpdateLeadDto,
+    scope: LeadScope,
   ): Promise<LeadMutationResult> {
-    const existing = await this.getLeadOrThrow(id, tenantId);
+    const existing = await this.getLeadOrThrow(id, tenantId, scope);
 
     if (dto.sourceId !== undefined) {
       await this.validateSource(dto.sourceId, tenantId);
@@ -403,6 +423,7 @@ export class LeadsService {
       tenantId,
       primaryPhoneNormalized,
       secondaryPhoneNormalized,
+      scope,
       existing.id,
     );
 
@@ -440,7 +461,11 @@ export class LeadsService {
       }
     });
 
-    const lead = await this.getLeadOrThrow(existing.id, tenantId);
+    const lead = await this.getLeadOrThrow(
+      existing.id,
+      tenantId,
+      SYSTEM_LEAD_SCOPE,
+    );
 
     void this.domainEventBus.publish(
       new LeadUpdatedEvent(tenantId, existing.id),
@@ -459,11 +484,33 @@ export class LeadsService {
     return buildOrderBy(sortBy, sortOrder, LEAD_SORT_CONFIG);
   }
 
+  /**
+   * Single choke point for lead list/export filtering. Scope, stale and search
+   * conditions each use OR internally, so they are combined under AND to
+   * avoid one silently overwriting another.
+   */
   buildLeadsWhereInput(
     tenantId: string,
     filters: LeadListFilters,
+    scope: LeadScope,
   ): Prisma.LeadWhereInput {
     const search = normalizeSearch(filters.search);
+    const and: Prisma.LeadWhereInput[] = [leadScopeWhere(scope)];
+
+    if (filters.staleOnly) {
+      and.push(this.buildStaleLeadWhereInput());
+    }
+
+    if (search) {
+      and.push({
+        OR: [
+          { fullName: { contains: search, mode: 'insensitive' } },
+          { primaryPhone: { contains: search, mode: 'insensitive' } },
+          { secondaryPhone: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
 
     return {
       tenantId,
@@ -490,15 +537,7 @@ export class LeadsService {
             assignedUserId: null,
           }
         : {}),
-      ...(filters.staleOnly ? this.buildStaleLeadWhereInput() : {}),
-      ...(search && {
-        OR: [
-          { fullName: { contains: search, mode: 'insensitive' } },
-          { primaryPhone: { contains: search, mode: 'insensitive' } },
-          { secondaryPhone: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ],
-      }),
+      AND: and,
     };
   }
 
@@ -524,19 +563,24 @@ export class LeadsService {
   private buildWhereClause(
     tenantId: string,
     query: GetLeadsQueryDto,
+    scope: LeadScope,
   ): Prisma.LeadWhereInput {
-    return this.buildLeadsWhereInput(tenantId, {
-      id: query.id,
-      pipelineId: query.pipelineId,
-      stageId: query.stageId,
-      sourceId: query.sourceId,
-      assignedUserId: query.assignedUserId,
-      status: query.status,
-      projectId: query.projectId,
-      search: query.search,
-      unassignedOnly: query.unassignedOnly,
-      staleOnly: query.staleOnly,
-    });
+    return this.buildLeadsWhereInput(
+      tenantId,
+      {
+        id: query.id,
+        pipelineId: query.pipelineId,
+        stageId: query.stageId,
+        sourceId: query.sourceId,
+        assignedUserId: query.assignedUserId,
+        status: query.status,
+        projectId: query.projectId,
+        search: query.search,
+        unassignedOnly: query.unassignedOnly,
+        staleOnly: query.staleOnly,
+      },
+      scope,
+    );
   }
 
   private buildOrderBy(
@@ -548,9 +592,10 @@ export class LeadsService {
   private async getLeadOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<Prisma.LeadGetPayload<{ select: typeof leadSelect }>> {
     const lead = await this.prisma.lead.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, ...leadScopeWhere(scope) },
       select: leadSelect,
     });
 
@@ -650,6 +695,28 @@ export class LeadsService {
     }
   }
 
+  /**
+   * Who a newly created lead is assigned to. Actors without lead.assign always
+   * own what they create; scoped actors can only assign inside their scope.
+   */
+  private resolveCreateAssigneeId(
+    requestedUserId: string | null | undefined,
+    actorUserId: string,
+    access: LeadActorAccess,
+  ): string | null | undefined {
+    if (!access.canAssign || access.scope.kind === 'own') {
+      return actorUserId;
+    }
+
+    if (requestedUserId && !isAssigneeInScope(access.scope, requestedUserId)) {
+      throw new ForbiddenException(
+        'You can only assign leads to members of your team',
+      );
+    }
+
+    return requestedUserId;
+  }
+
   private async resolveAssignee(
     assignedUserId: string | null | undefined,
     tenantId: string,
@@ -709,6 +776,7 @@ export class LeadsService {
     tenantId: string,
     primaryPhoneNormalized: string,
     secondaryPhoneNormalized: string | null,
+    scope: LeadScope,
     excludeLeadId?: string,
   ): Promise<DuplicateWarning | null> {
     // Soft detection only — never blocks create/update. Uses composite indexes:
@@ -732,6 +800,8 @@ export class LeadsService {
       select: {
         id: true,
         fullName: true,
+        assignedUserId: true,
+        assignedUser: { select: { name: true } },
       },
       take: 10,
     });
@@ -740,9 +810,20 @@ export class LeadsService {
       return null;
     }
 
+    // Matches outside the actor's scope only reveal who owns the lead, never
+    // the lead itself, so agents can't harvest colleagues' clients.
     return {
       detected: true,
-      matches,
+      matches: matches.map((match) => {
+        const accessible = isAssigneeInScope(scope, match.assignedUserId);
+
+        return {
+          id: accessible ? match.id : null,
+          fullName: accessible ? match.fullName : null,
+          ownerName: match.assignedUser?.name ?? null,
+          accessible,
+        };
+      }),
     };
   }
 }

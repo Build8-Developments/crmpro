@@ -36,14 +36,17 @@ export const MANAGER_PERMISSION_KEYS: readonly PermissionKey[] =
       key !== PERMISSIONS.BILLING_MANAGE &&
       key !== PERMISSIONS.NOTIFICATION_DELETE &&
       key !== PERMISSIONS.USER_MANAGE &&
-      key !== PERMISSIONS.ROLE_MANAGE,
+      key !== PERMISSIONS.ROLE_MANAGE &&
+      // Managers see their team's leads, not the whole tenant.
+      key !== PERMISSIONS.LEAD_READ_ALL,
   );
 
 export const AGENT_PERMISSION_KEYS: readonly PermissionKey[] = [
   PERMISSIONS.LEAD_READ,
   PERMISSIONS.LEAD_CREATE,
   PERMISSIONS.LEAD_UPDATE,
-  PERMISSIONS.LEAD_ASSIGN,
+  // No LEAD_ASSIGN and no LEAD_READ_TEAM / LEAD_READ_ALL: agents only see and
+  // work the leads assigned to them; managers distribute.
   PERMISSIONS.LEAD_NOTE_CREATE,
   PERMISSIONS.LEAD_NOTE_READ,
   PERMISSIONS.LEAD_NOTE_UPDATE,

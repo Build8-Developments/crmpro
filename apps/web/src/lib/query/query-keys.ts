@@ -64,6 +64,11 @@ export const queryKeys = {
     quota: () => ["users", "quota"] as const,
   },
 
+  teams: {
+    all: () => ["teams"] as const,
+    list: () => ["teams", "list"] as const,
+  },
+
   roles: {
     all: () => ["roles"] as const,
     list: () => ["roles", "list"] as const,

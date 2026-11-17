@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { EntitlementsModule } from '../../common/entitlements/entitlements.module';
+import { LeadScopeModule } from '../leads/scope/lead-scope.module';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsAggregatorService } from './analytics-aggregator.service';
 import { AnalyticsInvalidationListener } from './analytics-invalidation.listener';
@@ -15,7 +16,7 @@ import { TeamAnalyticsService } from './services/team-analytics.service';
 import { ActivityAnalyticsService } from './services/activity-analytics.service';
 
 @Module({
-  imports: [AuthRbacModule, EntitlementsModule],
+  imports: [AuthRbacModule, EntitlementsModule, LeadScopeModule],
   controllers: [AnalyticsController],
   providers: [
     AnalyticsService,

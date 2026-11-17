@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { LeadActivityEventType, LeadStatus, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { leadScopeWhere, type LeadScope } from '../scope/lead-scope.types';
 import { MoveStageDto } from '../dto/move-stage.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';
 import { LeadWorkflowResult } from '../types/lead.types';
@@ -45,8 +46,9 @@ export class LeadStageService {
     tenantId: string,
     actorUserId: string,
     dto: MoveStageDto,
+    scope: LeadScope,
   ): Promise<LeadWorkflowResult> {
-    const lead = await this.getWorkflowLeadOrThrow(leadId, tenantId);
+    const lead = await this.getWorkflowLeadOrThrow(leadId, tenantId, scope);
     this.ensureLeadIsOpen(lead.status, 'move stages');
 
     if (lead.pipelineStageId === dto.pipelineStageId) {
@@ -136,9 +138,10 @@ export class LeadStageService {
   private async getWorkflowLeadOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<WorkflowLeadRecord> {
     const lead = await this.prisma.lead.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, ...leadScopeWhere(scope) },
       select: workflowLeadSelect,
     });
 

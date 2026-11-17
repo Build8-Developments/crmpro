@@ -167,6 +167,8 @@ const PERMISSIONS = [
   { key: 'lead.update', description: 'Update lead details' },
   { key: 'lead.delete', description: 'Delete leads' },
   { key: 'lead.assign', description: 'Assign leads to team members' },
+  { key: 'lead.read-team', description: "View leads of the user's team(s) and unassigned leads" },
+  { key: 'lead.read-all', description: 'View every lead in the organization' },
   { key: 'lead-note.create', description: 'Create lead notes' },
   { key: 'lead-note.read', description: 'View lead notes' },
   { key: 'lead-note.update', description: 'Update lead notes' },
@@ -192,6 +194,8 @@ const PERMISSIONS = [
   { key: 'user.update', description: 'Update users' },
   { key: 'user.delete', description: 'Delete users' },
   { key: 'user.manage', description: 'Reset passwords and revoke user sessions' },
+  { key: 'team.read', description: 'View teams' },
+  { key: 'team.manage', description: 'Create teams and manage membership' },
   { key: 'role.create', description: 'Create custom roles' },
   { key: 'role.read', description: 'View roles' },
   { key: 'role.update', description: 'Update roles' },
@@ -332,7 +336,24 @@ const SAMPLE_USERS = [
     email: 'agent@primeestates.com',
     roleId: ROLE_IDS.agent,
   },
+  {
+    // Outside the demo team: the manager must NOT see this agent's leads.
+    id: '55555555-5555-4555-8555-555555555504',
+    name: 'Field Agent',
+    email: 'agent2@primeestates.com',
+    roleId: ROLE_IDS.agent,
+  },
 ] as const;
+
+const DEMO_TEAM = {
+  id: '5a5a5a5a-5a5a-4a5a-8a5a-5a5a5a5a5a01',
+  name: 'New Cairo Sales',
+  leaderUserId: '55555555-5555-4555-8555-555555555502',
+  memberIds: [
+    '55555555-5555-4555-8555-555555555502',
+    '55555555-5555-4555-8555-555555555503',
+  ],
+} as const;
 
 const SAMPLE_DEVELOPERS = [
   { id: DEVELOPER_IDS.palmHills, name: 'Palm Hills Developments' },
@@ -907,6 +928,32 @@ async function seedUsers(
   }
 
   return userIds;
+}
+
+async function seedTeams(tenantId: string): Promise<void> {
+  await prisma.team.upsert({
+    where: { id: DEMO_TEAM.id },
+    create: {
+      id: DEMO_TEAM.id,
+      tenantId,
+      name: DEMO_TEAM.name,
+      leaderUserId: DEMO_TEAM.leaderUserId,
+    },
+    update: {
+      name: DEMO_TEAM.name,
+      leaderUserId: DEMO_TEAM.leaderUserId,
+      deletedAt: null,
+    },
+  });
+
+  await prisma.user.updateMany({
+    where: { tenantId, teamId: DEMO_TEAM.id, id: { notIn: [...DEMO_TEAM.memberIds] } },
+    data: { teamId: null },
+  });
+  await prisma.user.updateMany({
+    where: { tenantId, id: { in: [...DEMO_TEAM.memberIds] } },
+    data: { teamId: DEMO_TEAM.id },
+  });
 }
 
 async function clearTenantSampleData(tenantId: string): Promise<void> {
@@ -1715,6 +1762,9 @@ async function main(): Promise<void> {
   const userIds = await seedUsers(TENANT_ID, SAMPLE_USERS, passwordHash);
   console.log('✓ Users (fixed credentials)');
 
+  await seedTeams(TENANT_ID);
+  console.log(`✓ Team "${DEMO_TEAM.name}" (manager + senior agent; field agent outside)`);
+
   console.log('\nRefreshing sample CRM data for prime-estates...');
   await clearTenantSampleData(TENANT_ID);
 
@@ -1733,7 +1783,8 @@ async function main(): Promise<void> {
   console.log('  tenantSlug: prime-estates');
   console.log('  owner@primeestates.com / Password123!');
   console.log('  manager@primeestates.com / Password123!');
-  console.log('  agent@primeestates.com / Password123!');
+  console.log('  agent@primeestates.com / Password123!   (sees only own leads)');
+  console.log('  agent2@primeestates.com / Password123!  (outside the manager team)');
   console.log('\nLogin (admin-api):');
   console.log('  admin@crmpro.local / Admin123!');
   console.log('\nAdmin audit explorer sample IDs:');

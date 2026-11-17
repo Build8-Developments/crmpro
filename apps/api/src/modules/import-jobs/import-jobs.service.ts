@@ -197,17 +197,30 @@ export class ImportJobsService {
     });
   }
 
-  async getImportJob(id: string, tenantId: string): Promise<ImportJobResponse> {
-    const job = await this.getImportJobOrThrow(id, tenantId);
+  /**
+   * `ownerUserId` restricts results to jobs the user created. Import files and
+   * row errors contain bulk lead data, so only tenant-wide (lead.read-all)
+   * users see everyone's imports.
+   */
+  async getImportJob(
+    id: string,
+    tenantId: string,
+    ownerUserId: string | null,
+  ): Promise<ImportJobResponse> {
+    const job = await this.getImportJobOrThrow(id, tenantId, ownerUserId);
     return this.toImportJobResponse(job);
   }
 
   async listImportJobs(
     tenantId: string,
     query: GetImportJobsQueryDto,
+    ownerUserId: string | null,
   ): Promise<PaginatedResponse<ImportJobResponse>> {
     const { page, limit, skip, take } = getPaginationParams(query);
-    const where = { tenantId };
+    const where = {
+      tenantId,
+      ...(ownerUserId ? { createdByUserId: ownerUserId } : {}),
+    };
 
     const [jobs, totalItems] = await this.prisma.$transaction([
       this.prisma.importJob.findMany({
@@ -641,9 +654,14 @@ export class ImportJobsService {
   private async getImportJobOrThrow(
     id: string,
     tenantId: string,
+    ownerUserId: string | null,
   ): Promise<ImportJobRecord> {
     const job = await this.prisma.importJob.findFirst({
-      where: { id, tenantId },
+      where: {
+        id,
+        tenantId,
+        ...(ownerUserId ? { createdByUserId: ownerUserId } : {}),
+      },
       select: importJobSelect,
     });
 

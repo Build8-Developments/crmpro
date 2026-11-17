@@ -17,6 +17,12 @@ const userListSelect = {
       name: true,
     },
   },
+  team: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
 } satisfies Prisma.UserSelect;
 
 export type UserListRecord = Prisma.UserGetPayload<{
@@ -33,6 +39,7 @@ export function toUserListItem(user: UserListRecord): UserListItem {
     phone: user.phone,
     isActive: user.isActive,
     role: user.role,
+    team: user.team,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

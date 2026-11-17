@@ -142,6 +142,10 @@ export class UsersService {
       dto.roleId,
     );
 
+    if (dto.teamId) {
+      await this.assertTeamExists(tenantId, dto.teamId);
+    }
+
     const passwordHash = await this.passwordService.hash(dto.password);
     const fullName = normalizeDisplayName(dto.fullName);
 
@@ -152,6 +156,7 @@ export class UsersService {
         data: {
           tenantId,
           roleId: dto.roleId,
+          teamId: dto.teamId ?? null,
           name: fullName,
           email: dto.email,
           passwordHash,
@@ -397,6 +402,20 @@ export class UsersService {
     return user;
   }
 
+  private async assertTeamExists(
+    tenantId: string,
+    teamId: string,
+  ): Promise<void> {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!team) {
+      throw new BadRequestException('Team not found');
+    }
+  }
+
   private buildWhereClause(
     tenantId: string,
     query: GetUsersQueryDto,
@@ -407,6 +426,7 @@ export class UsersService {
       tenantId,
       deletedAt: null,
       ...(query.roleId ? { roleId: query.roleId } : {}),
+      ...(query.teamId ? { teamId: query.teamId } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
       ...(search
         ? {

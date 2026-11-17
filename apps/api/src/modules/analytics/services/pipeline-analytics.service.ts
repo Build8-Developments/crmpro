@@ -8,11 +8,19 @@ import { nullableAverage } from '../mappers/analytics.mapper';
  * When no pipeline is marked default, the first pipeline by name is used.
  * Additional pipelines are ignored for this endpoint.
  */
+import {
+  leadScopeWhere,
+  type LeadScope,
+} from '../../leads/scope/lead-scope.types';
+import { buildLeadScopeSql } from '../queries/analytics-scope.util';
 @Injectable()
 export class PipelineAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPipeline(tenantId: string): Promise<PipelineAnalyticsData> {
+  async getPipeline(
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<PipelineAnalyticsData> {
     const pipeline = await this.prisma.pipeline.findFirst({
       where: { tenantId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
@@ -41,6 +49,7 @@ export class PipelineAnalyticsService {
           tenantId,
           deletedAt: null,
           pipelineId: pipeline.id,
+          ...leadScopeWhere(scope),
         },
         _count: { _all: true },
       }),
@@ -69,6 +78,7 @@ export class PipelineAnalyticsService {
         WHERE l."tenantId" = ${tenantId}::uuid
           AND l."deletedAt" IS NULL
           AND l."pipelineId" = ${pipeline.id}::uuid
+          ${buildLeadScopeSql(scope)}
         GROUP BY l."pipelineStageId"
       `,
     ]);

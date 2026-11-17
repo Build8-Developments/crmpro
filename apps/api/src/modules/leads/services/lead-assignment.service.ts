@@ -1,10 +1,16 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { LeadActivityEventType, LeadStatus, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import {
+  isAssigneeInScope,
+  leadScopeWhere,
+  type LeadScope,
+} from '../scope/lead-scope.types';
 import { AssignLeadDto } from '../dto/assign-lead.dto';
 import { leadSelect, toLeadResponse } from '../lead.mapper';
 import { LeadWorkflowResult } from '../types/lead.types';
@@ -44,9 +50,11 @@ export class LeadAssignmentService {
     tenantId: string,
     actorUserId: string,
     dto: AssignLeadDto,
+    scope: LeadScope,
   ): Promise<LeadWorkflowResult> {
-    const lead = await this.getWorkflowLeadOrThrow(leadId, tenantId);
+    const lead = await this.getWorkflowLeadOrThrow(leadId, tenantId, scope);
     this.ensureLeadIsOpen(lead.status);
+    this.ensureTargetInScope(scope, dto.userId);
 
     const previousUserId = lead.assignedUserId;
     const newUserId = dto.userId;
@@ -181,9 +189,10 @@ export class LeadAssignmentService {
   private async getWorkflowLeadOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<WorkflowLeadRecord> {
     const lead = await this.prisma.lead.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, ...leadScopeWhere(scope) },
       select: workflowLeadSelect,
     });
 
@@ -192,6 +201,31 @@ export class LeadAssignmentService {
     }
 
     return lead;
+  }
+
+  /**
+   * Scoped actors may only hand leads to people they can see: managers inside
+   * their team, own-scope actors only to themselves. Unassigning is reserved
+   * for team/all scope (an own-scope unassign would just lose the lead).
+   */
+  private ensureTargetInScope(scope: LeadScope, targetUserId: string | null) {
+    if (scope.kind === 'all') {
+      return;
+    }
+
+    if (targetUserId === null) {
+      if (scope.kind === 'team') {
+        return;
+      }
+
+      throw new ForbiddenException('You cannot unassign this lead');
+    }
+
+    if (!isAssigneeInScope(scope, targetUserId)) {
+      throw new ForbiddenException(
+        'You can only assign leads to members of your team',
+      );
+    }
   }
 
   private ensureLeadIsOpen(status: LeadStatus): void {

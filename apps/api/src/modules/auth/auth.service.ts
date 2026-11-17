@@ -61,6 +61,11 @@ export class AuthService {
       rawRefreshSecret,
     );
 
+    // Best-effort: a failed timestamp write must never block a valid login.
+    await this.prisma.user
+      .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+      .catch(() => undefined);
+
     this.authLoggingService.loginSuccess({
       userId: user.id,
       tenantId: user.tenantId,

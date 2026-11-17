@@ -4,6 +4,7 @@ import { QuotaModule } from '../../common/quota/quota.module';
 import { AuditModule } from '../audit/audit.module';
 import { LeadAttachmentModule } from '../lead-attachments/lead-attachment.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LeadScopeModule } from '../leads/scope/lead-scope.module';
 import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
 
@@ -14,6 +15,7 @@ import { FilesService } from './files.service';
     AuditModule,
     NotificationsModule,
     LeadAttachmentModule,
+    LeadScopeModule,
   ],
   controllers: [FilesController],
   providers: [FilesService],

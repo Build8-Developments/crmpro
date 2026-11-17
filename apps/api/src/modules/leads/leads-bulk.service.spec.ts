@@ -14,6 +14,8 @@ import { LeadsBulkService } from './leads-bulk.service';
 import { LeadAssignmentService } from './services/lead-assignment.service';
 import { LeadStageService } from './services/lead-stage.service';
 
+const ALL_SCOPE = { kind: 'all', actorUserId: 'actor-1' } as const;
+
 describe('LeadsBulkService', () => {
   let service: LeadsBulkService;
   let leadAssignmentService: { assignLead: jest.Mock };
@@ -42,10 +44,15 @@ describe('LeadsBulkService', () => {
   it('deduplicates lead IDs before processing', async () => {
     leadAssignmentService.assignLead.mockResolvedValue({});
 
-    const result = await service.bulkAssignLeads('tenant-1', 'actor-1', {
-      leadIds: ['lead-a', 'lead-a', 'lead-b'],
-      userId: 'user-1',
-    });
+    const result = await service.bulkAssignLeads(
+      'tenant-1',
+      'actor-1',
+      {
+        leadIds: ['lead-a', 'lead-a', 'lead-b'],
+        userId: 'user-1',
+      },
+      ALL_SCOPE,
+    );
 
     expect(leadAssignmentService.assignLead).toHaveBeenCalledTimes(2);
     expect(result.successCount).toBe(2);
@@ -67,10 +74,15 @@ describe('LeadsBulkService', () => {
         new BadRequestException('Archived leads cannot be assigned'),
       );
 
-    const result = await service.bulkAssignLeads('tenant-1', 'actor-1', {
-      leadIds: ['lead-1', 'lead-2', 'lead-3'],
-      userId: 'user-1',
-    });
+    const result = await service.bulkAssignLeads(
+      'tenant-1',
+      'actor-1',
+      {
+        leadIds: ['lead-1', 'lead-2', 'lead-3'],
+        userId: 'user-1',
+      },
+      ALL_SCOPE,
+    );
 
     expect(result).toEqual({
       successCount: 2,
@@ -87,10 +99,15 @@ describe('LeadsBulkService', () => {
   it('writes a single bulk assign audit log', async () => {
     leadAssignmentService.assignLead.mockResolvedValue({});
 
-    await service.bulkAssignLeads('tenant-1', 'actor-1', {
-      leadIds: ['lead-1'],
-      userId: 'user-1',
-    });
+    await service.bulkAssignLeads(
+      'tenant-1',
+      'actor-1',
+      {
+        leadIds: ['lead-1'],
+        userId: 'user-1',
+      },
+      ALL_SCOPE,
+    );
 
     expect(auditWriter.createAuditLog).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
@@ -112,10 +129,15 @@ describe('LeadsBulkService', () => {
       .mockRejectedValueOnce(new NotFoundException('Lead not found'))
       .mockResolvedValueOnce({});
 
-    const result = await service.bulkAssignLeads('tenant-1', 'actor-1', {
-      leadIds: ['missing-lead', 'lead-2'],
-      userId: null,
-    });
+    const result = await service.bulkAssignLeads(
+      'tenant-1',
+      'actor-1',
+      {
+        leadIds: ['missing-lead', 'lead-2'],
+        userId: null,
+      },
+      ALL_SCOPE,
+    );
 
     expect(result.successCount).toBe(1);
     expect(result.failureCount).toBe(1);

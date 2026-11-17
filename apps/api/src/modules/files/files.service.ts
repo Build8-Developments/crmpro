@@ -14,6 +14,10 @@ import { StorageLoggingService } from '../../common/logging/storage-logging.serv
 import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
+import {
+  leadScopeWhere,
+  type LeadScope,
+} from '../leads/scope/lead-scope.types';
 import { LeadAttachmentService } from '../lead-attachments/lead-attachment.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import {
@@ -117,9 +121,10 @@ export class FilesService {
   async listFiles(
     tenantId: string,
     query: GetFilesQueryDto,
+    scope: LeadScope,
   ): Promise<PaginatedResponse<FileAssetListItem>> {
     const { page, limit, skip, take } = getPaginationParams(query);
-    const where = this.buildListWhereClause(tenantId, query);
+    const where = this.buildListWhereClause(tenantId, query, scope);
     const orderBy = buildOrderBy(
       query.sortBy,
       query.sortOrder,
@@ -213,6 +218,7 @@ export class FilesService {
     tenantId: string,
     userId: string,
     dto: CompleteUploadDto,
+    scope: LeadScope,
   ): Promise<CompleteUploadResponse> {
     const startedAt = Date.now();
 
@@ -247,6 +253,7 @@ export class FilesService {
         await this.leadAttachmentService.validateAttachmentTarget(
           dto.leadId,
           tenantId,
+          scope,
         );
       }
 
@@ -331,10 +338,11 @@ export class FilesService {
   async getDownloadUrl(
     fileId: string,
     tenantId: string,
+    scope: LeadScope,
     options?: { expiresInSeconds?: number },
   ): Promise<DownloadUrlResponse> {
     const startedAt = Date.now();
-    const file = await this.getFileOrThrow(fileId, tenantId);
+    const file = await this.getFileOrThrow(fileId, tenantId, scope);
 
     const signed = await this.storageService.getSignedDownloadUrl({
       objectKey: file.objectKey,
@@ -419,9 +427,10 @@ export class FilesService {
     fileId: string,
     tenantId: string,
     userId: string,
+    scope: LeadScope,
   ): Promise<{ id: string }> {
     const startedAt = Date.now();
-    const file = await this.getFileOrThrow(fileId, tenantId);
+    const file = await this.getFileOrThrow(fileId, tenantId, scope);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.fileAsset.update({
@@ -532,9 +541,15 @@ export class FilesService {
   private async getFileOrThrow(
     fileId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<FileAssetRecord & { sizeBytes: bigint }> {
     const file = await this.prisma.fileAsset.findFirst({
-      where: { id: fileId, tenantId, deletedAt: null },
+      where: {
+        id: fileId,
+        tenantId,
+        deletedAt: null,
+        ...this.buildFileScopeWhere(scope),
+      },
       select: fileAssetSelect,
     });
 
@@ -560,15 +575,44 @@ export class FilesService {
     };
   }
 
+  /**
+   * Scoped users see attachments of leads in their scope, shared assets
+   * (avatars, brochures, other) and only their own import/export files, since
+   * those contain bulk lead data.
+   */
+  private buildFileScopeWhere(scope: LeadScope): Prisma.FileAssetWhereInput {
+    if (scope.kind === 'all') {
+      return {};
+    }
+
+    return {
+      OR: [
+        { leadId: { not: null }, lead: leadScopeWhere(scope) },
+        {
+          leadId: null,
+          category: {
+            notIn: [
+              FileAssetCategory.IMPORT_FILE,
+              FileAssetCategory.EXPORT_FILE,
+            ],
+          },
+        },
+        { leadId: null, uploadedByUserId: scope.actorUserId },
+      ],
+    };
+  }
+
   private buildListWhereClause(
     tenantId: string,
     query: GetFilesQueryDto,
+    scope: LeadScope,
   ): Prisma.FileAssetWhereInput {
     const search = normalizeSearch(query.search);
 
     return {
       tenantId,
       deletedAt: null,
+      ...this.buildFileScopeWhere(scope),
       ...(query.category ? { category: query.category } : {}),
       ...(search && {
         originalFilename: {

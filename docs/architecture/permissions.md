@@ -457,6 +457,29 @@ Both may be required.
 
 ---
 
+## Lead Data Scope (implemented — Plan 06)
+
+Lead visibility is a **data scope**, granted by permissions like everything else:
+
+| Permission | Scope | Sees |
+|---|---|---|
+| `lead.read-all` | `all` | every lead in the tenant |
+| `lead.read-team` | `team` | leads assigned to members of the user's team or teams they lead, plus unassigned leads |
+| neither | `own` | only leads assigned to the user |
+
+Rules:
+
+- `LeadScopeService.resolve(user, permissionKeys)` (`apps/api/src/modules/leads/scope`) turns permissions into a `LeadScope`; `leadScopeWhere(scope)` turns it into a Prisma filter.
+- Every lead read and workflow path takes a scope: list, detail, update, stage, assignment, notes, timeline, attachments, bulk actions, files linked to leads, exports, analytics (including raw SQL via `buildLeadScopeSql`) and analytics cache keys.
+- Out-of-scope leads behave exactly like missing leads (**404**, never 403).
+- Duplicate-phone warnings only reveal the owner's name for out-of-scope matches.
+- Import/export jobs and their files are visible only to their creator unless the user has `lead.read-all` (they contain bulk lead data).
+- Background jobs freeze the requester's scope on the job (`StoredLeadScope`) because workers have no user context.
+- Without `lead.assign`, a user always owns the leads they create. Scoped users can only assign inside their scope.
+- Defaults: Owner = `all`, Manager = `team`, Agent = `own` (and no `lead.assign`).
+
+---
+
 # Frontend Authorization
 
 Frontend uses permissions for UI adaptation.

@@ -9,8 +9,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { PERMISSIONS } from '@crmpro/shared/auth';
-import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import { PERMISSIONS, type PermissionKey } from '@crmpro/shared/auth';
+import {
+  CurrentPermissionKeys,
+  PermissionsGuard,
+  RequirePermission,
+} from '../../common/auth';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
@@ -27,6 +31,8 @@ import { LeadAssignmentService } from './services/lead-assignment.service';
 import { LeadNotesService } from './services/lead-notes.service';
 import { LeadStageService } from './services/lead-stage.service';
 import { LeadTimelineService } from './services/lead-timeline.service';
+import { LeadScopeService } from './scope/lead-scope.service';
+import type { LeadScope } from './scope/lead-scope.types';
 
 @Controller('leads')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -38,15 +44,28 @@ export class LeadsController {
     private readonly leadNotesService: LeadNotesService,
     private readonly leadTimelineService: LeadTimelineService,
     private readonly leadAttachmentService: LeadAttachmentService,
+    private readonly leadScopeService: LeadScopeService,
   ) {}
+
+  private resolveScope(
+    user: AuthenticatedUser,
+    permissionKeys: ReadonlySet<PermissionKey>,
+  ): Promise<LeadScope> {
+    return this.leadScopeService.resolve(user, permissionKeys);
+  }
 
   @Get()
   @RequirePermission(PERMISSIONS.LEAD_READ)
   async listLeads(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Query() query: GetLeadsQueryDto,
   ) {
-    const data = await this.leadsService.listLeads(user.tenantId, query);
+    const data = await this.leadsService.listLeads(
+      user.tenantId,
+      query,
+      await this.resolveScope(user, permissionKeys),
+    );
 
     return { success: true, data };
   }
@@ -55,12 +74,17 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_CREATE)
   async createLead(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Body() dto: CreateLeadDto,
   ) {
     const data = await this.leadsService.createLead(
       user.tenantId,
       user.id,
       dto,
+      {
+        scope: await this.resolveScope(user, permissionKeys),
+        canAssign: permissionKeys.has(PERMISSIONS.LEAD_ASSIGN),
+      },
     );
 
     return { success: true, data };
@@ -70,9 +94,14 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_NOTE_READ)
   async listNotes(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const data = await this.leadNotesService.listNotes(id, user.tenantId);
+    const data = await this.leadNotesService.listNotes(
+      id,
+      user.tenantId,
+      await this.resolveScope(user, permissionKeys),
+    );
 
     return { success: true, data };
   }
@@ -81,6 +110,7 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_READ)
   async listActivities(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: GetLeadActivitiesQueryDto,
   ) {
@@ -88,6 +118,7 @@ export class LeadsController {
       id,
       user.tenantId,
       query,
+      await this.resolveScope(user, permissionKeys),
     );
 
     return { success: true, data };
@@ -97,11 +128,13 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_READ)
   async listAttachments(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     const data = await this.leadAttachmentService.listAttachments(
       id,
       user.tenantId,
+      await this.resolveScope(user, permissionKeys),
     );
 
     return { success: true, data };
@@ -111,6 +144,7 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_NOTE_CREATE)
   async createNote(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateLeadNoteDto,
   ) {
@@ -119,6 +153,7 @@ export class LeadsController {
       user.tenantId,
       user.id,
       dto,
+      await this.resolveScope(user, permissionKeys),
     );
 
     return { success: true, data };
@@ -128,6 +163,7 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_UPDATE)
   async moveStage(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: MoveStageDto,
   ) {
@@ -136,6 +172,7 @@ export class LeadsController {
       user.tenantId,
       user.id,
       dto,
+      await this.resolveScope(user, permissionKeys),
     );
 
     return { success: true, data };
@@ -145,6 +182,7 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_ASSIGN)
   async assignLead(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignLeadDto,
   ) {
@@ -153,6 +191,7 @@ export class LeadsController {
       user.tenantId,
       user.id,
       dto,
+      await this.resolveScope(user, permissionKeys),
     );
 
     return { success: true, data };
@@ -162,9 +201,14 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_READ)
   async getLead(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const data = await this.leadsService.getLead(id, user.tenantId);
+    const data = await this.leadsService.getLead(
+      id,
+      user.tenantId,
+      await this.resolveScope(user, permissionKeys),
+    );
 
     return { success: true, data };
   }
@@ -173,10 +217,16 @@ export class LeadsController {
   @RequirePermission(PERMISSIONS.LEAD_UPDATE)
   async updateLead(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateLeadDto,
   ) {
-    const data = await this.leadsService.updateLead(id, user.tenantId, dto);
+    const data = await this.leadsService.updateLead(
+      id,
+      user.tenantId,
+      dto,
+      await this.resolveScope(user, permissionKeys),
+    );
 
     return { success: true, data };
   }

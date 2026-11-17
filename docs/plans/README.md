@@ -1,4 +1,4 @@
-# CRMPro Hardening Roadmap
+# CRMPro Roadmap
 
 Post-audit workstreams (audit: August 2026). Executed strictly in order, one plan at a time.
 Each plan file is self-contained with acceptance criteria and a definition of done.
@@ -10,6 +10,7 @@ Each plan file is self-contained with acceptance criteria and a definition of do
 | 03 | [Commercial Correctness](./03-commercial-correctness.md) | plan snapshots, termination lifecycle, suspended-tenant workers, atomic audit | ✅ complete |
 | 04 | [Frontend Finish](./04-frontend-finish.md) | dead routes, route guards, error boundaries, realtime prod config, i18n groundwork | ✅ complete |
 | 05 | [Ops Foundation](./05-ops-foundation.md) | Dockerfiles, prod compose, backups, alerting — **deferred until hosting/VPS is chosen** | ☐ blocked |
+| 06 | [Access Scoping & Teams](./06-access-scoping.md) | lead data scope (own/team/all), teams, scoped analytics/exports | ✅ complete |
 
 ## Working agreement
 

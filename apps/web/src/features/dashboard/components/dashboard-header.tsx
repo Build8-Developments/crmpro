@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import type { DashboardRange } from "@/features/dashboard/types";
 import { Button } from "@/components/ui/button";
@@ -14,13 +15,17 @@ interface DashboardHeaderProps {
   range: DashboardRange;
   onRangeChange: (range: DashboardRange) => void;
   isRefreshing?: boolean;
+  scope?: "all" | "team" | "own";
 }
 
 export function DashboardHeader({
   range,
   onRangeChange,
   isRefreshing = false,
+  scope,
 }: DashboardHeaderProps) {
+  const t = useTranslations("dashboard.scope");
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
@@ -37,6 +42,11 @@ export function DashboardHeader({
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Sales performance and pipeline health
+          {scope && scope !== "all" ? (
+            <span className="ms-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              {t(scope)}
+            </span>
+          ) : null}
         </p>
       </div>
 

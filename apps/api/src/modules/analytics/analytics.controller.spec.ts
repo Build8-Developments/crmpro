@@ -11,6 +11,7 @@ import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { AnalyticsAggregatorService } from './analytics-aggregator.service';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsService } from './analytics.service';
+import { LeadScopeService } from '../leads/scope/lead-scope.service';
 
 const mockGuard: CanActivate = { canActivate: jest.fn().mockReturnValue(true) };
 
@@ -82,6 +83,14 @@ describe('AnalyticsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
       providers: [
+        {
+          provide: LeadScopeService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockResolvedValue({ kind: 'all', actorUserId: 'user-1' }),
+          },
+        },
         { provide: AnalyticsService, useValue: analyticsService },
         { provide: AnalyticsAggregatorService, useValue: aggregatorService },
         { provide: PermissionsService, useValue: permissionsService },
@@ -103,16 +112,23 @@ describe('AnalyticsController', () => {
 
   it('returns overview wrapped in success response', async () => {
     await expect(
-      controller.getOverview(user, { from: '2026-01-01', to: '2026-06-30' }),
+      controller.getOverview(user, new Set(), {
+        from: '2026-01-01',
+        to: '2026-06-30',
+      }),
     ).resolves.toEqual({
       success: true,
       data: { totalLeads: 5 },
     });
 
-    expect(analyticsService.getOverview).toHaveBeenCalledWith('tenant-1', {
-      from: expect.any(Date) as Date,
-      to: expect.any(Date) as Date,
-    });
+    expect(analyticsService.getOverview).toHaveBeenCalledWith(
+      'tenant-1',
+      {
+        from: expect.any(Date) as Date,
+        to: expect.any(Date) as Date,
+      },
+      expect.anything(),
+    );
   });
 
   it('returns permission-aware dashboard payload', async () => {
@@ -130,12 +146,13 @@ describe('AnalyticsController', () => {
       'user-1',
       'tenant-1',
       '30d',
+      expect.anything(),
     );
   });
 
   it('passes pagination params for recent activity', async () => {
     await expect(
-      controller.getRecentActivity(user, {
+      controller.getRecentActivity(user, new Set(), {
         page: 2,
         limit: 10,
       }),
@@ -152,11 +169,12 @@ describe('AnalyticsController', () => {
       { from: undefined, to: undefined },
       2,
       10,
+      expect.anything(),
     );
   });
 
   it('validates trends range via analytics service', async () => {
-    await controller.getTrends(user, { range: '7d' });
+    await controller.getTrends(user, new Set(), { range: '7d' });
 
     expect(analyticsService.getTrendAnalytics).toHaveBeenCalledWith(
       'tenant-1',
@@ -164,16 +182,20 @@ describe('AnalyticsController', () => {
         from: expect.any(Date) as Date,
         to: expect.any(Date) as Date,
       }),
+      expect.anything(),
     );
   });
 
   it('returns team analytics for authorized users', async () => {
-    await expect(controller.getTeam(user)).resolves.toEqual({
+    await expect(controller.getTeam(user, new Set())).resolves.toEqual({
       success: true,
       data: { topPerformers: [] },
     });
 
-    expect(analyticsService.getTeamAnalytics).toHaveBeenCalledWith('tenant-1');
+    expect(analyticsService.getTeamAnalytics).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.anything(),
+    );
   });
 
   it('blocks activity endpoint without audit.read or lead.read', async () => {
@@ -195,6 +217,7 @@ describe('AnalyticsController', () => {
     expect(analyticsService.getActivityFeed).toHaveBeenCalledWith(
       'tenant-1',
       false,
+      expect.anything(),
     );
   });
 });
@@ -210,6 +233,14 @@ describe('AnalyticsController plan entitlements', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        {
+          provide: LeadScopeService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockResolvedValue({ kind: 'all', actorUserId: 'user-1' }),
+          },
+        },
         PlanEntitlementGuard,
         {
           provide: PlanEntitlementService,

@@ -48,9 +48,11 @@ describe('ActivityAnalyticsService', () => {
   });
 
   it('orders activity feed newest first', async () => {
-    const result = await service.getActivity('tenant-1', {
-      includeAudit: false,
-    });
+    const result = await service.getActivity(
+      'tenant-1',
+      { includeAudit: false },
+      { kind: 'all', actorUserId: null },
+    );
 
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe('act-2');

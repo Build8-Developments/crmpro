@@ -95,7 +95,11 @@ describe('AnalyticsService', () => {
   it('returns cached overview data on cache hit', async () => {
     cacheService.get.mockResolvedValue(overview);
 
-    const result = await service.getOverview('tenant-1', {});
+    const result = await service.getOverview(
+      'tenant-1',
+      {},
+      { kind: 'all', actorUserId: null },
+    );
 
     expect(result.cacheHit).toBe(true);
     expect(result.data).toEqual(overview);
@@ -116,11 +120,18 @@ describe('AnalyticsService', () => {
       to: new Date('2026-06-30T23:59:59.999Z'),
     };
 
-    const result = await service.getOverview('tenant-1', range);
+    const result = await service.getOverview('tenant-1', range, {
+      kind: 'all',
+      actorUserId: null,
+    });
 
     expect(result.cacheHit).toBe(false);
     expect(result.data).toEqual(overview);
-    expect(overviewService.getOverview).toHaveBeenCalledWith('tenant-1', range);
+    expect(overviewService.getOverview).toHaveBeenCalledWith(
+      'tenant-1',
+      range,
+      { kind: 'all', actorUserId: null },
+    );
     expect(queryService.getOverview).not.toHaveBeenCalled();
     expect(cacheService.set).toHaveBeenCalledWith(
       'analytics:tenant-1:overview:all:all',

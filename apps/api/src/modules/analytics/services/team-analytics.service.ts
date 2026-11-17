@@ -3,12 +3,20 @@ import { TEAM_TOP_PERFORMERS_LIMIT } from '../analytics.constants';
 import type { TeamAnalyticsData } from '../analytics.types';
 import { AnalyticsQueryService } from '../queries/analytics-query.service';
 
+import type { LeadScope } from '../../leads/scope/lead-scope.types';
 @Injectable()
 export class TeamAnalyticsService {
   constructor(private readonly queryService: AnalyticsQueryService) {}
 
-  async getTeam(tenantId: string): Promise<TeamAnalyticsData> {
-    const agents = await this.queryService.getAgentPerformance(tenantId, {});
+  async getTeam(
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<TeamAnalyticsData> {
+    const agents = await this.queryService.getAgentPerformance(
+      tenantId,
+      {},
+      scope,
+    );
 
     const topPerformers = agents
       .slice(0, TEAM_TOP_PERFORMERS_LIMIT)

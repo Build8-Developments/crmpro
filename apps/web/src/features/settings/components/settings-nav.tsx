@@ -1,20 +1,38 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { AppIcons } from "@/components/icons/app-icons";
+import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 
 export type SettingsSectionId =
   | "profile"
   | "workspace"
+  | "teams"
   | "sessions"
   | "notifications";
 
-const SECTIONS: Array<{
+interface SettingsSectionDefinition {
   id: SettingsSectionId;
   label: string;
   description: string;
   icon: typeof AppIcons.user;
-}> = [
+  /** Hidden unless the user holds this permission. */
+  requiredPermission?: string;
+}
+
+/** Sections whose copy lives in the `settings.sections` message catalog. */
+const TRANSLATED_SECTIONS: Array<
+  Omit<SettingsSectionDefinition, "label" | "description">
+> = [
+  {
+    id: "teams",
+    icon: AppIcons.users,
+    requiredPermission: "team.read",
+  },
+];
+
+const SECTIONS: SettingsSectionDefinition[] = [
   {
     id: "profile",
     label: "Profile",
@@ -46,10 +64,35 @@ interface SettingsNavProps {
   onSelect: (section: SettingsSectionId) => void;
 }
 
+export function useSettingsSections(): SettingsSectionDefinition[] {
+  const t = useTranslations("settings.sections");
+  const { can } = usePermissions();
+
+  const translated = TRANSLATED_SECTIONS.map((section) => ({
+    ...section,
+    label: t(`${section.id}.label`),
+    description: t(`${section.id}.description`),
+  }));
+
+  // Keep "teams" right after "workspace".
+  const ordered = SECTIONS.flatMap((section) =>
+    section.id === "workspace"
+      ? [section, ...translated.filter((item) => item.id === "teams")]
+      : [section],
+  );
+
+  return ordered.filter(
+    (section) =>
+      !section.requiredPermission || can(section.requiredPermission),
+  );
+}
+
 export function SettingsNav({ activeSection, onSelect }: SettingsNavProps) {
+  const sections = useSettingsSections();
+
   return (
     <nav className="flex gap-1 overflow-x-auto p-2 lg:flex-col lg:overflow-visible">
-      {SECTIONS.map((section) => {
+      {sections.map((section) => {
         const Icon = section.icon;
         const active = section.id === activeSection;
         return (

@@ -127,9 +127,13 @@ describe('AnalyticsAggregatorService', () => {
   });
 
   it('returns all sections for owner permissions', async () => {
-    const result = await service.getDashboard('user-1', 'tenant-1', '30d');
+    const result = await service.getDashboard('user-1', 'tenant-1', '30d', {
+      kind: 'all',
+      actorUserId: 'user-1',
+    });
 
     expect(result).toEqual({
+      scope: 'all',
       overview,
       pipeline,
       trends,
@@ -144,9 +148,11 @@ describe('AnalyticsAggregatorService', () => {
     expect(pipelineService.getPipeline).toHaveBeenCalled();
     expect(trendService.getTrends).toHaveBeenCalled();
     expect(teamService.getTeam).toHaveBeenCalled();
-    expect(activityService.getActivity).toHaveBeenCalledWith('tenant-1', {
-      includeAudit: true,
-    });
+    expect(activityService.getActivity).toHaveBeenCalledWith(
+      'tenant-1',
+      { includeAudit: true },
+      expect.anything(),
+    );
   });
 
   it('returns only allowed sections for restricted users', async () => {
@@ -154,9 +160,13 @@ describe('AnalyticsAggregatorService', () => {
       new Set([PERMISSIONS.ANALYTICS_READ, PERMISSIONS.PIPELINE_READ]),
     );
 
-    const result = await service.getDashboard('user-2', 'tenant-1', '7d');
+    const result = await service.getDashboard('user-2', 'tenant-1', '7d', {
+      kind: 'all',
+      actorUserId: 'user-2',
+    });
 
     expect(result).toEqual({
+      scope: 'all',
       overview,
       pipeline,
       trends,
@@ -174,15 +184,20 @@ describe('AnalyticsAggregatorService', () => {
       new Set([PERMISSIONS.LEAD_READ]),
     );
 
-    const result = await service.getDashboard('user-3', 'tenant-1', '30d');
+    const result = await service.getDashboard('user-3', 'tenant-1', '30d', {
+      kind: 'all',
+      actorUserId: 'user-3',
+    });
 
-    expect(result).toEqual({ activity });
+    expect(result).toEqual({ scope: 'all', activity });
     expect(overviewService.getOverview).not.toHaveBeenCalled();
     expect(pipelineService.getPipeline).not.toHaveBeenCalled();
     expect(trendService.getTrends).not.toHaveBeenCalled();
     expect(teamService.getTeam).not.toHaveBeenCalled();
-    expect(activityService.getActivity).toHaveBeenCalledWith('tenant-1', {
-      includeAudit: false,
-    });
+    expect(activityService.getActivity).toHaveBeenCalledWith(
+      'tenant-1',
+      { includeAudit: false },
+      expect.anything(),
+    );
   });
 });

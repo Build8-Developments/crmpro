@@ -8,8 +8,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { PERMISSIONS } from '@crmpro/shared/auth';
-import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import { PERMISSIONS, type PermissionKey } from '@crmpro/shared/auth';
+import {
+  CurrentPermissionKeys,
+  PermissionsGuard,
+  RequirePermission,
+} from '../../common/auth';
 import { PLAN_FEATURES } from '../../common/entitlements/entitlement.constants';
 import { RequirePlanFeature } from '../../common/entitlements/decorators/require-plan-feature.decorator';
 import { PlanEntitlementGuard } from '../../common/entitlements/guards/plan-entitlement.guard';
@@ -24,6 +28,13 @@ import { ImportJobsService } from './import-jobs.service';
 @UseGuards(JwtAuthGuard, PermissionsGuard, PlanEntitlementGuard)
 export class ImportJobsController {
   constructor(private readonly importJobsService: ImportJobsService) {}
+
+  private resolveOwnerFilter(
+    user: AuthenticatedUser,
+    permissionKeys: ReadonlySet<PermissionKey>,
+  ): string | null {
+    return permissionKeys.has(PERMISSIONS.LEAD_READ_ALL) ? null : user.id;
+  }
 
   @Post('leads')
   @RequirePermission(PERMISSIONS.IMPORT_JOB_CREATE)
@@ -45,11 +56,13 @@ export class ImportJobsController {
   @RequirePermission(PERMISSIONS.IMPORT_JOB_READ)
   async listImportJobs(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Query() query: GetImportJobsQueryDto,
   ) {
     const data = await this.importJobsService.listImportJobs(
       user.tenantId,
       query,
+      this.resolveOwnerFilter(user, permissionKeys),
     );
 
     return { success: true, data };
@@ -59,9 +72,14 @@ export class ImportJobsController {
   @RequirePermission(PERMISSIONS.IMPORT_JOB_READ)
   async getImportJob(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const data = await this.importJobsService.getImportJob(id, user.tenantId);
+    const data = await this.importJobsService.getImportJob(
+      id,
+      user.tenantId,
+      this.resolveOwnerFilter(user, permissionKeys),
+    );
 
     return { success: true, data };
   }

@@ -44,6 +44,11 @@ import {
   queryAvgLeadAgeDays,
   queryAvgResponseTimeHours,
 } from './analytics-timing.query';
+import {
+  leadScopeWhere,
+  type LeadScope,
+} from '../../leads/scope/lead-scope.types';
+import { buildLeadScopeSql, jobScopeWhere } from './analytics-scope.util';
 
 @Injectable()
 export class AnalyticsQueryService {
@@ -52,12 +57,14 @@ export class AnalyticsQueryService {
   private baseLeadWhere(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Prisma.LeadWhereInput {
     const createdAt = buildLeadCreatedAtFilter(range);
 
     return {
       tenantId,
       deletedAt: null,
+      ...leadScopeWhere(scope),
       ...(createdAt && { createdAt }),
     };
   }
@@ -65,8 +72,9 @@ export class AnalyticsQueryService {
   async getOverview(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<DashboardOverviewBaseData> {
-    const baseWhere = this.baseLeadWhere(tenantId, range);
+    const baseWhere = this.baseLeadWhere(tenantId, range, scope);
     const now = new Date();
     const todayStart = startOfUtcDay(now);
     const weekStart = startOfUtcWeek(now);
@@ -112,6 +120,7 @@ export class AnalyticsQueryService {
         where: {
           tenantId,
           deletedAt: null,
+          ...leadScopeWhere(scope),
           createdAt: { gte: todayStart },
         },
       }),
@@ -119,6 +128,7 @@ export class AnalyticsQueryService {
         where: {
           tenantId,
           deletedAt: null,
+          ...leadScopeWhere(scope),
           createdAt: { gte: weekStart },
         },
       }),
@@ -126,6 +136,7 @@ export class AnalyticsQueryService {
         where: {
           tenantId,
           deletedAt: null,
+          ...leadScopeWhere(scope),
           createdAt: { gte: monthStart },
         },
       }),
@@ -139,6 +150,7 @@ export class AnalyticsQueryService {
       this.prisma.importJob.count({
         where: {
           tenantId,
+          ...jobScopeWhere(scope),
           status: JobStatus.COMPLETED,
           completedAt: { gte: todayStart },
         },
@@ -146,12 +158,13 @@ export class AnalyticsQueryService {
       this.prisma.exportJob.count({
         where: {
           tenantId,
+          ...jobScopeWhere(scope),
           status: JobStatus.COMPLETED,
           completedAt: { gte: todayStart },
         },
       }),
-      queryAvgResponseTimeHours(this.prisma, tenantId, range),
-      queryAvgLeadAgeDays(this.prisma, tenantId, range),
+      queryAvgResponseTimeHours(this.prisma, tenantId, range, scope),
+      queryAvgLeadAgeDays(this.prisma, tenantId, range, scope),
     ]);
 
     return {
@@ -176,8 +189,9 @@ export class AnalyticsQueryService {
   async getPipelineFunnel(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<PipelineFunnelAnalytics[]> {
-    const baseWhere = this.baseLeadWhere(tenantId, range);
+    const baseWhere = this.baseLeadWhere(tenantId, range, scope);
 
     const pipelines = await this.prisma.pipeline.findMany({
       where: { tenantId },
@@ -239,8 +253,9 @@ export class AnalyticsQueryService {
   async getLeadSources(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<LeadSourceAnalytics[]> {
-    const baseWhere = this.baseLeadWhere(tenantId, range);
+    const baseWhere = this.baseLeadWhere(tenantId, range, scope);
 
     const grouped = await this.prisma.lead.groupBy({
       by: ['sourceId'],
@@ -301,21 +316,27 @@ export class AnalyticsQueryService {
   async getAgentPerformance(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<AgentPerformanceAnalytics[]> {
-    const baseWhere = this.baseLeadWhere(tenantId, range);
+    const baseWhere = this.baseLeadWhere(tenantId, range, scope);
 
     const assigned = await this.prisma.lead.groupBy({
       by: ['assignedUserId'],
-      where: { ...baseWhere, assignedUserId: { not: null } },
+      // AND (not spread): the own-scope filter is also on assignedUserId.
+      where: { AND: [baseWhere, { assignedUserId: { not: null } }] },
       _count: { _all: true },
     });
 
     const wonGrouped = await this.prisma.lead.groupBy({
       by: ['assignedUserId'],
       where: {
-        ...baseWhere,
-        assignedUserId: { not: null },
-        pipelineStage: { closeType: PipelineCloseType.WON },
+        AND: [
+          baseWhere,
+          {
+            assignedUserId: { not: null },
+            pipelineStage: { closeType: PipelineCloseType.WON },
+          },
+        ],
       },
       _count: { _all: true },
     });
@@ -323,9 +344,13 @@ export class AnalyticsQueryService {
     const lostGrouped = await this.prisma.lead.groupBy({
       by: ['assignedUserId'],
       where: {
-        ...baseWhere,
-        assignedUserId: { not: null },
-        pipelineStage: { closeType: PipelineCloseType.LOST },
+        AND: [
+          baseWhere,
+          {
+            assignedUserId: { not: null },
+            pipelineStage: { closeType: PipelineCloseType.LOST },
+          },
+        ],
       },
       _count: { _all: true },
     });
@@ -353,6 +378,7 @@ export class AnalyticsQueryService {
       this.prisma,
       tenantId,
       range,
+      scope,
     );
     const timingByUser = new Map(
       timingRows.map((row) => [
@@ -389,6 +415,7 @@ export class AnalyticsQueryService {
   async getProjectPerformance(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<ProjectPerformanceAnalytics[]> {
     const createdAt = buildLeadCreatedAtFilter(range);
 
@@ -396,6 +423,7 @@ export class AnalyticsQueryService {
       by: ['projectId'],
       where: {
         project: { tenantId, deletedAt: null },
+        lead: { tenantId, deletedAt: null, ...leadScopeWhere(scope) },
         ...(createdAt && { createdAt }),
       },
       _count: { _all: true },
@@ -443,6 +471,7 @@ export class AnalyticsQueryService {
   async getDeveloperPerformance(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<DeveloperPerformanceAnalytics[]> {
     const developers = await this.prisma.developer.findMany({
       where: { tenantId, deletedAt: null },
@@ -465,6 +494,7 @@ export class AnalyticsQueryService {
       by: ['projectId'],
       where: {
         project: { tenantId, deletedAt: null },
+        lead: { tenantId, deletedAt: null, ...leadScopeWhere(scope) },
         ...(createdAt && { createdAt }),
       },
       _count: { _all: true },
@@ -509,6 +539,7 @@ export class AnalyticsQueryService {
   async getLeadTrends(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<LeadTrendPoint[]> {
     const trendRange = this.resolveTrendRange(range);
 
@@ -526,6 +557,7 @@ export class AnalyticsQueryService {
         AND l."deletedAt" IS NULL
         AND l."createdAt" >= ${trendRange.from}
         AND l."createdAt" <= ${trendRange.to}
+        ${buildLeadScopeSql(scope)}
       GROUP BY 1
       ORDER BY 1 ASC
     `;
@@ -541,12 +573,14 @@ export class AnalyticsQueryService {
   async getStatusDistribution(
     tenantId: string,
     _range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<LeadStatusDistribution> {
     // Lifecycle distribution is a current-state snapshot (like pipeline funnel),
     // not limited to leads created within the selected analytics range.
     const baseWhere: Prisma.LeadWhereInput = {
       tenantId,
       deletedAt: null,
+      ...leadScopeWhere(scope),
     };
 
     const [open, won, lost, archived] = await Promise.all([
@@ -582,6 +616,7 @@ export class AnalyticsQueryService {
     range: AnalyticsDateRange,
     page: number,
     limit: number,
+    scope: LeadScope,
   ): Promise<RecentActivityResult> {
     const createdAt = buildLeadCreatedAtFilter(range);
     const take = limit ?? DEFAULT_RECENT_ACTIVITY_LIMIT;
@@ -589,6 +624,7 @@ export class AnalyticsQueryService {
 
     const activityWhere: Prisma.LeadActivityWhereInput = {
       tenantId,
+      ...(scope.kind === 'all' ? {} : { lead: leadScopeWhere(scope) }),
       eventType: {
         in: [
           LeadActivityEventType.LEAD_CREATED,
@@ -618,6 +654,7 @@ export class AnalyticsQueryService {
       this.prisma.importJob.findMany({
         where: {
           tenantId,
+          ...jobScopeWhere(scope),
           status: JobStatus.COMPLETED,
           ...(jobDateFilter ?? {}),
         },
@@ -633,6 +670,7 @@ export class AnalyticsQueryService {
       this.prisma.exportJob.findMany({
         where: {
           tenantId,
+          ...jobScopeWhere(scope),
           status: JobStatus.COMPLETED,
           ...(jobDateFilter ?? {}),
         },

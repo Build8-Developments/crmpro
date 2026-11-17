@@ -109,6 +109,8 @@ export interface ActivityFeedItem {
 
 /** Permission-aware dashboard payload — unauthorized sections are omitted. */
 export interface AnalyticsDashboardData {
+  /** Which leads the numbers cover for this user (API lead scope). */
+  scope?: "all" | "team" | "own";
   overview?: DashboardOverviewData;
   pipeline?: PipelineAnalyticsData;
   trends?: TrendAnalyticsData;

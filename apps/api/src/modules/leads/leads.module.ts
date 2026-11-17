@@ -15,6 +15,7 @@ import { LeadAssignmentService } from './services/lead-assignment.service';
 import { LeadNotesService } from './services/lead-notes.service';
 import { LeadStageService } from './services/lead-stage.service';
 import { LeadTimelineService } from './services/lead-timeline.service';
+import { LeadScopeModule } from './scope/lead-scope.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { LeadTimelineService } from './services/lead-timeline.service';
     NotificationsModule,
     LeadActivityModule,
     LeadAttachmentModule,
+    LeadScopeModule,
   ],
   controllers: [LeadsController, LeadNotesController, LeadsBulkController],
   providers: [
@@ -35,6 +37,6 @@ import { LeadTimelineService } from './services/lead-timeline.service';
     LeadNotesService,
     LeadTimelineService,
   ],
-  exports: [LeadActivityModule, LeadsService],
+  exports: [LeadActivityModule, LeadScopeModule, LeadsService],
 })
 export class LeadsModule {}

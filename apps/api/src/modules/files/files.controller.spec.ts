@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
+import { LeadScopeService } from '../leads/scope/lead-scope.service';
 
 const mockGuard: CanActivate = { canActivate: jest.fn().mockReturnValue(true) };
 
@@ -38,6 +39,14 @@ describe('FilesController RBAC', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        {
+          provide: LeadScopeService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockResolvedValue({ kind: 'all', actorUserId: 'user-1' }),
+          },
+        },
         PermissionsGuard,
         Reflector,
         { provide: PermissionsService, useValue: permissionsService },
@@ -113,7 +122,17 @@ describe('FilesController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FilesController],
-      providers: [{ provide: FilesService, useValue: filesService }],
+      providers: [
+        {
+          provide: LeadScopeService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockResolvedValue({ kind: 'all', actorUserId: 'user-1' }),
+          },
+        },
+        { provide: FilesService, useValue: filesService },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockGuard)
@@ -125,7 +144,9 @@ describe('FilesController', () => {
   });
 
   it('delegates delete to service when invoked', async () => {
-    await expect(controller.deleteFile(user, 'file-1')).resolves.toEqual({
+    await expect(
+      controller.deleteFile(user, new Set(), 'file-1'),
+    ).resolves.toEqual({
       success: true,
       data: { id: 'file-1' },
     });
@@ -134,6 +155,7 @@ describe('FilesController', () => {
       'file-1',
       'tenant-1',
       'user-1',
+      expect.anything(),
     );
   });
 });

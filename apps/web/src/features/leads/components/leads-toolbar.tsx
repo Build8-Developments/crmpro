@@ -19,6 +19,7 @@ import {
 } from "@/features/leads/utils/lead-filters";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
+import { useLeadScope } from "@/hooks/use-lead-scope";
 import { usePermissions } from "@/hooks/use-permissions";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
 import { ActiveFilterBadges } from "./active-filter-badges";
@@ -56,6 +57,7 @@ export function LeadsToolbar({
 }: LeadsToolbarProps) {
   const openCreateDialog = useLeadUiStore((s) => s.openCreateDialog);
   const { can } = usePermissions();
+  const leadScope = useLeadScope();
   const activeFilterCount = countActiveLeadFilters(filters);
   const sheetFilterCount =
     activeFilterCount -
@@ -124,12 +126,14 @@ export function LeadsToolbar({
         </span>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8" asChild>
-            <Link href="/imports">
-              <AppIcons.upload className="size-3.5" />
-              Import CSV
-            </Link>
-          </Button>
+          {can("import-job.create") ? (
+            <Button variant="outline" size="sm" className="h-8" asChild>
+              <Link href="/imports">
+                <AppIcons.upload className="size-3.5" />
+                Import CSV
+              </Link>
+            </Button>
+          ) : null}
           {can("lead.create") ? (
             <Button size="sm" className="h-8" onClick={openCreateDialog}>
               <AppIcons.create className="size-3.5" />
@@ -140,7 +144,10 @@ export function LeadsToolbar({
       </div>
 
       <div className="flex flex-wrap gap-1">
-        {QUICK_CHIPS.map((chip) => {
+        {QUICK_CHIPS.filter(
+          // Own-scope users never see unassigned leads.
+          (chip) => chip.key !== "unassignedOnly" || leadScope !== "own",
+        ).map((chip) => {
           const active = Boolean(filters[chip.key]);
           return (
             <button

@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
+import { useTeams } from "@/features/teams/hooks";
 import { useCheckEmail, useRoles } from "@/features/users/hooks";
 import { useCreateUser } from "@/features/users/mutations";
 import { useUserUiStore } from "@/features/users/stores/user-ui-store";
@@ -29,6 +31,8 @@ import {
 } from "@/features/users/utils/password";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePermissions } from "@/hooks/use-permissions";
+
+const NO_TEAM = "__none__";
 
 export function CreateUserDialog() {
   const open = useUserUiStore((s) => s.createDialogOpen);
@@ -65,7 +69,10 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [roleId, setRoleId] = useState<string>("");
+  const [teamId, setTeamId] = useState<string>(NO_TEAM);
   const [showPassword, setShowPassword] = useState(false);
+  const { data: teams } = useTeams();
+  const tUsers = useTranslations("users");
 
   const generatePassword = () => {
     const length = 12;
@@ -109,6 +116,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
       email: email.trim(),
       password,
       roleId,
+      ...(teamId !== NO_TEAM ? { teamId } : {}),
     });
     onClose();
   };
@@ -175,6 +183,25 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
           </SelectContent>
         </Select>
       </div>
+
+      {teams?.length ? (
+        <div className="space-y-2">
+          <Label htmlFor="user-team">{tUsers("teamLabel")}</Label>
+          <Select value={teamId} onValueChange={setTeamId}>
+            <SelectTrigger id="user-team">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_TEAM}>{tUsers("noTeam")}</SelectItem>
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="user-password">Password</Label>

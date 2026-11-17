@@ -6,6 +6,7 @@ import { UpdateLeadNoteDto } from '../dto/update-lead-note.dto';
 import { LeadNoteResponse } from '../types/lead.types';
 import { LeadAccessService } from './lead-access.service';
 import { LeadActivityService } from './lead-activity.service';
+import { leadScopeWhere, type LeadScope } from '../scope/lead-scope.types';
 
 const NOTE_PREVIEW_MAX_LENGTH = 120;
 
@@ -35,8 +36,9 @@ export class LeadNotesService {
   async listNotes(
     leadId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<{ items: LeadNoteResponse[] }> {
-    await this.leadAccessService.getLeadOrThrow(leadId, tenantId);
+    await this.leadAccessService.getLeadOrThrow(leadId, tenantId, scope);
 
     const notes = await this.prisma.leadNote.findMany({
       where: {
@@ -58,8 +60,9 @@ export class LeadNotesService {
     tenantId: string,
     authorId: string,
     dto: CreateLeadNoteDto,
+    scope: LeadScope,
   ): Promise<LeadNoteResponse> {
-    await this.leadAccessService.getLeadOrThrow(leadId, tenantId, {
+    await this.leadAccessService.getLeadOrThrow(leadId, tenantId, scope, {
       requireOpen: true,
     });
 
@@ -101,8 +104,9 @@ export class LeadNotesService {
     tenantId: string,
     actorUserId: string,
     dto: UpdateLeadNoteDto,
+    scope: LeadScope,
   ): Promise<LeadNoteResponse> {
-    const existing = await this.getNoteOrThrow(noteId, tenantId);
+    const existing = await this.getNoteOrThrow(noteId, tenantId, scope);
     const content = dto.content.trim();
     const previousPreview = this.buildNotePreview(existing.content);
     const newPreview = this.buildNotePreview(content);
@@ -139,8 +143,9 @@ export class LeadNotesService {
     noteId: string,
     tenantId: string,
     actorUserId: string,
+    scope: LeadScope,
   ): Promise<{ id: string }> {
-    const existing = await this.getNoteOrThrow(noteId, tenantId);
+    const existing = await this.getNoteOrThrow(noteId, tenantId, scope);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.leadNote.update({
@@ -166,9 +171,15 @@ export class LeadNotesService {
   private async getNoteOrThrow(
     noteId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<{ id: string; leadId: string; content: string }> {
     const note = await this.prisma.leadNote.findFirst({
-      where: { id: noteId, tenantId, deletedAt: null },
+      where: {
+        id: noteId,
+        tenantId,
+        deletedAt: null,
+        lead: { deletedAt: null, ...leadScopeWhere(scope) },
+      },
       select: { id: true, leadId: true, content: true },
     });
 

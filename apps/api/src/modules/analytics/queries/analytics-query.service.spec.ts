@@ -3,6 +3,8 @@ import { JobStatus, LeadStatus, PipelineCloseType } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AnalyticsQueryService } from './analytics-query.service';
 
+const ALL_SCOPE = { kind: 'all', actorUserId: null } as const;
+
 describe('AnalyticsQueryService', () => {
   let service: AnalyticsQueryService;
   let prisma: {
@@ -86,7 +88,7 @@ describe('AnalyticsQueryService', () => {
       .mockResolvedValueOnce([{ avg_hours: 4.5 }])
       .mockResolvedValueOnce([{ avg_days: 12.3 }]);
 
-    const result = await service.getOverview('tenant-a', {});
+    const result = await service.getOverview('tenant-a', {}, ALL_SCOPE);
 
     expect(result.avgResponseTimeHours).toBe(4.5);
     expect(result.avgLeadAgeDays).toBe(12.3);
@@ -119,7 +121,7 @@ describe('AnalyticsQueryService', () => {
       },
     ]);
 
-    const result = await service.getPipelineFunnel('tenant-a', {});
+    const result = await service.getPipelineFunnel('tenant-a', {}, ALL_SCOPE);
 
     expect(result[0].stages.map((stage) => stage.stageName)).toEqual([
       'New Lead',
@@ -154,7 +156,7 @@ describe('AnalyticsQueryService', () => {
       { id: 'source-2', name: 'Facebook' },
     ]);
 
-    const result = await service.getLeadSources('tenant-a', {});
+    const result = await service.getLeadSources('tenant-a', {}, ALL_SCOPE);
 
     expect(result.map((item) => item.sourceName)).toEqual([
       'Facebook',
@@ -190,7 +192,7 @@ describe('AnalyticsQueryService', () => {
       },
     ]);
 
-    const result = await service.getAgentPerformance('tenant-a', {});
+    const result = await service.getAgentPerformance('tenant-a', {}, ALL_SCOPE);
 
     expect(result[0]).toEqual({
       userId: 'user-1',
@@ -204,6 +206,23 @@ describe('AnalyticsQueryService', () => {
     });
   });
 
+  it('keeps the own-scope filter on agent performance groupings', async () => {
+    const ownScope = { kind: 'own', actorUserId: 'agent-1' } as const;
+
+    await service.getAgentPerformance('tenant-a', {}, ownScope);
+
+    // Regression: spreading `assignedUserId: { not: null }` over the scope
+    // used to drop the own-scope filter and leak every agent's numbers.
+    for (const [args] of prisma.lead.groupBy.mock.calls as Array<
+      [{ where: unknown }]
+    >) {
+      expect(JSON.stringify(args.where)).toContain(
+        '"assignedUserId":"agent-1"',
+      );
+    }
+    expect(prisma.$queryRaw).toHaveBeenCalled();
+  });
+
   it('uses tenant-scoped filters for status distribution', async () => {
     prisma.lead.count
       .mockResolvedValueOnce(210)
@@ -211,7 +230,11 @@ describe('AnalyticsQueryService', () => {
       .mockResolvedValueOnce(25)
       .mockResolvedValueOnce(9);
 
-    const result = await service.getStatusDistribution('tenant-a', {});
+    const result = await service.getStatusDistribution(
+      'tenant-a',
+      {},
+      ALL_SCOPE,
+    );
 
     expect(result).toEqual({ open: 210, won: 81, lost: 25, archived: 9 });
     expect(prisma.lead.count).toHaveBeenCalledWith({
@@ -234,7 +257,7 @@ describe('AnalyticsQueryService', () => {
       { month: '2026-01', new_leads: 120n, won: 20n, lost: 11n },
     ]);
 
-    const result = await service.getLeadTrends('tenant-a', {});
+    const result = await service.getLeadTrends('tenant-a', {}, ALL_SCOPE);
 
     expect(prisma.$queryRaw).toHaveBeenCalled();
     expect(result).toEqual([
@@ -247,7 +270,7 @@ describe('AnalyticsQueryService', () => {
     prisma.importJob.findMany.mockResolvedValue([]);
     prisma.exportJob.findMany.mockResolvedValue([]);
 
-    await service.getRecentActivity('tenant-a', {}, 1, 20);
+    await service.getRecentActivity('tenant-a', {}, 1, 20, ALL_SCOPE);
 
     expect(prisma.leadActivity.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

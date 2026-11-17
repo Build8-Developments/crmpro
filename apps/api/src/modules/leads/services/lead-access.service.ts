@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { LeadStatus } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { leadScopeWhere, type LeadScope } from '../scope/lead-scope.types';
 
 @Injectable()
 export class LeadAccessService {
@@ -13,10 +14,11 @@ export class LeadAccessService {
   async getLeadOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
     options?: { requireOpen?: boolean },
   ): Promise<{ id: string; status: LeadStatus }> {
     const lead = await this.prisma.lead.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, ...leadScopeWhere(scope) },
       select: { id: true, status: true },
     });
 

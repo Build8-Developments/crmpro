@@ -6,6 +6,10 @@ import {
 } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
+import {
+  leadScopeWhere,
+  type LeadScope,
+} from '../leads/scope/lead-scope.types';
 import { LeadAttachmentSummary } from './lead-attachment.types';
 
 const attachmentSelect = {
@@ -31,9 +35,15 @@ export class LeadAttachmentService {
   async validateAttachmentTarget(
     leadId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<void> {
     const lead = await this.prisma.lead.findFirst({
-      where: { id: leadId, tenantId, deletedAt: null },
+      where: {
+        id: leadId,
+        tenantId,
+        deletedAt: null,
+        ...leadScopeWhere(scope),
+      },
       select: { id: true },
     });
 
@@ -45,8 +55,9 @@ export class LeadAttachmentService {
   async listAttachments(
     leadId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<{ items: LeadAttachmentSummary[] }> {
-    await this.validateAttachmentTarget(leadId, tenantId);
+    await this.validateAttachmentTarget(leadId, tenantId, scope);
 
     const files = await this.prisma.fileAsset.findMany({
       where: {

@@ -72,8 +72,11 @@ export interface CreateLeadInput {
 }
 
 export interface DuplicateMatch {
-  id: string;
-  fullName: string;
+  /** null when the matching lead belongs to someone outside your scope */
+  id: string | null;
+  fullName: string | null;
+  ownerName: string | null;
+  accessible: boolean;
 }
 
 export interface DuplicateWarning {

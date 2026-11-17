@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@crmpro/database';
 import { SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import type { LeadScope } from '../../leads/scope/lead-scope.types';
 import { LeadsService } from '../../leads/leads.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
 import { LeadExportRow } from '../entities/export-job.types';
@@ -40,8 +41,9 @@ export class LeadExportService {
   buildWhereInput(
     tenantId: string,
     params: LeadExportParams,
+    scope: LeadScope,
   ): Prisma.LeadWhereInput {
-    return this.leadsService.buildLeadsWhereInput(tenantId, params);
+    return this.leadsService.buildLeadsWhereInput(tenantId, params, scope);
   }
 
   buildOrderBy(params: LeadExportParams): Prisma.LeadOrderByWithRelationInput {
@@ -54,18 +56,20 @@ export class LeadExportService {
   async countLeadsForExport(
     tenantId: string,
     params: LeadExportParams,
+    scope: LeadScope,
   ): Promise<number> {
     return this.prisma.lead.count({
-      where: this.buildWhereInput(tenantId, params),
+      where: this.buildWhereInput(tenantId, params, scope),
     });
   }
 
   async fetchAllForExport(
     tenantId: string,
     params: LeadExportParams,
+    scope: LeadScope,
     onProgress?: (processedRows: number, totalRows: number) => Promise<void>,
   ): Promise<LeadExportRow[]> {
-    const where = this.buildWhereInput(tenantId, params);
+    const where = this.buildWhereInput(tenantId, params, scope);
     const orderBy = this.buildOrderBy(params);
     const totalRows = await this.prisma.lead.count({ where });
     const rows: LeadExportRow[] = [];

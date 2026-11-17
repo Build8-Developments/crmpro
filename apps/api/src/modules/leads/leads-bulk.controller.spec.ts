@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { LeadsBulkController } from './leads-bulk.controller';
 import { LeadsBulkService } from './leads-bulk.service';
+import { LeadScopeService } from './scope/lead-scope.service';
 
 const mockGuard: CanActivate = { canActivate: jest.fn().mockReturnValue(true) };
 
@@ -38,6 +39,14 @@ describe('LeadsBulkController RBAC', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        {
+          provide: LeadScopeService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockResolvedValue({ kind: 'all', actorUserId: 'user-1' }),
+          },
+        },
         PermissionsGuard,
         Reflector,
         { provide: PermissionsService, useValue: permissionsService },
@@ -118,7 +127,17 @@ describe('LeadsBulkController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LeadsBulkController],
-      providers: [{ provide: LeadsBulkService, useValue: leadsBulkService }],
+      providers: [
+        {
+          provide: LeadScopeService,
+          useValue: {
+            resolve: jest
+              .fn()
+              .mockResolvedValue({ kind: 'all', actorUserId: 'user-1' }),
+          },
+        },
+        { provide: LeadsBulkService, useValue: leadsBulkService },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockGuard)
@@ -131,7 +150,7 @@ describe('LeadsBulkController', () => {
 
   it('delegates bulk assign to service', async () => {
     await expect(
-      controller.bulkAssignLeads(user, {
+      controller.bulkAssignLeads(user, new Set(), {
         leadIds: ['lead-1', 'lead-2'],
         userId: 'agent-1',
       }),
@@ -151,6 +170,7 @@ describe('LeadsBulkController', () => {
         leadIds: ['lead-1', 'lead-2'],
         userId: 'agent-1',
       },
+      expect.anything(),
     );
   });
 });

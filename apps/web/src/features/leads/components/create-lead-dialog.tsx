@@ -195,13 +195,16 @@ export function CreateLeadDialog() {
               placeholder="Optional"
               onChange={setSourceId}
             />
-            <SelectField
-              label="Agent"
-              value={assignedUserId}
-              options={users.data ?? []}
-              placeholder="Unassigned"
-              onChange={setAssignedUserId}
-            />
+            {/* Without lead.assign the API assigns the new lead to its creator. */}
+            {can("lead.assign") ? (
+              <SelectField
+                label="Agent"
+                value={assignedUserId}
+                options={users.data ?? []}
+                placeholder="Unassigned"
+                onChange={setAssignedUserId}
+              />
+            ) : null}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

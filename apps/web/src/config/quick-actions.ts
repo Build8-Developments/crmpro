@@ -31,7 +31,7 @@ export const quickActions: QuickAction[] = [
     label: "Import CSV",
     href: "/imports",
     icon: AppIcons.imports,
-    requiredPermissions: ["import.create"],
+    requiredPermissions: ["import-job.create"],
   },
   {
     label: "New User",

@@ -9,6 +9,7 @@ import {
   moveLeadStage,
   updateLead,
 } from "@/features/leads/api";
+import { useTranslations } from "next-intl";
 import type { CreateLeadInput, UpdateLeadInput } from "@/features/leads/types";
 import { notifyDuplicateWarning } from "@/features/leads/utils/duplicate-warning";
 import { queryKeys } from "@/lib/query/query-keys";
@@ -38,17 +39,21 @@ async function bulkUpdateLeadStatus(
 }
 
 export function useCreateLead() {
+  const tDuplicate = useTranslations("leads.duplicate");
+
   return useApiMutation({
     mutationFn: (input: CreateLeadInput) => createLead(input),
     successMessage: "Lead created",
     invalidateKeys: [...leadInvalidateKeys],
     onSuccess: (result) => {
-      notifyDuplicateWarning(result.duplicateWarning);
+      notifyDuplicateWarning(result.duplicateWarning, tDuplicate);
     },
   });
 }
 
 export function useUpdateLead() {
+  const tDuplicate = useTranslations("leads.duplicate");
+
   return useApiMutation({
     mutationFn: ({
       leadId,
@@ -60,7 +65,7 @@ export function useUpdateLead() {
     successMessage: "Lead updated",
     invalidateKeys: [...leadInvalidateKeys],
     onSuccess: (result) => {
-      notifyDuplicateWarning(result.duplicateWarning);
+      notifyDuplicateWarning(result.duplicateWarning, tDuplicate);
     },
   });
 }

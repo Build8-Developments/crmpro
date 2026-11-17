@@ -15,6 +15,7 @@ import {
 import { useLeadFilterOptions } from "@/features/leads/hooks";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { LEAD_STATUS_OPTIONS } from "@/features/leads/utils/lead-filters";
+import { useLeadScope } from "@/hooks/use-lead-scope";
 import { FilterSelect } from "./filter-select";
 
 interface LeadsFiltersSheetProps {
@@ -37,6 +38,8 @@ export function LeadsFiltersSheet({
   activeCount,
 }: LeadsFiltersSheetProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Own-scope users only ever see their own leads; an assignee filter is noise.
+  const leadScope = useLeadScope();
   const [openFilter, setOpenFilter] = useState<FilterFieldId | null>(null);
 
   const { pipelines, sources, users, projects } = useLeadFilterOptions();
@@ -146,6 +149,7 @@ export function LeadsFiltersSheet({
             onChange={(sourceId) => onFiltersChange({ sourceId })}
           />
 
+          {leadScope !== "own" ? (
           <FilterSelect
             label="Assigned agent"
             placeholder="Anyone"
@@ -158,6 +162,7 @@ export function LeadsFiltersSheet({
             }
             onChange={(assignedUserId) => onFiltersChange({ assignedUserId })}
           />
+          ) : null}
 
           <FilterSelect
             label="Project interest"

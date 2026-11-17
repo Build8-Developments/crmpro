@@ -11,6 +11,7 @@ import { LeadAssignmentService } from './services/lead-assignment.service';
 import { LeadStageService } from './services/lead-stage.service';
 import type { BulkLeadActionResult } from './types/leads-bulk.types';
 
+import type { LeadScope } from './scope/lead-scope.types';
 @Injectable()
 export class LeadsBulkService {
   constructor(
@@ -23,6 +24,7 @@ export class LeadsBulkService {
     tenantId: string,
     actorUserId: string,
     dto: BulkAssignLeadsDto,
+    scope: LeadScope,
   ): Promise<BulkLeadActionResult> {
     const leadIds = this.deduplicateLeadIds(dto.leadIds);
     const result = await this.processLeads(leadIds, async (leadId) => {
@@ -33,6 +35,7 @@ export class LeadsBulkService {
         {
           userId: dto.userId,
         },
+        scope,
       );
     });
 
@@ -57,12 +60,17 @@ export class LeadsBulkService {
     tenantId: string,
     actorUserId: string,
     dto: BulkMoveStageDto,
+    scope: LeadScope,
   ): Promise<BulkLeadActionResult> {
     const leadIds = this.deduplicateLeadIds(dto.leadIds);
     const result = await this.processLeads(leadIds, async (leadId) => {
-      await this.leadStageService.moveStage(leadId, tenantId, actorUserId, {
-        pipelineStageId: dto.targetStageId,
-      });
+      await this.leadStageService.moveStage(
+        leadId,
+        tenantId,
+        actorUserId,
+        { pipelineStageId: dto.targetStageId },
+        scope,
+      );
     });
 
     await this.auditWriter.createAuditLog({

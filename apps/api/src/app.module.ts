@@ -30,6 +30,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { PublicModule } from './modules/public/public.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
+import { TeamsModule } from './modules/teams/teams.module';
 import { SupportModule } from './modules/support/support.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
@@ -68,6 +69,7 @@ import { envValidationSchema } from './config/env.validation';
     NotificationsModule,
     AuditModule,
     UsersModule,
+    TeamsModule,
     RolesModule,
     SupportModule,
     PublicModule,

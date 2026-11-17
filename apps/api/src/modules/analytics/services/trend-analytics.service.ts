@@ -6,6 +6,8 @@ import type {
   TrendCountPoint,
 } from '../analytics.types';
 
+import type { LeadScope } from '../../leads/scope/lead-scope.types';
+import { buildLeadScopeSql } from '../queries/analytics-scope.util';
 @Injectable()
 export class TrendAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -13,6 +15,7 @@ export class TrendAnalyticsService {
   async getTrends(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<TrendAnalyticsData> {
     const from = range.from!;
     const to = range.to!;
@@ -27,6 +30,7 @@ export class TrendAnalyticsService {
           AND l."deletedAt" IS NULL
           AND l."createdAt" >= ${from}
           AND l."createdAt" <= ${to}
+          ${buildLeadScopeSql(scope)}
         GROUP BY 1
         ORDER BY 1 ASC
       `,
@@ -35,11 +39,13 @@ export class TrendAnalyticsService {
           to_char(date_trunc('day', la."createdAt"), 'YYYY-MM-DD') AS date,
           COUNT(*)::bigint AS count
         FROM "LeadActivity" la
+        INNER JOIN "Lead" l ON l."id" = la."leadId"
         WHERE la."tenantId" = ${tenantId}::uuid
           AND la."eventType" = 'STAGE_CHANGED'
           AND la."metadata"->>'closeType' = 'WON'
           AND la."createdAt" >= ${from}
           AND la."createdAt" <= ${to}
+          ${buildLeadScopeSql(scope)}
         GROUP BY 1
         ORDER BY 1 ASC
       `,

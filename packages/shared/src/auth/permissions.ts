@@ -4,6 +4,10 @@ export const PERMISSIONS = {
   LEAD_UPDATE: 'lead.update',
   LEAD_DELETE: 'lead.delete',
   LEAD_ASSIGN: 'lead.assign',
+  /** Data scope: see leads of the actor's team(s) plus unassigned leads. */
+  LEAD_READ_TEAM: 'lead.read-team',
+  /** Data scope: see every lead in the tenant. Without either scope key a user sees only their own leads. */
+  LEAD_READ_ALL: 'lead.read-all',
 
   LEAD_NOTE_CREATE: 'lead-note.create',
   LEAD_NOTE_READ: 'lead-note.read',
@@ -35,6 +39,9 @@ export const PERMISSIONS = {
   USER_UPDATE: 'user.update',
   USER_DELETE: 'user.delete',
   USER_MANAGE: 'user.manage',
+
+  TEAM_READ: 'team.read',
+  TEAM_MANAGE: 'team.manage',
 
   ROLE_CREATE: 'role.create',
   ROLE_READ: 'role.read',
@@ -104,6 +111,8 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.LEAD_UPDATE,
     PERMISSIONS.LEAD_DELETE,
     PERMISSIONS.LEAD_ASSIGN,
+    PERMISSIONS.LEAD_READ_TEAM,
+    PERMISSIONS.LEAD_READ_ALL,
   ],
   LEAD_NOTES: [
     PERMISSIONS.LEAD_NOTE_CREATE,
@@ -142,6 +151,7 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.USER_DELETE,
     PERMISSIONS.USER_MANAGE,
   ],
+  TEAMS: [PERMISSIONS.TEAM_READ, PERMISSIONS.TEAM_MANAGE],
   ROLES: [
     PERMISSIONS.ROLE_CREATE,
     PERMISSIONS.ROLE_READ,
@@ -211,6 +221,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   PROJECTS: 'Projects',
   PIPELINES: 'Pipelines',
   USERS: 'Users',
+  TEAMS: 'Teams',
   ROLES: 'Roles',
   FILES: 'Files',
   IMPORT_JOBS: 'Import Jobs',
@@ -248,6 +259,7 @@ export const PERMISSION_GROUP_ORDER = [
   'PROJECTS',
   'PIPELINES',
   'USERS',
+  'TEAMS',
   'ROLES',
   'FILES',
   'IMPORT_JOBS',

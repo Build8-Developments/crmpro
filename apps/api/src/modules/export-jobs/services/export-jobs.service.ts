@@ -24,6 +24,12 @@ import {
   TenantInactiveException,
   TenantStatusService,
 } from '../../../common/tenant/tenant-status.service';
+import {
+  parseStoredLeadScope,
+  SYSTEM_LEAD_SCOPE,
+  toStoredLeadScope,
+  type LeadScope,
+} from '../../leads/scope/lead-scope.types';
 import { FilesService } from '../../files/files.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { ExportCompletedEvent } from '../../../common/events/domain-event.types';
@@ -108,6 +114,7 @@ export class ExportJobsService {
     tenantId: string,
     userId: string,
     dto: CreateLeadExportDto,
+    scope: LeadScope,
   ): Promise<CreateExportJobResponse> {
     this.leadExportService.assertSupportedFormat(dto.format);
 
@@ -134,7 +141,12 @@ export class ExportJobsService {
         createdByUserId: userId,
         exportType: ExportType.LEADS,
         format: dto.format,
-        filters: exportParams as unknown as Prisma.InputJsonValue,
+        // The worker has no user context, so the requester's lead scope is
+        // frozen onto the job and re-applied when rows are fetched.
+        filters: {
+          ...exportParams,
+          scope: toStoredLeadScope(scope),
+        },
         status: JobStatus.PENDING,
         progress: 0,
       },
@@ -228,14 +240,19 @@ export class ExportJobsService {
     });
   }
 
-  async getExportJob(id: string, tenantId: string): Promise<ExportJobResponse> {
-    const job = await this.getExportJobOrThrow(id, tenantId);
+  async getExportJob(
+    id: string,
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<ExportJobResponse> {
+    const job = await this.getExportJobOrThrow(id, tenantId, scope);
     return this.toExportJobResponse(job, tenantId);
   }
 
   async listExportJobs(
     tenantId: string,
     query: GetExportJobsQueryDto,
+    scope: LeadScope,
   ): Promise<PaginatedResponse<ExportJobResponse>> {
     const { page, limit, skip, take } = getPaginationParams(query);
     const orderBy = buildOrderBy(
@@ -245,6 +262,7 @@ export class ExportJobsService {
     );
     const where: Prisma.ExportJobWhereInput = {
       tenantId,
+      ...this.buildJobScopeWhere(scope),
       ...(query.status ? { status: query.status } : {}),
       ...(query.exportType ? { exportType: query.exportType } : {}),
     };
@@ -294,6 +312,7 @@ export class ExportJobsService {
       const rows = await this.leadExportService.fetchAllForExport(
         tenantId,
         exportParams,
+        this.parseJobScope(job.filters),
         async (processedRows, totalRows) => {
           const progress =
             totalRows === 0
@@ -469,12 +488,28 @@ export class ExportJobsService {
     };
   }
 
+  /** Export files hold bulk lead data: scoped users only see their own jobs. */
+  private buildJobScopeWhere(scope: LeadScope): Prisma.ExportJobWhereInput {
+    return scope.kind === 'all' || scope.actorUserId === null
+      ? {}
+      : { createdByUserId: scope.actorUserId };
+  }
+
+  private parseJobScope(value: Prisma.JsonValue): LeadScope {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return parseStoredLeadScope(undefined);
+    }
+
+    return parseStoredLeadScope((value as Record<string, unknown>).scope);
+  }
+
   private async getExportJobOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<ExportJobRecord> {
     const job = await this.prisma.exportJob.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, ...this.buildJobScopeWhere(scope) },
       select: exportJobSelect,
     });
 
@@ -491,9 +526,12 @@ export class ExportJobsService {
   ): Promise<ExportJobResponse> {
     const download =
       job.status === JobStatus.COMPLETED && job.fileAssetId
-        ? await this.filesService.getDownloadUrl(job.fileAssetId, tenantId, {
-            expiresInSeconds: EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS,
-          })
+        ? await this.filesService.getDownloadUrl(
+            job.fileAssetId,
+            tenantId,
+            SYSTEM_LEAD_SCOPE,
+            { expiresInSeconds: EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS },
+          )
         : null;
 
     return {

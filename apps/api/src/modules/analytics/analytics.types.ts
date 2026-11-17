@@ -74,6 +74,8 @@ export interface ActivityFeedItem {
 }
 
 export type AnalyticsDashboardData = {
+  /** Which leads the numbers cover for this caller. */
+  scope?: 'all' | 'team' | 'own';
   overview?: DashboardOverviewData;
   pipeline?: PipelineAnalyticsData;
   trends?: TrendAnalyticsData;

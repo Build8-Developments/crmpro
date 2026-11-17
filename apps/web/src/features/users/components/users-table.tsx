@@ -185,6 +185,11 @@ function UserTableRow({
             >
               {user.role.name}
             </Badge>
+            {user.team ? (
+              <span className="ms-1.5 text-[11px] text-muted-foreground">
+                {user.team.name}
+              </span>
+            ) : null}
           </td>
           <td className="px-3 py-2">
             <Badge

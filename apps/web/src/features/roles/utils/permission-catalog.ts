@@ -5,6 +5,8 @@ export const PERMISSION_GROUPS = {
     "lead.update",
     "lead.delete",
     "lead.assign",
+    "lead.read-team",
+    "lead.read-all",
   ],
   LEAD_NOTES: [
     "lead-note.create",
@@ -43,6 +45,7 @@ export const PERMISSION_GROUPS = {
     "user.delete",
     "user.manage",
   ],
+  TEAMS: ["team.read", "team.manage"],
   ROLES: [
     "role.create",
     "role.read",
@@ -73,6 +76,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   PROJECTS: "Projects",
   PIPELINES: "Pipelines",
   USERS: "Users",
+  TEAMS: "Teams",
   ROLES: "Roles",
   FILES: "Files",
   IMPORT_JOBS: "Import Jobs",
@@ -91,6 +95,7 @@ export const PERMISSION_GROUP_ORDER: PermissionGroupKey[] = [
   "PROJECTS",
   "PIPELINES",
   "USERS",
+  "TEAMS",
   "ROLES",
   "FILES",
   "IMPORT_JOBS",
@@ -108,6 +113,8 @@ const ACTION_LABELS: Record<string, string> = {
   delete: "Delete",
   assign: "Assign",
   manage: "Manage",
+  "read-team": "View team's",
+  "read-all": "View all",
   upload: "Upload",
 };
 
@@ -143,6 +150,11 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "lead.update": "Update lead details",
   "lead.delete": "Delete leads",
   "lead.assign": "Assign leads to team members",
+  "lead.read-team":
+    "See leads of their team(s) and unassigned leads (without this or 'View all', users only see leads assigned to them)",
+  "lead.read-all": "See every lead in the organization",
+  "team.read": "View teams",
+  "team.manage": "Create teams and manage membership",
   "lead-note.create": "Create lead notes",
   "lead-note.read": "View lead notes",
   "lead-note.update": "Update lead notes",

@@ -95,6 +95,7 @@ export function DashboardPage() {
         range={range}
         onRangeChange={setRange}
         isRefreshing={isRefreshing}
+        scope={data.scope}
       />
 
       <div

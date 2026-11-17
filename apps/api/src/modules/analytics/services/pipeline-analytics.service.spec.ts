@@ -45,7 +45,10 @@ describe('PipelineAnalyticsService', () => {
   });
 
   it('returns pipeline funnel stage shape', async () => {
-    const result = await service.getPipeline('tenant-1');
+    const result = await service.getPipeline('tenant-1', {
+      kind: 'all',
+      actorUserId: null,
+    });
 
     expect(result).toEqual({
       pipelineId: 'pipe-1',
