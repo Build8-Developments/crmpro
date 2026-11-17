@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,7 +70,9 @@ export function NotificationPreferencesCard() {
 
   return (
     <NotificationPreferencesEditor
-      key={data.map((p) => `${p.category}:${p.enabled}`).join("|")}
+      key={data
+        .map((p) => `${p.category}:${p.enabled}:${p.emailEnabled}`)
+        .join("|")}
       initialPrefs={data}
       canUpdate={canUpdate}
     />
@@ -84,6 +88,7 @@ function NotificationPreferencesEditor({
 }) {
   const updatePreferences = useUpdateNotificationPreferences();
   const [localPrefs, setLocalPrefs] = useState(initialPrefs);
+  const t = useTranslations("settings.notifications");
 
   const isDirty = useMemo(
     () =>
@@ -91,18 +96,22 @@ function NotificationPreferencesEditor({
         const original = initialPrefs.find(
           (item) => item.category === pref.category,
         );
-        return original ? original.enabled !== pref.enabled : false;
+        return original
+          ? original.enabled !== pref.enabled ||
+              original.emailEnabled !== pref.emailEnabled
+          : false;
       }),
     [initialPrefs, localPrefs],
   );
 
-  const toggle = (category: NotificationPreference["category"]) => {
+  const toggle = (
+    category: NotificationPreference["category"],
+    field: "enabled" | "emailEnabled" = "enabled",
+  ) => {
     if (!canUpdate) return;
     setLocalPrefs((current) =>
       current.map((pref) =>
-        pref.category === category
-          ? { ...pref, enabled: !pref.enabled }
-          : pref,
+        pref.category === category ? { ...pref, [field]: !pref[field] } : pref,
       ),
     );
   };
@@ -113,6 +122,7 @@ function NotificationPreferencesEditor({
       preferences: localPrefs.map((pref) => ({
         category: pref.category,
         enabled: pref.enabled,
+        emailEnabled: pref.emailEnabled,
       })),
     });
   };
@@ -135,31 +145,39 @@ function NotificationPreferencesEditor({
         ) : null
       }
     >
+      <div className="flex justify-end gap-6 px-3 text-[11px] font-medium text-muted-foreground">
+        <span>{t("inApp")}</span>
+        <span>{t("email")}</span>
+      </div>
       <ul className="overflow-hidden rounded-lg border border-border/60">
         {localPrefs.map((pref, index) => (
           <li
             key={pref.category}
             className={cn(index > 0 && "border-t border-border/50")}
           >
-            <label
-              className={cn(
-                "flex items-center justify-between gap-3 px-3 py-2.5",
-                canUpdate && "cursor-pointer hover:bg-muted/25",
-              )}
-            >
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5">
               <div className="min-w-0">
                 <p className="text-sm text-foreground">{pref.label}</p>
                 <p className="text-[11px] text-muted-foreground">
                   {pref.enabled ? "On" : "Off"}
                 </p>
               </div>
-              <Checkbox
-                checked={pref.enabled}
-                disabled={!canUpdate}
-                onCheckedChange={() => toggle(pref.category)}
-                aria-label={pref.label}
-              />
-            </label>
+              <div className="flex items-center gap-9 pe-2">
+                <Checkbox
+                  checked={pref.enabled}
+                  disabled={!canUpdate}
+                  onCheckedChange={() => toggle(pref.category)}
+                  aria-label={`${pref.label} · ${t("inApp")}`}
+                />
+                {/* Email copies only make sense while the category is on. */}
+                <Checkbox
+                  checked={pref.enabled && pref.emailEnabled}
+                  disabled={!canUpdate || !pref.enabled}
+                  onCheckedChange={() => toggle(pref.category, "emailEnabled")}
+                  aria-label={`${pref.label} · ${t("email")}`}
+                />
+              </div>
+            </div>
           </li>
         ))}
       </ul>

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { TenantModule } from '../../common/tenant/tenant.module';
+import { EmailNotificationChannel } from './channels/email-notification.channel';
 import { InAppNotificationChannel } from './channels/in-app-notification.channel';
 import { NotificationMetricsStore } from './metrics/notification-metrics.store';
 import { NotificationDeliveryService } from './notification-delivery.service';
@@ -24,6 +25,7 @@ import { NotificationsService } from './notifications.service';
     NotificationTriggerService,
     NotificationMetricsStore,
     InAppNotificationChannel,
+    EmailNotificationChannel,
   ],
   exports: [
     NotificationTriggerService,

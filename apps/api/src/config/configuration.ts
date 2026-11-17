@@ -176,5 +176,18 @@ export default () => {
         10,
       ),
     },
+    mail: {
+      transport: process.env.MAIL_TRANSPORT ?? 'log',
+      from: process.env.MAIL_FROM ?? 'CRMPro <no-reply@crmpro.local>',
+      smtpHost: process.env.SMTP_HOST,
+      smtpPort: parseInt(process.env.SMTP_PORT ?? '587', 10),
+      smtpSecure: ['true', '1'].includes(process.env.SMTP_SECURE ?? 'false'),
+      smtpUser: process.env.SMTP_USER || undefined,
+      smtpPass: process.env.SMTP_PASS || undefined,
+      appWebUrl: (process.env.APP_WEB_URL ?? 'http://localhost:3001').replace(
+        /\/$/,
+        '',
+      ),
+    },
   };
 };

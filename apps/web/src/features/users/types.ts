@@ -13,6 +13,8 @@ export interface UserListItem {
   isActive: boolean;
   role: UserRole;
   team: { id: string; name: string } | null;
+  /** Invited by email and hasn't set a password yet. */
+  invitationPending: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +29,13 @@ export interface CreateUserInput {
   fullName: string;
   email: string;
   password: string;
+  roleId: string;
+  teamId?: string;
+}
+
+export interface InviteUserInput {
+  fullName: string;
+  email: string;
   roleId: string;
   teamId?: string;
 }

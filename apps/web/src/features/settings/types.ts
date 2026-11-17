@@ -12,11 +12,13 @@ export interface NotificationPreference {
   category: NotificationPreferenceCategory;
   label: string;
   enabled: boolean;
+  emailEnabled: boolean;
 }
 
 export interface UpdateNotificationPreferencesInput {
   preferences: Array<{
     category: NotificationPreferenceCategory;
     enabled: boolean;
+    emailEnabled?: boolean;
   }>;
 }

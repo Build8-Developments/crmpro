@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { serializeQueryParams } from "@/lib/query/query-params";
 import type {
   CreateUserInput,
+  InviteUserInput,
   ResetUserPasswordInput,
   RoleOption,
   UpdateUserInput,
@@ -33,6 +34,14 @@ export function getRoles() {
 
 export function createUser(input: CreateUserInput) {
   return apiClient.post<UserListItem>("/users", input);
+}
+
+export function inviteUser(input: InviteUserInput) {
+  return apiClient.post<UserListItem>("/users/invite", input);
+}
+
+export function resendInvite(id: string) {
+  return apiClient.post<{ id: string }>(`/users/${id}/resend-invite`);
 }
 
 export function updateUser(id: string, input: UpdateUserInput) {

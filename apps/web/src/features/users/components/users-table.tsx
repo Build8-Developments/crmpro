@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useEffect, useRef } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -139,6 +141,7 @@ function UserTableRow({
   highlightedUserId?: string | null;
   onOpenUser: (userId: string) => void;
 }) {
+  const tInvite = useTranslations("users.invite");
   const rowRef = useRef<HTMLTableRowElement>(null);
   const isHighlighted = highlightedUserId === user.id;
 
@@ -203,6 +206,14 @@ function UserTableRow({
             >
               {user.isActive ? "Active" : "Inactive"}
             </Badge>
+            {user.invitationPending ? (
+              <Badge
+                variant="outline"
+                className="ms-1 h-5 border-amber-500/25 bg-amber-500/10 px-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+              >
+                {tInvite("pending")}
+              </Badge>
+            ) : null}
           </td>
           <td className="hidden px-3 py-2 text-xs text-muted-foreground lg:table-cell">
             {user.lastLoginAt

@@ -57,4 +57,18 @@ export const envValidationSchema = Joi.object({
   AWS_SECRET_ACCESS_KEY: Joi.string().required(),
   AWS_S3_BUCKET: Joi.string().required(),
   AWS_S3_ENDPOINT: Joi.string().uri().optional(),
+  // Email: "log" prints messages (dev/test), "smtp" sends them.
+  MAIL_TRANSPORT: Joi.string().valid('log', 'smtp').default('log'),
+  MAIL_FROM: Joi.string().default('CRMPro <no-reply@crmpro.local>'),
+  SMTP_HOST: Joi.string().when('MAIL_TRANSPORT', {
+    is: 'smtp',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  SMTP_PORT: Joi.number().port().default(587),
+  SMTP_SECURE: Joi.string().valid('true', 'false', '1', '0').default('false'),
+  SMTP_USER: Joi.string().allow('').optional(),
+  SMTP_PASS: Joi.string().allow('').optional(),
+  /** Public web app origin used in email links. */
+  APP_WEB_URL: Joi.string().uri().default('http://localhost:3001'),
 }).or('REDIS_URL', 'REDIS_HOST');

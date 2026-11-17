@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { QuotaModule } from '../../common/quota/quota.module';
 import { AuditModule } from '../audit/audit.module';
+import { UserInvitationsService } from './services/user-invitations.service';
 import { UserGuardService } from './services/user-guard.service';
 import { UserSessionService } from './services/user-session.service';
 import { UsersAuditService } from './services/users-audit.service';
@@ -16,6 +17,7 @@ import { UsersService } from './users.service';
     UsersAuditService,
     UserSessionService,
     UserGuardService,
+    UserInvitationsService,
   ],
   exports: [UsersService, UserGuardService],
 })

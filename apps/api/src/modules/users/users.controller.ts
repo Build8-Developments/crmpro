@@ -15,6 +15,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { CheckEmailDto } from './dto/check-email.dto';
+import { InviteUserDto } from './dto/invite-user.dto';
+import { UserInvitationsService } from './services/user-invitations.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
@@ -25,7 +27,10 @@ import { UsersService } from './users.service';
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly userInvitationsService: UserInvitationsService,
+  ) {}
 
   @Get()
   @RequirePermission(PERMISSIONS.USER_READ)
@@ -77,6 +82,34 @@ export class UsersController {
       user.tenantId,
       user.id,
       dto,
+    );
+    return { success: true, data };
+  }
+
+  @Post('invite')
+  @RequirePermission(PERMISSIONS.USER_CREATE)
+  async inviteUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: InviteUserDto,
+  ) {
+    const data = await this.userInvitationsService.inviteUser(
+      user.tenantId,
+      user.id,
+      dto,
+    );
+    return { success: true, data };
+  }
+
+  @Post(':id/resend-invite')
+  @RequirePermission(PERMISSIONS.USER_CREATE)
+  async resendInvite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.userInvitationsService.resendInvite(
+      user.tenantId,
+      user.id,
+      id,
     );
     return { success: true, data };
   }

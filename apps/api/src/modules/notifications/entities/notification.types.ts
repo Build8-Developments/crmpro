@@ -38,6 +38,7 @@ export interface NotificationPreferenceResponse {
   category: NotificationPreferenceCategory;
   label: string;
   enabled: boolean;
+  emailEnabled: boolean;
 }
 
 export interface NotificationDeliveryContext {

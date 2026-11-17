@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Notification } from '@crmpro/database';
 import { LoggingService } from '../../common/logging/logging.service';
+import { EmailNotificationChannel } from './channels/email-notification.channel';
 import { InAppNotificationChannel } from './channels/in-app-notification.channel';
 import { NotificationDeliveryChannel } from './entities/notification-delivery.types';
 import {
@@ -23,12 +24,14 @@ export class NotificationDeliveryService {
   constructor(
     private readonly templateService: NotificationTemplateService,
     private readonly inAppChannel: InAppNotificationChannel,
+    private readonly emailChannel: EmailNotificationChannel,
     private readonly loggingService: LoggingService,
     private readonly metricsStore: NotificationMetricsStore,
     private readonly cacheService: CacheService,
     private readonly tenantStatusService: TenantStatusService,
   ) {
-    this.channels = [this.inAppChannel];
+    // In-app first: it is the source of truth; email is a best-effort copy.
+    this.channels = [this.inAppChannel, this.emailChannel];
   }
 
   async deliver(payload: NotificationJobPayload): Promise<void> {

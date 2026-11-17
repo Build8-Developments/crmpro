@@ -35,6 +35,7 @@ export class NotificationPreferencesService {
     updates: Array<{
       category: NotificationPreferenceCategory;
       enabled: boolean;
+      emailEnabled?: boolean;
     }>,
   ): Promise<NotificationPreferenceResponse[]> {
     await this.ensureDefaults(tenantId, userId);
@@ -48,7 +49,12 @@ export class NotificationPreferencesService {
               category: update.category,
             },
           },
-          data: { enabled: update.enabled },
+          data: {
+            enabled: update.enabled,
+            ...(update.emailEnabled !== undefined
+              ? { emailEnabled: update.emailEnabled }
+              : {}),
+          },
         }),
       ),
     );

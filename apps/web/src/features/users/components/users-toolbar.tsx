@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { InviteUserDialog } from "./invite-user-dialog";
+import { useTranslations } from "next-intl";
+
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +51,8 @@ export function UsersToolbar({
   isFetching,
 }: UsersToolbarProps) {
   const openCreateDialog = useUserUiStore((s) => s.openCreateDialog);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const tInvite = useTranslations("users.invite");
   const { can } = usePermissions();
   const { data: quota } = useUserQuota();
   
@@ -130,6 +136,17 @@ export function UsersToolbar({
               Quota: {quota.currentUsers} / {quota.maxUsers}
             </span>
           ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8"
+            onClick={() => setInviteOpen(true)}
+            disabled={isAtQuotaLimit ?? false}
+          >
+            <AppIcons.mail className="size-3.5" />
+            {tInvite("button")}
+          </Button>
+          <InviteUserDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
           <Button
             size="sm"
             className="h-8"

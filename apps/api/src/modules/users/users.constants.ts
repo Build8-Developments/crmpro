@@ -8,4 +8,14 @@ export const USER_AUDIT_ACTIONS = {
   REACTIVATED: 'USER_REACTIVATED',
   PASSWORD_RESET: 'USER_PASSWORD_RESET',
   SESSIONS_REVOKED: 'USER_SESSIONS_REVOKED',
+  INVITED: 'USER_INVITED',
+  INVITE_RESENT: 'USER_INVITE_RESENT',
+  INVITE_ACCEPTED: 'USER_INVITE_ACCEPTED',
+  PASSWORD_RESET_SELF: 'USER_PASSWORD_RESET_SELF',
 } as const;
+
+/** Lifetimes of emailed links. */
+export const PASSWORD_RESET_TTL_MINUTES = 30;
+export const INVITE_TTL_DAYS = 7;
+/** Ignore repeated "forgot password" requests for the same user within this window. */
+export const PASSWORD_RESET_COOLDOWN_MS = 60 * 1000;

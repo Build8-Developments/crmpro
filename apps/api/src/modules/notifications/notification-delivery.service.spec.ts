@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationType } from '@crmpro/database';
 import { CacheService } from '../../common/cache/cache.service';
 import { LoggingService } from '../../common/logging/logging.service';
+import { EmailNotificationChannel } from './channels/email-notification.channel';
 import { InAppNotificationChannel } from './channels/in-app-notification.channel';
 import { NotificationDeliveryService } from './notification-delivery.service';
 import { NotificationMetricsStore } from './metrics/notification-metrics.store';
@@ -26,6 +27,10 @@ describe('NotificationDeliveryService', () => {
         NotificationDeliveryService,
         NotificationTemplateService,
         { provide: InAppNotificationChannel, useValue: inAppChannel },
+        {
+          provide: EmailNotificationChannel,
+          useValue: { channelId: 'email', deliver: jest.fn() },
+        },
         {
           provide: LoggingService,
           useValue: { info: jest.fn(), error: jest.fn() },

@@ -1,6 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
+  inviteUser,
+  resendInvite,
   createUser,
   deactivateUser,
   reactivateUser,
@@ -10,6 +13,7 @@ import {
   updateUserRole,
 } from "@/features/users/api";
 import type {
+  InviteUserInput,
   CreateUserInput,
   ResetUserPasswordInput,
   UpdateUserInput,
@@ -94,6 +98,26 @@ export function useRevokeUserSessions() {
   return useApiMutation({
     mutationFn: (userId: string) => revokeUserSessions(userId),
     successMessage: "Sessions revoked",
+    invalidateKeys: [...userInvalidateKeys],
+  });
+}
+
+export function useInviteUser() {
+  const t = useTranslations("users.invite");
+
+  return useApiMutation({
+    mutationFn: (input: InviteUserInput) => inviteUser(input),
+    successMessage: t("sent"),
+    invalidateKeys: [...userInvalidateKeys],
+  });
+}
+
+export function useResendInvite() {
+  const t = useTranslations("users.invite");
+
+  return useApiMutation({
+    mutationFn: (id: string) => resendInvite(id),
+    successMessage: t("resent"),
     invalidateKeys: [...userInvalidateKeys],
   });
 }

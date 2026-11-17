@@ -309,6 +309,9 @@ model User {
   passwordHash String
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  /// Set when the user was invited by email; cleared once they set a password.
+  invitedAt        DateTime?
+  inviteAcceptedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
@@ -325,6 +328,7 @@ model User {
   leadNotes          LeadNote[]
   assignedTasks      Task[]        @relation("TaskAssignee")
   createdTasks       Task[]        @relation("TaskCreator")
+  tokens             UserToken[]
   auditLogs          AuditLog[]
   importJobs         ImportJob[]
   exportJobs         ExportJob[]
@@ -377,6 +381,29 @@ model UserSession {
   @@index([userId])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+enum UserTokenType {
+  PASSWORD_RESET
+  INVITE
+}
+
+/// Single-use tokens for password reset and invitations. Only a SHA-256 hash
+/// of the token is stored; the raw token only ever exists in the email link.
+model UserToken {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @db.Uuid
+  userId    String        @db.Uuid
+  type      UserTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([tenantId])
 }
 
 model Developer {
@@ -751,6 +778,8 @@ model NotificationPreference {
   userId    String                         @db.Uuid
   category  NotificationPreferenceCategory
   enabled   Boolean                        @default(true)
+  /// Also deliver this category by email (in-app is always on when enabled).
+  emailEnabled Boolean @default(false)
   createdAt DateTime                       @default(now())
   updatedAt DateTime                       @updatedAt
 

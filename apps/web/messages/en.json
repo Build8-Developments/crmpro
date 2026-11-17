@@ -49,7 +49,8 @@
       "passwordLabel": "Password",
       "passwordPlaceholder": "Enter your password",
       "signIn": "Sign in",
-      "signingIn": "Signing in..."
+      "signingIn": "Signing in...",
+      "forgotPassword": "Forgot password?"
     },
     "toast": {
       "workspaceNotFoundTitle": "Workspace not found",
@@ -62,6 +63,42 @@
       "signInSuccessDescription": "Signed in as {name}",
       "signedOutTitle": "Signed out",
       "signedOutDescription": "You have been logged out."
+    },
+    "recovery": {
+      "backToSignIn": "Back to sign in",
+      "workspaceLabel": "Workspace",
+      "emailLabel": "Email",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "passwordsDontMatch": "Passwords do not match.",
+      "passwordHint": "8–128 characters with uppercase, lowercase, and a number.",
+      "forgot": {
+        "title": "Reset your password",
+        "description": "Enter your workspace and email. If the account exists we'll email you a reset link.",
+        "submit": "Send reset link",
+        "sending": "Sending...",
+        "sentTitle": "Check your inbox",
+        "sentDescription": "If an account exists for {email} in {workspace}, a reset link is on its way. It expires in 30 minutes."
+      },
+      "reset": {
+        "title": "Choose a new password",
+        "description": "You'll be signed out of all devices after the change.",
+        "submit": "Update password",
+        "saving": "Updating...",
+        "doneTitle": "Password updated",
+        "doneDescription": "Sign in with your new password.",
+        "missingToken": "This reset link is incomplete. Request a new one."
+      },
+      "invite": {
+        "title": "Join {workspace}",
+        "description": "Hi {name}, set a password for {email} to activate your account.",
+        "submit": "Activate account",
+        "saving": "Activating...",
+        "doneTitle": "You're all set",
+        "doneDescription": "Sign in to {workspace} (workspace: {slug}) with {email}.",
+        "invalid": "This invitation link is invalid or has expired. Ask your admin to resend it.",
+        "loading": "Checking invitation..."
+      }
     }
   },
   "common": {
@@ -75,6 +112,10 @@
         "label": "Teams",
         "description": "Sales teams & leaders"
       }
+    },
+    "notifications": {
+      "email": "Email",
+      "inApp": "In-app"
     }
   },
   "teams": {
@@ -116,7 +157,18 @@
   },
   "users": {
     "teamLabel": "Team",
-    "noTeam": "No team"
+    "noTeam": "No team",
+    "invite": {
+      "button": "Invite by email",
+      "title": "Invite a team member",
+      "description": "They'll get an email to set their own password. The link is valid for 7 days.",
+      "submit": "Send invitation",
+      "sending": "Sending...",
+      "sent": "Invitation sent",
+      "pending": "Invitation pending",
+      "resend": "Resend invitation",
+      "resent": "Invitation resent"
+    }
   },
   "leads": {
     "duplicate": {

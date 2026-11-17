@@ -9,6 +9,8 @@ const userListSelect = {
   phone: true,
   isActive: true,
   lastLoginAt: true,
+  invitedAt: true,
+  inviteAcceptedAt: true,
   createdAt: true,
   updatedAt: true,
   role: {
@@ -40,6 +42,8 @@ export function toUserListItem(user: UserListRecord): UserListItem {
     isActive: user.isActive,
     role: user.role,
     team: user.team,
+    invitationPending:
+      user.invitedAt !== null && user.inviteAcceptedAt === null,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

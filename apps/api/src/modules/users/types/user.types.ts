@@ -18,6 +18,8 @@ export type UserListItem = {
   isActive: boolean;
   role: UserRoleSummary;
   team: UserTeamSummary | null;
+  /** Invited by email and hasn't set a password yet. */
+  invitationPending: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

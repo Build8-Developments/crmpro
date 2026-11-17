@@ -58,6 +58,7 @@ export function toNotificationPreferenceResponse(
     category: preference.category,
     label: NOTIFICATION_PREFERENCE_LABELS[preference.category],
     enabled: preference.enabled,
+    emailEnabled: preference.emailEnabled,
   };
 }
 

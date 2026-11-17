@@ -1,5 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useResendInvite } from "@/features/users/mutations";
+
 import Link from "next/link";
 import type { UserListItem } from "@/features/users/types";
 import { AppIcons } from "@/components/icons/app-icons";
@@ -36,6 +39,8 @@ export function UserRowActions({ user }: UserRowActionsProps) {
   const isSelf = currentUserId === user.id;
   const canUpdate = can("user.update");
   const canManage = can("user.manage");
+  const resendInvite = useResendInvite();
+  const tInvite = useTranslations("users.invite");
 
   if (!canUpdate && !canManage) {
     return null;
@@ -61,6 +66,11 @@ export function UserRowActions({ user }: UserRowActionsProps) {
         <DropdownMenuItem asChild>
           <Link href={`/leads?assignedUserId=${user.id}`}>View leads</Link>
         </DropdownMenuItem>
+        {user.invitationPending && can("user.create") ? (
+          <DropdownMenuItem onClick={() => void resendInvite.mutateAsync(user.id)}>
+            {tInvite("resend")}
+          </DropdownMenuItem>
+        ) : null}
         {canUpdate ? (
           <DropdownMenuItem onClick={() => openEditDialog(user.id)}>
             Edit name
