@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditActorType, Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
+import { NotificationCreatedEvent } from '../../../common/events/domain-event.types';
 import {
   IN_APP_NOTIFICATION_CHANNEL,
   NotificationDeliveryChannel,
@@ -18,11 +19,11 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
   ) {}
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    const createdId = await this.prisma.$transaction(async (tx) => {
       const notificationId = await this.createNotificationIfAbsent(tx, context);
 
       if (!notificationId) {
-        return;
+        return null;
       }
 
       await tx.auditLog.create({
@@ -43,7 +44,21 @@ export class InAppNotificationChannel implements NotificationDeliveryChannel {
           } satisfies Prisma.InputJsonValue,
         },
       });
+
+      return notificationId;
     });
+
+    // Only after commit, and only for genuinely new rows (worker retries hit
+    // the dedupe key and return null), so clients refresh exactly once.
+    if (createdId) {
+      void this.eventBus.publish(
+        new NotificationCreatedEvent(
+          context.tenantId,
+          context.recipientUserId,
+          context.createdByUserId ?? undefined,
+        ),
+      );
+    }
   }
 
   private async createNotificationIfAbsent(

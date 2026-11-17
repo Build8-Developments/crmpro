@@ -44,6 +44,9 @@ export class RealtimeGateway
 
       (client.data as SocketData).auth = auth;
       await client.join(`user:${auth.userId}`);
+      // Tenant room only ever receives data-free "invalidate" hints, so it is
+      // safe regardless of each member's lead scope (data is refetched via API).
+      await client.join(`tenant:${auth.tenantId}`);
       this.logger.debug(`User ${auth.userId} connected to websocket`);
     } catch (error) {
       this.logger.warn(

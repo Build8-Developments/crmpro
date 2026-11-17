@@ -12,13 +12,60 @@ import { LeadStageService } from './services/lead-stage.service';
 import type { BulkLeadActionResult } from './types/leads-bulk.types';
 
 import type { LeadScope } from './scope/lead-scope.types';
+import { LeadsService } from './leads.service';
 @Injectable()
 export class LeadsBulkService {
   constructor(
     private readonly leadAssignmentService: LeadAssignmentService,
     private readonly leadStageService: LeadStageService,
     private readonly auditWriter: AuditWriterService,
+    private readonly leadsService: LeadsService,
   ) {}
+
+  /** Archive (or restore) many leads; failures are reported per lead. */
+  async bulkSetArchived(
+    tenantId: string,
+    actorUserId: string,
+    leadIds: string[],
+    archived: boolean,
+    scope: LeadScope,
+  ): Promise<BulkLeadActionResult> {
+    const uniqueIds = this.deduplicateLeadIds(leadIds);
+    const result = await this.processLeads(uniqueIds, async (leadId) => {
+      if (archived) {
+        await this.leadsService.archiveLead(
+          leadId,
+          tenantId,
+          actorUserId,
+          scope,
+        );
+      } else {
+        await this.leadsService.restoreLead(
+          leadId,
+          tenantId,
+          actorUserId,
+          scope,
+        );
+      }
+    });
+
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorUserId,
+      action: BULK_LEAD_AUDIT_ACTIONS.STATUS_CHANGED,
+      entityType: AUDIT_ENTITY_TYPES.LEAD_BULK_ACTION,
+      metadata: {
+        actionType: archived
+          ? BULK_LEAD_ACTION_TYPES.ARCHIVE
+          : BULK_LEAD_ACTION_TYPES.RESTORE,
+        leadCount: uniqueIds.length,
+        successCount: result.successCount,
+        failureCount: result.failureCount,
+      },
+    });
+
+    return result;
+  }
 
   async bulkAssignLeads(
     tenantId: string,

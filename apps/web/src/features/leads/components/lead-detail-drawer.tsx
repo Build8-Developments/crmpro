@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,12 @@ import {
   formatLastContacted,
   getPrimaryProjectInterest,
 } from "@/features/leads/utils/lead-formatters";
-import { getActivityMeta } from "@/features/dashboard/activity-icons";
+import { LeadFollowUpsSection } from "@/features/leads/components/lead-follow-ups-section";
+import { LeadTimelineItem } from "@/features/leads/components/lead-timeline-item";
+import { LogActivityDialog } from "@/features/leads/components/log-activity-dialog";
+import type { InteractionType } from "@/features/leads/types";
+import { toWhatsAppUrl } from "@/features/leads/utils/whatsapp";
+import { formatDueDate } from "@/features/tasks/utils";
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -51,6 +57,9 @@ export function LeadDetailDrawer() {
   const restoreLead = useRestoreLead();
   const createNote = useCreateLeadNote(selectedLeadId ?? "");
   const [noteDraft, setNoteDraft] = useState("");
+  const [loggingType, setLoggingType] = useState<InteractionType | null>(null);
+  const tActivity = useTranslations("activity.actions");
+  const tTasks = useTranslations("tasks.section");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -187,6 +196,38 @@ export function LeadDetailDrawer() {
                   </Button>
                 ) : null}
               </div>
+
+              {can("lead-activity.create") && lead.status === "OPEN" ? (
+                <div className="grid grid-cols-4 gap-1.5">
+                  <QuickActionButton
+                    icon={AppIcons.phone}
+                    label={tActivity("call")}
+                    onClick={() => setLoggingType("CALL")}
+                  />
+                  <QuickActionButton
+                    icon={AppIcons.whatsapp}
+                    label={tActivity("whatsapp")}
+                    onClick={() => {
+                      window.open(
+                        toWhatsAppUrl(lead.primaryPhone),
+                        "_blank",
+                        "noopener,noreferrer",
+                      );
+                      setLoggingType("WHATSAPP");
+                    }}
+                  />
+                  <QuickActionButton
+                    icon={AppIcons.users}
+                    label={tActivity("meeting")}
+                    onClick={() => setLoggingType("MEETING")}
+                  />
+                  <QuickActionButton
+                    icon={AppIcons.mapPin}
+                    label={tActivity("visit")}
+                    onClick={() => setLoggingType("SITE_VISIT")}
+                  />
+                </div>
+              ) : null}
             </SheetHeader>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -225,8 +266,18 @@ export function LeadDetailDrawer() {
                     <p className="mt-2 text-xs text-muted-foreground">
                       Last contacted {formatLastContacted(lead.lastContactedAt)}
                     </p>
+                    {lead.nextFollowUpAt ? (
+                      <p className="text-xs text-muted-foreground">
+                        {tTasks("due", { when: formatDueDate(lead.nextFollowUpAt) })}
+                      </p>
+                    ) : null}
                   </div>
                 </section>
+
+                <LeadFollowUpsSection
+                  leadId={lead.id}
+                  leadOpen={lead.status === "OPEN"}
+                />
 
                 <section className="grid grid-cols-2 gap-3 text-sm">
                   <InfoItem label="Source" value={lead.source?.name ?? "—"} />
@@ -259,6 +310,29 @@ export function LeadDetailDrawer() {
                     value={formatRelativeTime(lead.createdAt)}
                   />
                 </section>
+
+                {lead.projectInterests.length > 1 ? (
+                  <section className="space-y-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Interested projects
+                    </h3>
+                    <ul className="space-y-1.5">
+                      {lead.projectInterests.map((item) => (
+                        <li
+                          key={item.projectId}
+                          className="flex items-center justify-between rounded-md border bg-card px-3 py-2 text-sm"
+                        >
+                          <span className="truncate">{item.project.name}</span>
+                          {item.interestLevel ? (
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {item.interestLevel}
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
 
                 {can("lead-note.read") ? (
                   <section className="space-y-2">
@@ -319,31 +393,9 @@ export function LeadDetailDrawer() {
                         No activity yet.
                       </p>
                     ) : null}
-                    {activityItems.map((activity) => {
-                      const meta = getActivityMeta(activity.eventType);
-                      const Icon = meta.icon;
-                      return (
-                        <div
-                          key={activity.id}
-                          className="flex items-start gap-2.5 rounded-lg border bg-card p-3"
-                        >
-                          <div
-                            className={`flex size-7 shrink-0 items-center justify-center rounded-md ${meta.iconClassName}`}
-                          >
-                            <Icon className="size-3.5" stroke={2} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium">
-                              {meta.label}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {activity.actor?.email ?? "System"} ·{" "}
-                              {formatRelativeTime(activity.createdAt)}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {activityItems.map((activity) => (
+                      <LeadTimelineItem key={activity.id} activity={activity} />
+                    ))}
                   </div>
                 </section>
               </div>
@@ -351,7 +403,33 @@ export function LeadDetailDrawer() {
           </>
         )}
       </SheetContent>
+      <LogActivityDialog
+        lead={lead && loggingType ? { id: lead.id, fullName: lead.fullName } : null}
+        type={loggingType}
+        onClose={() => setLoggingType(null)}
+      />
     </Sheet>
+  );
+}
+
+function QuickActionButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof AppIcons.phone;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 rounded-lg border bg-card px-2 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+    >
+      <Icon className="size-4" />
+      {label}
+    </button>
   );
 }
 

@@ -12,6 +12,7 @@ import type {
   LeadTimelineActivity,
   LeadsListParams,
   LeadsListResponse,
+  LogLeadActivityInput,
 } from "./types";
 
 export function getLeads(params?: LeadsListParams) {
@@ -54,6 +55,37 @@ export function bulkMoveLeadsStage(leadIds: string[], targetStageId: string) {
   });
 }
 
+export function archiveLead(id: string) {
+  return apiClient.post<LeadMutationResult>(`/leads/${id}/archive`);
+}
+
+export function restoreLead(id: string) {
+  return apiClient.post<LeadMutationResult>(`/leads/${id}/restore`);
+}
+
+export function deleteLead(id: string) {
+  return apiClient.delete<{ id: string }>(`/leads/${id}`);
+}
+
+export function bulkArchiveLeads(leadIds: string[]) {
+  return apiClient.post<BulkLeadActionResult>("/leads/bulk/archive", {
+    leadIds,
+  });
+}
+
+export function bulkRestoreLeads(leadIds: string[]) {
+  return apiClient.post<BulkLeadActionResult>("/leads/bulk/restore", {
+    leadIds,
+  });
+}
+
+export function logLeadActivity(leadId: string, input: LogLeadActivityInput) {
+  return apiClient.post<{ activity: unknown; nextTask: unknown }>(
+    `/leads/${leadId}/activities`,
+    input,
+  );
+}
+
 export async function getLeadNotes(leadId: string) {
   const data = await apiClient.get<{ items: LeadNote[] }>(
     `/leads/${leadId}/notes`,
@@ -87,6 +119,7 @@ interface PipelineStageOption {
   name: string;
   sortOrder: number;
   color: string | null;
+  isClosed: boolean;
 }
 
 interface PipelineListItem {

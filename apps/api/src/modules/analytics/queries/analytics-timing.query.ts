@@ -5,7 +5,8 @@ import { buildLeadScopeSql } from './analytics-scope.util';
 
 const RESPONSE_EVENTS_IN_SQL = Prisma.sql`
   'ASSIGNED', 'REASSIGNED', 'STAGE_CHANGED',
-  'NOTE_ADDED', 'CALL_LOGGED', 'EMAIL_LOGGED', 'WHATSAPP_LOGGED'
+  'NOTE_ADDED', 'CALL_LOGGED', 'EMAIL_LOGGED', 'WHATSAPP_LOGGED',
+  'MEETING_LOGGED', 'SITE_VISIT_LOGGED'
 `;
 
 export function buildLeadCreatedAtSql(

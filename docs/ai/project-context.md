@@ -300,7 +300,9 @@ Current MVP includes:
 - analytics dashboard
 - notification center
 - workflow automation
-- task management & calendar
+- follow-ups (tasks) with reminders and a Today view
+- lead activity logging (calls, WhatsApp, meetings, site visits)
+- lead Kanban board
 - settings
 - audit logs
 - billing overview (display only)
@@ -321,7 +323,7 @@ Excluded from MVP:
 - Google Ads integration
 - payment gateway billing
 - mobile applications
-- recurring tasks, task dependencies, kanban/gantt views
+- recurring tasks, task dependencies, task kanban/gantt views
 
 These are future modules.
 

@@ -64,6 +64,12 @@ export const queryKeys = {
     quota: () => ["users", "quota"] as const,
   },
 
+  tasks: {
+    all: () => ["tasks"] as const,
+    list: (params?: object) => ["tasks", "list", params ?? {}] as const,
+    summary: (bounds?: object) => ["tasks", "summary", bounds ?? {}] as const,
+  },
+
   teams: {
     all: () => ["teams"] as const,
     list: () => ["teams", "list"] as const,

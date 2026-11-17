@@ -13,8 +13,13 @@ import { BulkAssignLeadsDto } from './dto/bulk-assign-leads.dto';
 import { LeadsBulkService } from './leads-bulk.service';
 import { LeadAssignmentService } from './services/lead-assignment.service';
 import { LeadStageService } from './services/lead-stage.service';
+import { LeadsService } from './leads.service';
 
 const ALL_SCOPE = { kind: 'all', actorUserId: 'actor-1' } as const;
+const leadsService = {
+  archiveLead: jest.fn(),
+  restoreLead: jest.fn(),
+};
 
 describe('LeadsBulkService', () => {
   let service: LeadsBulkService;
@@ -35,6 +40,7 @@ describe('LeadsBulkService', () => {
         { provide: LeadAssignmentService, useValue: leadAssignmentService },
         { provide: LeadStageService, useValue: { moveStage: jest.fn() } },
         { provide: AuditWriterService, useValue: auditWriter },
+        { provide: LeadsService, useValue: leadsService },
       ],
     }).compile();
 
@@ -142,6 +148,29 @@ describe('LeadsBulkService', () => {
     expect(result.successCount).toBe(1);
     expect(result.failureCount).toBe(1);
     expect(result.failures[0]?.reason).toBe('Lead not found');
+  });
+  it('archives many leads with one audit entry and per-lead failures', async () => {
+    leadsService.archiveLead
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error('Lead not found'));
+
+    const result = await service.bulkSetArchived(
+      'tenant-1',
+      'actor-1',
+      ['lead-a', 'lead-b', 'lead-a'],
+      true,
+      ALL_SCOPE,
+    );
+
+    expect(leadsService.archiveLead).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      successCount: 1,
+      failureCount: 1,
+      failures: [{ leadId: 'lead-b', reason: 'Lead not found' }],
+    });
+    expect(auditWriter.createAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'BULK_LEAD_STATUS_CHANGED' }),
+    );
   });
 });
 

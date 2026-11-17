@@ -127,6 +127,18 @@ export function useRealtimeStream() {
         });
       }
 
+      // Data-free hints from the tenant room: refetch whatever is on screen;
+      // the API re-applies each user's lead scope.
+      if (payload.entity === "leads") {
+        void qc.invalidateQueries({ queryKey: queryKeys.leads.all(), refetchType: "active" });
+        void qc.invalidateQueries({ queryKey: queryKeys.dashboard.all(), refetchType: "active" });
+      }
+
+      if (payload.entity === "tasks") {
+        void qc.invalidateQueries({ queryKey: queryKeys.tasks.all(), refetchType: "active" });
+        void qc.invalidateQueries({ queryKey: queryKeys.leads.all(), refetchType: "active" });
+      }
+
       if (payload.entity === "support-messages") {
         if (payload.actorId && payload.actorId !== useAuthStore.getState().user?.id) {
           playNotificationSound();

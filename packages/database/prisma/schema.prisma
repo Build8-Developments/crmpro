@@ -62,6 +62,24 @@ enum LeadActivityEventType {
   TASK_COMPLETED
   TASK_ASSIGNED
   TASK_CANCELLED
+  MEETING_LOGGED
+  SITE_VISIT_LOGGED
+}
+
+enum TaskType {
+  CALL
+  WHATSAPP
+  MEETING
+  SITE_VISIT
+  EMAIL
+  FOLLOW_UP
+  OTHER
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
 }
 
 enum AuditActorType {
@@ -225,6 +243,7 @@ model Tenant {
   roles            Role[]
   users            User[]
   teams            Team[]
+  tasks            Task[]
   fileAssets       FileAsset[]
   developers       Developer[]
   projects         Project[]
@@ -304,6 +323,8 @@ model User {
   assignedLeads      Lead[]        @relation("AssignedLeads")
   leadActivities     LeadActivity[]
   leadNotes          LeadNote[]
+  assignedTasks      Task[]        @relation("TaskAssignee")
+  createdTasks       Task[]        @relation("TaskCreator")
   auditLogs          AuditLog[]
   importJobs         ImportJob[]
   exportJobs         ExportJob[]
@@ -467,6 +488,10 @@ model Lead {
   notesSummary            String?
   customFields            Json?
   lastContactedAt         DateTime?
+  /// First logged contact (call/WhatsApp/email/meeting/visit) — speed-to-lead.
+  firstContactedAt        DateTime?
+  /// Earliest open follow-up task; null when nothing is scheduled.
+  nextFollowUpAt          DateTime?
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
   deletedAt               DateTime?
@@ -479,10 +504,12 @@ model Lead {
   fileAssets            FileAsset[]
   activities            LeadActivity[]
   notes                 LeadNote[]
+  tasks                 Task[]
   leadProjectInterests  LeadProjectInterest[]
 
   @@index([tenantId, pipelineStageId, assignedUserId])
   @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, nextFollowUpAt])
   @@index([tenantId, status])
   @@index([tenantId, primaryPhoneNormalized])
   @@index([tenantId, secondaryPhoneNormalized])
@@ -540,6 +567,36 @@ model LeadNote {
   @@index([leadId])
   @@index([tenantId])
   @@index([authorId])
+}
+
+/// A dated follow-up on a lead (or a standalone to-do). "Overdue" is derived
+/// (OPEN and dueAt < now), never stored.
+model Task {
+  id                String     @id @default(uuid()) @db.Uuid
+  tenantId          String     @db.Uuid
+  leadId            String?    @db.Uuid
+  assignedUserId    String     @db.Uuid
+  createdByUserId   String     @db.Uuid
+  title             String
+  type              TaskType   @default(FOLLOW_UP)
+  status            TaskStatus @default(OPEN)
+  dueAt             DateTime
+  completedAt       DateTime?
+  completionNote    String?
+  reminderSentAt    DateTime?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  lead         Lead?  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedUser User   @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  createdBy    User   @relation("TaskCreator", fields: [createdByUserId], references: [id])
+
+  @@index([tenantId, assignedUserId, status, dueAt])
+  @@index([tenantId, leadId])
+  @@index([status, dueAt])
 }
 
 model FileAsset {

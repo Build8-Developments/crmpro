@@ -34,7 +34,7 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.FILE_DELETED]: NotificationPreferenceCategory.SYSTEM,
   [NotificationType.SYSTEM]: NotificationPreferenceCategory.SYSTEM,
   [NotificationType.SECURITY]: NotificationPreferenceCategory.SECURITY,
-  [NotificationType.REMINDER]: NotificationPreferenceCategory.MARKETING,
+  [NotificationType.REMINDER]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_ASSIGNED]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_DUE]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_OVERDUE]: NotificationPreferenceCategory.TASK_UPDATES,

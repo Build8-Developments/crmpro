@@ -14,6 +14,14 @@ export const PERMISSIONS = {
   LEAD_NOTE_UPDATE: 'lead-note.update',
   LEAD_NOTE_DELETE: 'lead-note.delete',
 
+  /** Log calls, WhatsApp, emails, meetings and site visits on a lead. */
+  LEAD_ACTIVITY_CREATE: 'lead-activity.create',
+
+  TASK_READ: 'task.read',
+  TASK_CREATE: 'task.create',
+  TASK_UPDATE: 'task.update',
+  TASK_DELETE: 'task.delete',
+
   LEAD_SOURCE_CREATE: 'lead-source.create',
   LEAD_SOURCE_READ: 'lead-source.read',
   LEAD_SOURCE_UPDATE: 'lead-source.update',
@@ -120,6 +128,13 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.LEAD_NOTE_UPDATE,
     PERMISSIONS.LEAD_NOTE_DELETE,
   ],
+  LEAD_ACTIVITIES: [PERMISSIONS.LEAD_ACTIVITY_CREATE],
+  TASKS: [
+    PERMISSIONS.TASK_READ,
+    PERMISSIONS.TASK_CREATE,
+    PERMISSIONS.TASK_UPDATE,
+    PERMISSIONS.TASK_DELETE,
+  ],
   LEAD_SOURCES: [
     PERMISSIONS.LEAD_SOURCE_CREATE,
     PERMISSIONS.LEAD_SOURCE_READ,
@@ -216,6 +231,8 @@ export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
 export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   LEADS: 'Leads',
   LEAD_NOTES: 'Lead Notes',
+  LEAD_ACTIVITIES: 'Lead Activities',
+  TASKS: 'Follow-ups',
   LEAD_SOURCES: 'Lead Sources',
   DEVELOPERS: 'Developers',
   PROJECTS: 'Projects',
@@ -254,6 +271,8 @@ export const ADMIN_PERMISSION_GROUP_ORDER = [
 export const PERMISSION_GROUP_ORDER = [
   'LEADS',
   'LEAD_NOTES',
+  'LEAD_ACTIVITIES',
+  'TASKS',
   'LEAD_SOURCES',
   'DEVELOPERS',
   'PROJECTS',

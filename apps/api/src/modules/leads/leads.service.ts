@@ -4,7 +4,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeadActivityEventType, LeadStatus, Prisma } from '@crmpro/database';
+import {
+  LeadActivityEventType,
+  LeadStatus,
+  Prisma,
+  TaskStatus,
+} from '@crmpro/database';
+import { AuditWriterService } from '../audit/audit-writer.service';
+import {
+  AUDIT_ENTITY_TYPES,
+  LEAD_AUDIT_ACTIONS,
+} from '../audit/audit.constants';
 import { isEmail } from 'class-validator';
 import {
   buildPaginatedResponse,
@@ -49,6 +59,7 @@ const LEAD_SORT_FIELDS = [
   'updatedAt',
   'fullName',
   'lastContactedAt',
+  'nextFollowUpAt',
 ] as const;
 
 const LEAD_SORT_CONFIG = {
@@ -64,6 +75,7 @@ export class LeadsService {
     private readonly leadActivityService: LeadActivityService,
     private readonly domainEventBus: DomainEventBus,
     private readonly quotaService: QuotaService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   async listLeads(
@@ -371,10 +383,15 @@ export class LeadsService {
   async updateLead(
     id: string,
     tenantId: string,
+    actorUserId: string,
     dto: UpdateLeadDto,
     scope: LeadScope,
   ): Promise<LeadMutationResult> {
     const existing = await this.getLeadOrThrow(id, tenantId, scope);
+    const statusChange =
+      dto.status !== undefined && dto.status !== existing.status
+        ? dto.status
+        : null;
 
     if (dto.sourceId !== undefined) {
       await this.validateSource(dto.sourceId, tenantId);
@@ -444,6 +461,16 @@ export class LeadsService {
         },
       });
 
+      if (statusChange) {
+        await this.recordStatusChange(
+          tx,
+          tenantId,
+          actorUserId,
+          existing.id,
+          statusChange,
+        );
+      }
+
       if (dto.projectInterests !== undefined) {
         await tx.leadProjectInterest.deleteMany({
           where: { leadId: existing.id },
@@ -477,6 +504,159 @@ export class LeadsService {
     };
   }
 
+  async archiveLead(
+    id: string,
+    tenantId: string,
+    actorUserId: string,
+    scope: LeadScope,
+  ): Promise<LeadMutationResult> {
+    return this.setStatus(
+      id,
+      tenantId,
+      actorUserId,
+      LeadStatus.ARCHIVED,
+      scope,
+    );
+  }
+
+  async restoreLead(
+    id: string,
+    tenantId: string,
+    actorUserId: string,
+    scope: LeadScope,
+  ): Promise<LeadMutationResult> {
+    return this.setStatus(id, tenantId, actorUserId, LeadStatus.OPEN, scope);
+  }
+
+  /** Soft delete. Requires lead.delete (checked by the controller). */
+  async deleteLead(
+    id: string,
+    tenantId: string,
+    actorUserId: string,
+    scope: LeadScope,
+  ): Promise<{ id: string }> {
+    const existing = await this.getLeadOrThrow(id, tenantId, scope);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lead.update({
+        where: { id: existing.id },
+        data: { deletedAt: new Date(), nextFollowUpAt: null },
+      });
+      await this.cancelOpenFollowUps(tx, tenantId, existing.id);
+      await this.auditWriter.createAuditLog({
+        tenantId,
+        actorUserId,
+        action: LEAD_AUDIT_ACTIONS.DELETED,
+        entityType: AUDIT_ENTITY_TYPES.LEAD,
+        entityId: existing.id,
+        metadata: { fullName: existing.fullName },
+        tx,
+      });
+    });
+
+    void this.domainEventBus.publish(
+      new LeadUpdatedEvent(tenantId, existing.id),
+    );
+
+    return { id: existing.id };
+  }
+
+  private async setStatus(
+    id: string,
+    tenantId: string,
+    actorUserId: string,
+    status: LeadStatus,
+    scope: LeadScope,
+  ): Promise<LeadMutationResult> {
+    const existing = await this.getLeadOrThrow(id, tenantId, scope);
+
+    if (existing.status === status) {
+      throw new BadRequestException(
+        status === LeadStatus.ARCHIVED
+          ? 'Lead is already archived'
+          : 'Lead is not archived',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lead.update({ where: { id: existing.id }, data: { status } });
+      await this.recordStatusChange(
+        tx,
+        tenantId,
+        actorUserId,
+        existing.id,
+        status,
+      );
+    });
+
+    const lead = await this.getLeadOrThrow(
+      existing.id,
+      tenantId,
+      SYSTEM_LEAD_SCOPE,
+    );
+    void this.domainEventBus.publish(
+      new LeadUpdatedEvent(tenantId, existing.id),
+    );
+
+    return { lead: toLeadResponse(lead), duplicateWarning: null };
+  }
+
+  /**
+   * Timeline + audit for archive/restore. Archiving also cancels open
+   * follow-ups so nobody gets reminders for a parked lead.
+   */
+  private async recordStatusChange(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    actorUserId: string,
+    leadId: string,
+    status: LeadStatus,
+  ): Promise<void> {
+    const archived = status === LeadStatus.ARCHIVED;
+
+    await this.leadActivityService.createActivity(
+      {
+        tenantId,
+        leadId,
+        actorUserId,
+        eventType: archived
+          ? LeadActivityEventType.STATUS_ARCHIVED
+          : LeadActivityEventType.STATUS_RESTORED,
+      },
+      tx,
+    );
+
+    if (archived) {
+      await this.cancelOpenFollowUps(tx, tenantId, leadId);
+    }
+
+    await this.auditWriter.createAuditLog({
+      tenantId,
+      actorUserId,
+      action: archived
+        ? LEAD_AUDIT_ACTIONS.ARCHIVED
+        : LEAD_AUDIT_ACTIONS.RESTORED,
+      entityType: AUDIT_ENTITY_TYPES.LEAD,
+      entityId: leadId,
+      tx,
+    });
+  }
+
+  private async cancelOpenFollowUps(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    leadId: string,
+  ): Promise<void> {
+    await tx.task.updateMany({
+      where: { tenantId, leadId, status: TaskStatus.OPEN, deletedAt: null },
+      data: { status: TaskStatus.CANCELLED },
+    });
+    await tx.lead.update({
+      where: { id: leadId },
+      data: { nextFollowUpAt: null },
+    });
+  }
+
   buildLeadsOrderBy(
     sortBy?: string,
     sortOrder?: SortOrder,
@@ -499,6 +679,22 @@ export class LeadsService {
 
     if (filters.staleOnly) {
       and.push(this.buildStaleLeadWhereInput());
+    }
+
+    if (filters.neverContacted) {
+      and.push({
+        status: LeadStatus.OPEN,
+        pipelineStage: { isClosed: false },
+        firstContactedAt: null,
+      });
+    }
+
+    if (filters.noFollowUp) {
+      and.push({
+        status: LeadStatus.OPEN,
+        pipelineStage: { isClosed: false },
+        nextFollowUpAt: null,
+      });
     }
 
     if (search) {
@@ -578,6 +774,8 @@ export class LeadsService {
         search: query.search,
         unassignedOnly: query.unassignedOnly,
         staleOnly: query.staleOnly,
+        neverContacted: query.neverContacted,
+        noFollowUp: query.noFollowUp,
       },
       scope,
     );

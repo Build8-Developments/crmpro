@@ -1,14 +1,21 @@
 "use client";
 
 import {
+  archiveLead,
   assignLead,
+  bulkArchiveLeads,
   bulkAssignLeads,
   bulkMoveLeadsStage,
+  bulkRestoreLeads,
   createLead,
   createLeadNote,
+  deleteLead,
+  logLeadActivity,
   moveLeadStage,
+  restoreLead,
   updateLead,
 } from "@/features/leads/api";
+import type { BulkLeadActionResult, LogLeadActivityInput } from "@/features/leads/types";
 import { useTranslations } from "next-intl";
 import type { CreateLeadInput, UpdateLeadInput } from "@/features/leads/types";
 import { notifyDuplicateWarning } from "@/features/leads/utils/duplicate-warning";
@@ -20,21 +27,10 @@ const leadInvalidateKeys = [
   queryKeys.dashboard.all(),
 ] as const;
 
-async function bulkUpdateLeadStatus(
-  leadIds: string[],
-  status: "OPEN" | "ARCHIVED",
-): Promise<void> {
-  const results = await Promise.allSettled(
-    leadIds.map((leadId) => updateLead(leadId, { status })),
-  );
-  const failureCount = results.filter(
-    (result) => result.status === "rejected",
-  ).length;
-
-  if (failureCount > 0) {
-    throw new Error(
-      `Failed to update ${failureCount} of ${leadIds.length} lead(s)`,
-    );
+/** The bulk endpoints report per-lead failures instead of throwing. */
+function assertBulkSucceeded(result: BulkLeadActionResult, total: number) {
+  if (result.failureCount > 0) {
+    throw new Error(`Failed to update ${result.failureCount} of ${total} lead(s)`);
   }
 }
 
@@ -100,8 +96,7 @@ export function useMoveLeadStage() {
 
 export function useArchiveLead() {
   return useApiMutation({
-    mutationFn: (leadId: string) =>
-      updateLead(leadId, { status: "ARCHIVED" }),
+    mutationFn: (leadId: string) => archiveLead(leadId),
     successMessage: "Lead archived",
     invalidateKeys: [...leadInvalidateKeys],
   });
@@ -109,7 +104,7 @@ export function useArchiveLead() {
 
 export function useRestoreLead() {
   return useApiMutation({
-    mutationFn: (leadId: string) => updateLead(leadId, { status: "OPEN" }),
+    mutationFn: (leadId: string) => restoreLead(leadId),
     successMessage: "Lead restored",
     invalidateKeys: [...leadInvalidateKeys],
   });
@@ -117,8 +112,8 @@ export function useRestoreLead() {
 
 export function useBulkArchiveLeads() {
   return useApiMutation({
-    mutationFn: (leadIds: string[]) =>
-      bulkUpdateLeadStatus(leadIds, "ARCHIVED"),
+    mutationFn: async (leadIds: string[]) =>
+      assertBulkSucceeded(await bulkArchiveLeads(leadIds), leadIds.length),
     successMessage: "Leads archived",
     invalidateKeys: [...leadInvalidateKeys],
   });
@@ -126,7 +121,8 @@ export function useBulkArchiveLeads() {
 
 export function useBulkRestoreLeads() {
   return useApiMutation({
-    mutationFn: (leadIds: string[]) => bulkUpdateLeadStatus(leadIds, "OPEN"),
+    mutationFn: async (leadIds: string[]) =>
+      assertBulkSucceeded(await bulkRestoreLeads(leadIds), leadIds.length),
     successMessage: "Leads restored",
     invalidateKeys: [...leadInvalidateKeys],
   });
@@ -167,6 +163,30 @@ export function useCreateLeadNote(leadId: string) {
     invalidateKeys: [
       queryKeys.leads.detail(leadId),
       ...leadInvalidateKeys,
+    ],
+  });
+}
+
+export function useDeleteLead() {
+  const t = useTranslations("leads.lifecycle");
+
+  return useApiMutation({
+    mutationFn: (leadId: string) => deleteLead(leadId),
+    successMessage: t("deleted"),
+    invalidateKeys: [...leadInvalidateKeys, queryKeys.tasks.all()],
+  });
+}
+
+export function useLogLeadActivity(leadId: string) {
+  const t = useTranslations("activity.toast");
+
+  return useApiMutation({
+    mutationFn: (input: LogLeadActivityInput) => logLeadActivity(leadId, input),
+    successMessage: t("logged"),
+    invalidateKeys: [
+      queryKeys.leads.detail(leadId),
+      ...leadInvalidateKeys,
+      queryKeys.tasks.all(),
     ],
   });
 }

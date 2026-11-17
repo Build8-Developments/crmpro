@@ -19,6 +19,7 @@ import {
 } from "@/features/leads/utils/lead-filters";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
+import { useTranslations } from "next-intl";
 import { useLeadScope } from "@/hooks/use-lead-scope";
 import { usePermissions } from "@/hooks/use-permissions";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
@@ -36,10 +37,15 @@ interface LeadsToolbarProps {
   isFetching?: boolean;
 }
 
-const QUICK_CHIPS: Array<{
-  key: "unassignedOnly" | "staleOnly";
-  label: string;
-}> = [
+type QuickChipKey =
+  | "unassignedOnly"
+  | "staleOnly"
+  | "neverContacted"
+  | "noFollowUp";
+
+const QUICK_CHIPS: Array<{ key: QuickChipKey; label?: string }> = [
+  { key: "neverContacted" },
+  { key: "noFollowUp" },
   { key: "unassignedOnly", label: "Unassigned" },
   { key: "staleOnly", label: "Stale" },
 ];
@@ -58,11 +64,14 @@ export function LeadsToolbar({
   const openCreateDialog = useLeadUiStore((s) => s.openCreateDialog);
   const { can } = usePermissions();
   const leadScope = useLeadScope();
+  const tQuick = useTranslations("leads.quickFilters");
   const activeFilterCount = countActiveLeadFilters(filters);
   const sheetFilterCount =
     activeFilterCount -
     (filters.unassignedOnly ? 1 : 0) -
-    (filters.staleOnly ? 1 : 0);
+    (filters.staleOnly ? 1 : 0) -
+    (filters.neverContacted ? 1 : 0) -
+    (filters.noFollowUp ? 1 : 0);
 
   return (
     <div className="space-y-3 border-b border-border/50 px-4 py-3">
@@ -165,7 +174,8 @@ export function LeadsToolbar({
                   : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              {chip.label}
+              {chip.label ??
+                tQuick(chip.key as "neverContacted" | "noFollowUp")}
             </button>
           );
         })}

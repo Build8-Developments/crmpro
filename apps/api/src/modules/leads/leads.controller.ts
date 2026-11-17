@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -224,7 +225,59 @@ export class LeadsController {
     const data = await this.leadsService.updateLead(
       id,
       user.tenantId,
+      user.id,
       dto,
+      await this.resolveScope(user, permissionKeys),
+    );
+
+    return { success: true, data };
+  }
+
+  @Post(':id/archive')
+  @RequirePermission(PERMISSIONS.LEAD_UPDATE)
+  async archiveLead(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.leadsService.archiveLead(
+      id,
+      user.tenantId,
+      user.id,
+      await this.resolveScope(user, permissionKeys),
+    );
+
+    return { success: true, data };
+  }
+
+  @Post(':id/restore')
+  @RequirePermission(PERMISSIONS.LEAD_UPDATE)
+  async restoreLead(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.leadsService.restoreLead(
+      id,
+      user.tenantId,
+      user.id,
+      await this.resolveScope(user, permissionKeys),
+    );
+
+    return { success: true, data };
+  }
+
+  @Delete(':id')
+  @RequirePermission(PERMISSIONS.LEAD_DELETE)
+  async deleteLead(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.leadsService.deleteLead(
+      id,
+      user.tenantId,
+      user.id,
       await this.resolveScope(user, permissionKeys),
     );
 

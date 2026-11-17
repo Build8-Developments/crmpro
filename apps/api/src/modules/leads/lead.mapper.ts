@@ -11,6 +11,8 @@ export const leadSelect = {
   secondaryPhoneNormalized: true,
   email: true,
   lastContactedAt: true,
+  firstContactedAt: true,
+  nextFollowUpAt: true,
   createdAt: true,
   updatedAt: true,
   source: {
@@ -65,6 +67,8 @@ export function toLeadResponse(lead: LeadRecord): LeadResponse {
     secondaryPhone: lead.secondaryPhone,
     email: lead.email,
     lastContactedAt: lead.lastContactedAt,
+    firstContactedAt: lead.firstContactedAt,
+    nextFollowUpAt: lead.nextFollowUpAt,
     createdAt: lead.createdAt,
     updatedAt: lead.updatedAt,
     source: lead.source,

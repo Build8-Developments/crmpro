@@ -173,6 +173,11 @@ const PERMISSIONS = [
   { key: 'lead-note.read', description: 'View lead notes' },
   { key: 'lead-note.update', description: 'Update lead notes' },
   { key: 'lead-note.delete', description: 'Delete lead notes' },
+  { key: 'lead-activity.create', description: 'Log calls, WhatsApp, emails, meetings and visits' },
+  { key: 'task.read', description: 'View follow-ups' },
+  { key: 'task.create', description: 'Schedule follow-ups' },
+  { key: 'task.update', description: 'Update and complete follow-ups' },
+  { key: 'task.delete', description: 'Delete follow-ups' },
   { key: 'lead-source.create', description: 'Create lead sources' },
   { key: 'lead-source.read', description: 'View lead sources' },
   { key: 'lead-source.update', description: 'Update lead sources' },
@@ -956,7 +961,49 @@ async function seedTeams(tenantId: string): Promise<void> {
   });
 }
 
+/**
+ * Demo follow-ups relative to "now" so the Today view always has overdue,
+ * due-today and upcoming items for each lead owner.
+ */
+async function seedFollowUps(tenantId: string, leadIds: string[]): Promise<void> {
+  const leads = await prisma.lead.findMany({
+    where: { tenantId, id: { in: leadIds }, assignedUserId: { not: null } },
+    select: { id: true, assignedUserId: true },
+    orderBy: { createdAt: 'desc' },
+    take: 15,
+  });
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  const offsets = [-26 * hour, -3 * hour, 2 * hour, 5 * hour, 30 * hour, 74 * hour];
+  const types = ['CALL', 'WHATSAPP', 'SITE_VISIT', 'CALL', 'MEETING', 'FOLLOW_UP'] as const;
+  const titles = ['Call back', 'Send brochure on WhatsApp', 'Site visit', 'Discuss payment plan', 'Meeting at the office', 'Check decision'];
+
+  for (const [index, lead] of leads.entries()) {
+    const slot = index % offsets.length;
+    const dueAt = new Date(now + offsets[slot]);
+
+    await prisma.task.create({
+      data: {
+        tenantId,
+        leadId: lead.id,
+        assignedUserId: lead.assignedUserId!,
+        createdByUserId: lead.assignedUserId!,
+        title: titles[slot],
+        type: types[slot],
+        dueAt,
+        // Past-due demo tasks already "sent" their reminders.
+        ...(offsets[slot] < 0 ? { reminderSentAt: dueAt, overdueNotifiedAt: dueAt } : {}),
+      },
+    });
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { nextFollowUpAt: dueAt },
+    });
+  }
+}
+
 async function clearTenantSampleData(tenantId: string): Promise<void> {
+  await prisma.task.deleteMany({ where: { tenantId } });
   await prisma.exportJob.deleteMany({ where: { tenantId } });
   await prisma.importJob.deleteMany({ where: { tenantId } });
   await prisma.fileAsset.deleteMany({ where: { tenantId } });
@@ -1212,7 +1259,13 @@ async function seedLeadsAndRelated(params: {
         customFields: faker.datatype.boolean({ probability: 0.2 })
           ? { preferredUnit: faker.helpers.arrayElement(['2BR', '3BR', 'Villa']) }
           : undefined,
-        lastContactedAt: faker.date.recent({ days: 30 }),
+        // A few fresh leads stay uncontacted so "Not contacted" has data.
+        ...(i % 7 === 0
+          ? {}
+          : (() => {
+              const contactedAt = faker.date.recent({ days: 30 });
+              return { lastContactedAt: contactedAt, firstContactedAt: contactedAt };
+            })()),
         createdAt: faker.date.recent({ days: 60 }),
       },
     });
@@ -1710,6 +1763,7 @@ async function seedTenantCrmData(
     roleIds: Object.values(ROLE_IDS),
   });
 
+  await seedFollowUps(tenantId, leadIds);
   await seedNotificationPreferences(tenantId, userIds);
   await seedNotifications({ tenantId, userIds, leadIds });
 

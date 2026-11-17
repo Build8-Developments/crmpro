@@ -43,6 +43,8 @@ export interface LeadResponse {
   secondaryPhone: string | null;
   email: string | null;
   lastContactedAt: Date | null;
+  firstContactedAt: Date | null;
+  nextFollowUpAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   source: LeadSourceSummary | null;
@@ -146,6 +148,10 @@ export interface LeadListFilters {
   search?: string;
   unassignedOnly?: boolean;
   staleOnly?: boolean;
+  /** Open leads nobody has called/messaged yet. */
+  neverContacted?: boolean;
+  /** Open leads with no follow-up scheduled. */
+  noFollowUp?: boolean;
 }
 
 export interface LeadExportParams extends LeadListFilters {

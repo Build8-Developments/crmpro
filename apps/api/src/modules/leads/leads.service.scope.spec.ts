@@ -6,6 +6,7 @@ import { QuotaService } from '../../common/quota/quota.service';
 import { LeadsService } from './leads.service';
 import type { LeadScope } from './scope/lead-scope.types';
 import { LeadActivityService } from './services/lead-activity.service';
+import { AuditWriterService } from '../audit/audit-writer.service';
 
 const agentScope: LeadScope = { kind: 'own', actorUserId: 'agent-1' };
 const teamScope: LeadScope = {
@@ -61,6 +62,10 @@ describe('LeadsService scope isolation', () => {
           useValue: { createActivity: jest.fn() },
         },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
+        {
+          provide: AuditWriterService,
+          useValue: { createAuditLog: jest.fn() },
+        },
         {
           provide: QuotaService,
           useValue: { assertCanCreateLeadInTransaction: jest.fn() },

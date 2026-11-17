@@ -3,6 +3,8 @@ export const DOMAIN_EVENT_TYPES = {
   LEAD_UPDATED: 'lead.updated',
   LEAD_MOVED_STAGE: 'lead.moved_stage',
   LEAD_ASSIGNED: 'lead.assigned',
+  LEAD_ACTIVITY_LOGGED: 'lead.activity_logged',
+  TASK_CHANGED: 'task.changed',
   PIPELINE_CHANGED: 'pipeline.changed',
   IMPORT_COMPLETED: 'import.completed',
   EXPORT_COMPLETED: 'export.completed',
@@ -16,6 +18,27 @@ export type DomainEventType =
 export interface DomainEvent {
   readonly type: DomainEventType;
   readonly tenantId: string;
+}
+
+/** A call/WhatsApp/email/meeting/visit was logged (contact timestamps moved). */
+export class LeadActivityLoggedEvent implements DomainEvent {
+  readonly type = DOMAIN_EVENT_TYPES.LEAD_ACTIVITY_LOGGED;
+
+  constructor(
+    readonly tenantId: string,
+    readonly leadId: string,
+  ) {}
+}
+
+/** A follow-up task was created, changed, completed, cancelled or deleted. */
+export class TaskChangedEvent implements DomainEvent {
+  readonly type = DOMAIN_EVENT_TYPES.TASK_CHANGED;
+
+  constructor(
+    readonly tenantId: string,
+    readonly taskId: string,
+    readonly leadId: string | null,
+  ) {}
 }
 
 export class LeadCreatedEvent implements DomainEvent {
@@ -86,6 +109,8 @@ export const ANALYTICS_INVALIDATION_EVENT_TYPES: readonly DomainEventType[] = [
   DOMAIN_EVENT_TYPES.LEAD_UPDATED,
   DOMAIN_EVENT_TYPES.LEAD_MOVED_STAGE,
   DOMAIN_EVENT_TYPES.LEAD_ASSIGNED,
+  // Response-time and stale metrics depend on contact timestamps.
+  DOMAIN_EVENT_TYPES.LEAD_ACTIVITY_LOGGED,
   DOMAIN_EVENT_TYPES.PIPELINE_CHANGED,
   DOMAIN_EVENT_TYPES.IMPORT_COMPLETED,
   DOMAIN_EVENT_TYPES.EXPORT_COMPLETED,

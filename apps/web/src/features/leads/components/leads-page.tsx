@@ -24,6 +24,8 @@ import { LeadsHeader } from "./leads-header";
 import { LeadsPagination } from "./leads-pagination";
 import { LeadsSkeleton } from "./leads-skeleton";
 import { LeadsTable } from "./leads-table";
+import { LeadsBoard } from "./leads-board";
+import { LeadsViewToggle, useLeadsView } from "./leads-view-toggle";
 import { LeadsToolbar } from "./leads-toolbar";
 import { useLeadsTable } from "@/features/leads/table/use-leads-table";
 import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
@@ -35,6 +37,7 @@ import { MoveStageDialog } from "./move-stage-dialog";
 
 export function LeadsPage() {
   const [search, setSearch] = useState("");
+  const [view, setView] = useLeadsView();
   const debouncedSearch = useDebouncedValue(search, 400);
   useLeadsUrlFilters({ debouncedSearch, setSearch });
   const listParams = useLeadsListParams(search);
@@ -135,7 +138,10 @@ export function LeadsPage() {
 
   return (
     <div className="space-y-4 px-6 py-5 md:px-8">
-      <LeadsHeader />
+      <div className="flex items-end justify-between gap-3">
+        <LeadsHeader />
+        <LeadsViewToggle view={view} onChange={setView} />
+      </div>
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
         <LeadsToolbar
@@ -153,6 +159,12 @@ export function LeadsPage() {
           isFetching={isFetching}
         />
 
+        {view === "board" ? (
+          <LeadsBoard baseParams={listParams} />
+        ) : null}
+
+        {view === "list" ? (
+        <>
         <BulkActionsToolbar
           selectedCount={selectedCount}
           selectedLeadIds={selectedLeadIds}
@@ -189,6 +201,8 @@ export function LeadsPage() {
             ) : null}
           </>
         )}
+        </>
+        ) : null}
       </div>
 
       <LeadDetailDrawer />

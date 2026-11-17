@@ -124,6 +124,26 @@
       "ownedBy": "{name} (owned by {owner})",
       "hiddenOwnedBy": "A lead owned by {owner}",
       "hiddenUnassigned": "An unassigned lead"
+    },
+    "lifecycle": {
+      "deleted": "Lead deleted",
+      "delete": "Delete lead",
+      "deleteTitle": "Delete \"{name}\"?",
+      "deleteDescription": "The lead and its open follow-ups are removed from every list. This is recorded in the audit log."
+    },
+    "view": {
+      "list": "List",
+      "board": "Board",
+      "loadMore": "Load more",
+      "empty": "No leads",
+      "count": "{count, plural, one {# lead} other {# leads}}",
+      "closedColumns": "Closed stages",
+      "pickPipeline": "Pipeline"
+    },
+    "followUpColumn": "Follow-up",
+    "quickFilters": {
+      "neverContacted": "Not contacted",
+      "noFollowUp": "No follow-up"
     }
   },
   "dashboard": {
@@ -132,5 +152,139 @@
       "team": "Showing your team's leads",
       "all": "Showing all leads"
     }
+  },
+  "activity": {
+    "types": {
+      "CALL": "Call",
+      "WHATSAPP": "WhatsApp",
+      "EMAIL": "Email",
+      "MEETING": "Meeting",
+      "SITE_VISIT": "Site visit"
+    },
+    "outcomes": {
+      "ANSWERED": "Answered",
+      "NO_ANSWER": "No answer",
+      "BUSY": "Busy",
+      "WRONG_NUMBER": "Wrong number",
+      "INTERESTED": "Interested",
+      "NOT_INTERESTED": "Not interested",
+      "CALLBACK_REQUESTED": "Asked to call back",
+      "OTHER": "Other"
+    },
+    "log": {
+      "title": "Log {type}",
+      "description": "Record what happened with {name}. It counts as contact and appears on the timeline.",
+      "outcome": "Outcome",
+      "duration": "Duration (minutes)",
+      "note": "Note",
+      "notePlaceholder": "What did the client say?",
+      "occurredAt": "When",
+      "nextFollowUp": "Next follow-up",
+      "noFollowUp": "None",
+      "custom": "Pick date",
+      "submit": "Save",
+      "saving": "Saving..."
+    },
+    "actions": {
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "meeting": "Meeting",
+      "visit": "Visit",
+      "logTitle": "Log activity"
+    },
+    "toast": {
+      "logged": "Activity logged"
+    },
+    "timeline": {
+      "CALL_LOGGED": "Call logged",
+      "WHATSAPP_LOGGED": "WhatsApp logged",
+      "EMAIL_LOGGED": "Email logged",
+      "MEETING_LOGGED": "Meeting logged",
+      "SITE_VISIT_LOGGED": "Site visit logged",
+      "TASK_CREATED": "Follow-up scheduled",
+      "TASK_COMPLETED": "Follow-up completed",
+      "TASK_CANCELLED": "Follow-up cancelled",
+      "TASK_ASSIGNED": "Follow-up reassigned",
+      "STATUS_ARCHIVED": "Archived",
+      "STATUS_RESTORED": "Restored"
+    }
+  },
+  "tasks": {
+    "types": {
+      "CALL": "Call",
+      "WHATSAPP": "WhatsApp",
+      "MEETING": "Meeting",
+      "SITE_VISIT": "Site visit",
+      "EMAIL": "Email",
+      "FOLLOW_UP": "Follow-up",
+      "OTHER": "To-do"
+    },
+    "quick": {
+      "laterToday": "Later today",
+      "tomorrow": "Tomorrow",
+      "in3Days": "In 3 days",
+      "nextWeek": "Next week"
+    },
+    "section": {
+      "title": "Follow-ups",
+      "add": "Schedule",
+      "empty": "No follow-up scheduled.",
+      "overdue": "Overdue",
+      "due": "Due {when}"
+    },
+    "form": {
+      "title": "Schedule follow-up",
+      "description": "Pick when to follow up. You'll get a reminder 15 minutes before.",
+      "type": "Type",
+      "titleLabel": "Title (optional)",
+      "dueAt": "Due",
+      "assignee": "Assign to",
+      "me": "Me",
+      "save": "Schedule",
+      "saving": "Scheduling..."
+    },
+    "complete": {
+      "title": "Complete follow-up",
+      "note": "Outcome note (optional)",
+      "next": "Schedule the next one",
+      "none": "No",
+      "submit": "Mark done",
+      "submitting": "Saving..."
+    },
+    "actions": {
+      "complete": "Done",
+      "cancel": "Cancel follow-up",
+      "reschedule": "Reschedule"
+    },
+    "toast": {
+      "created": "Follow-up scheduled",
+      "completed": "Follow-up completed",
+      "cancelled": "Follow-up cancelled",
+      "updated": "Follow-up updated"
+    }
+  },
+  "today": {
+    "title": "Today",
+    "subtitle": "Your follow-ups and leads waiting for a first call",
+    "kpis": {
+      "overdue": "Overdue",
+      "dueToday": "Due today",
+      "upcoming": "Next 7 days",
+      "notContacted": "Not contacted"
+    },
+    "sections": {
+      "overdue": "Overdue",
+      "today": "Due today",
+      "upcoming": "Coming up",
+      "notContacted": "New leads waiting for first contact"
+    },
+    "empty": {
+      "overdue": "Nothing overdue. Nice.",
+      "today": "Nothing else due today.",
+      "upcoming": "Nothing scheduled this week.",
+      "notContacted": "Every lead has been contacted."
+    },
+    "openLead": "Open lead",
+    "assignedTo": "for {name}"
   }
 }

@@ -9,6 +9,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { BulkAssignLeadsDto } from './dto/bulk-assign-leads.dto';
+import { BulkLeadIdsDto } from './dto/bulk-lead-ids.dto';
 import { BulkMoveStageDto } from './dto/bulk-move-stage.dto';
 import { LeadsBulkService } from './leads-bulk.service';
 import { LeadScopeService } from './scope/lead-scope.service';
@@ -49,6 +50,42 @@ export class LeadsBulkController {
       user.tenantId,
       user.id,
       dto,
+      await this.leadScopeService.resolve(user, permissionKeys),
+    );
+
+    return { success: true, data };
+  }
+
+  @Post('archive')
+  @RequirePermission(PERMISSIONS.LEAD_UPDATE)
+  async bulkArchive(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
+    @Body() dto: BulkLeadIdsDto,
+  ) {
+    const data = await this.leadsBulkService.bulkSetArchived(
+      user.tenantId,
+      user.id,
+      dto.leadIds,
+      true,
+      await this.leadScopeService.resolve(user, permissionKeys),
+    );
+
+    return { success: true, data };
+  }
+
+  @Post('restore')
+  @RequirePermission(PERMISSIONS.LEAD_UPDATE)
+  async bulkRestore(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentPermissionKeys() permissionKeys: ReadonlySet<PermissionKey>,
+    @Body() dto: BulkLeadIdsDto,
+  ) {
+    const data = await this.leadsBulkService.bulkSetArchived(
+      user.tenantId,
+      user.id,
+      dto.leadIds,
+      false,
       await this.leadScopeService.resolve(user, permissionKeys),
     );
 

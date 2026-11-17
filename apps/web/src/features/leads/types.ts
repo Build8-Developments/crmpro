@@ -48,6 +48,8 @@ export interface Lead {
   secondaryPhone: string | null;
   email: string | null;
   lastContactedAt: string | null;
+  firstContactedAt: string | null;
+  nextFollowUpAt: string | null;
   createdAt: string;
   updatedAt: string;
   source: LeadSourceSummary | null;
@@ -136,6 +138,42 @@ export interface LeadsListParams extends ListQueryParams {
   projectId?: string;
   unassignedOnly?: boolean;
   staleOnly?: boolean;
+  neverContacted?: boolean;
+  noFollowUp?: boolean;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+export type InteractionType =
+  | "CALL"
+  | "WHATSAPP"
+  | "EMAIL"
+  | "MEETING"
+  | "SITE_VISIT";
+
+export type InteractionOutcome =
+  | "ANSWERED"
+  | "NO_ANSWER"
+  | "BUSY"
+  | "WRONG_NUMBER"
+  | "INTERESTED"
+  | "NOT_INTERESTED"
+  | "CALLBACK_REQUESTED"
+  | "OTHER";
+
+export interface NextFollowUpInput {
+  dueAt: string;
+  type?: import("@/features/tasks/types").TaskType;
+  title?: string;
+}
+
+export interface LogLeadActivityInput {
+  type: InteractionType;
+  outcome?: InteractionOutcome;
+  durationSeconds?: number;
+  note?: string;
+  occurredAt?: string;
+  nextFollowUp?: NextFollowUpInput;
 }
 
 export type LeadsListResponse = PaginatedResponse<Lead>;

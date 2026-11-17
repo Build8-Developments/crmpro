@@ -41,6 +41,15 @@ export const navGroups: NavGroup[] = [
         keywords: ["home", "overview", "analytics"],
       },
       {
+        label: "Today",
+        href: "/today",
+        subtitle: "Your follow-ups and leads waiting for a first call",
+        icon: AppIcons.today,
+        requiredPermissions: ["task.read"],
+        searchable: true,
+        keywords: ["follow-ups", "tasks", "reminders", "agenda", "my day"],
+      },
+      {
         label: "Leads",
         href: "/leads",
         subtitle: "Manage and track customer leads",

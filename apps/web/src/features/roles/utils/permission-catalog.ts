@@ -14,6 +14,8 @@ export const PERMISSION_GROUPS = {
     "lead-note.update",
     "lead-note.delete",
   ],
+  LEAD_ACTIVITIES: ["lead-activity.create"],
+  TASKS: ["task.read", "task.create", "task.update", "task.delete"],
   LEAD_SOURCES: [
     "lead-source.create",
     "lead-source.read",
@@ -71,6 +73,8 @@ export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
 export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   LEADS: "Leads",
   LEAD_NOTES: "Lead Notes",
+  LEAD_ACTIVITIES: "Lead Activities",
+  TASKS: "Follow-ups",
   LEAD_SOURCES: "Lead Sources",
   DEVELOPERS: "Developers",
   PROJECTS: "Projects",
@@ -90,6 +94,8 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
 export const PERMISSION_GROUP_ORDER: PermissionGroupKey[] = [
   "LEADS",
   "LEAD_NOTES",
+  "LEAD_ACTIVITIES",
+  "TASKS",
   "LEAD_SOURCES",
   "DEVELOPERS",
   "PROJECTS",
@@ -159,6 +165,11 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "lead-note.read": "View lead notes",
   "lead-note.update": "Update lead notes",
   "lead-note.delete": "Delete lead notes",
+  "lead-activity.create": "Log calls, WhatsApp, emails, meetings and visits",
+  "task.read": "View follow-ups",
+  "task.create": "Schedule follow-ups",
+  "task.update": "Update and complete follow-ups",
+  "task.delete": "Delete follow-ups",
   "lead-source.create": "Create lead sources",
   "lead-source.read": "View lead sources",
   "lead-source.update": "Update lead sources",

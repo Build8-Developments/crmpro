@@ -11,6 +11,7 @@ import {
   isStaleContact,
 } from "@/features/leads/utils/lead-formatters";
 import { formatRelativeTime } from "@/lib/format";
+import { formatDueDate, isPastDue } from "@/features/tasks/utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LeadRowActions } from "../components/lead-row-actions";
@@ -21,6 +22,7 @@ import { useLeadUiStore } from "../stores/lead-ui-store";
 export const LEADS_SORTABLE_COLUMNS = new Set([
   "fullName",
   "lastContactedAt",
+  "nextFollowUpAt",
   "createdAt",
   "updatedAt",
 ]);
@@ -101,6 +103,15 @@ export function createLeadColumns(): ColumnDef<Lead>[] {
       header: "Contacted",
       cell: ({ row }) => (
         <LeadLastContactCell lastContactedAt={row.original.lastContactedAt} />
+      ),
+      enableSorting: true,
+    },
+    {
+      id: "nextFollowUpAt",
+      accessorKey: "nextFollowUpAt",
+      header: "Follow-up",
+      cell: ({ row }) => (
+        <LeadFollowUpCell nextFollowUpAt={row.original.nextFollowUpAt} />
       ),
       enableSorting: true,
     },
@@ -201,6 +212,25 @@ function LeadLastContactCell({
       )}
     >
       {formatLastContacted(lastContactedAt)}
+    </span>
+  );
+}
+
+function LeadFollowUpCell({ nextFollowUpAt }: { nextFollowUpAt: string | null }) {
+  if (!nextFollowUpAt) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  return (
+    <span
+      className={cn(
+        "whitespace-nowrap tabular-nums",
+        isPastDue(nextFollowUpAt)
+          ? "font-medium text-destructive"
+          : "text-muted-foreground",
+      )}
+    >
+      {formatDueDate(nextFollowUpAt)}
     </span>
   );
 }

@@ -76,6 +76,7 @@ export function useLeadFilterOptions() {
           name: stage.name,
           color: stage.color,
           sortOrder: stage.sortOrder,
+          isClosed: stage.isClosed,
         })),
       }));
     },

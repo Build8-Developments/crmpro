@@ -63,6 +63,13 @@ import {
   IconRefresh,
   IconArchive,
   IconTrash,
+  IconBrandWhatsapp,
+  IconCalendarEvent,
+  IconSunHigh,
+  IconLayoutList,
+  IconMapPin,
+  IconChecklist,
+  IconCircleCheck,
 } from "@tabler/icons-react";
 
 /**
@@ -140,6 +147,15 @@ export const AppIcons = {
   refresh: IconRefresh,
   archive: IconArchive,
   trash: IconTrash,
+  whatsapp: IconBrandWhatsapp,
+  message: IconBrandWhatsapp,
+  calendar: IconCalendarEvent,
+  today: IconSunHigh,
+  board: IconLayoutKanban,
+  list: IconLayoutList,
+  mapPin: IconMapPin,
+  followUps: IconChecklist,
+  done: IconCircleCheck,
 } satisfies Record<string, AppIcon>;
 
 export type AppIconName = keyof typeof AppIcons;

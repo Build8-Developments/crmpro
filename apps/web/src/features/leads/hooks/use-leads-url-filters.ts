@@ -69,6 +69,12 @@ export function useLeadsUrlFilters({
     if (parseBooleanParam(searchParams.get("unassigned"))) {
       partial.unassignedOnly = true;
     }
+    if (parseBooleanParam(searchParams.get("notContacted"))) {
+      partial.neverContacted = true;
+    }
+    if (parseBooleanParam(searchParams.get("noFollowUp"))) {
+      partial.noFollowUp = true;
+    }
     if (parseBooleanParam(searchParams.get("stale"))) {
       partial.staleOnly = true;
     }
@@ -110,6 +116,8 @@ export function useLeadsUrlFilters({
     setOrDelete("status", filters.status);
     setOrDelete("unassigned", filters.unassignedOnly ? "true" : null);
     setOrDelete("stale", filters.staleOnly ? "true" : null);
+    setOrDelete("notContacted", filters.neverContacted ? "true" : null);
+    setOrDelete("noFollowUp", filters.noFollowUp ? "true" : null);
     setOrDelete("id", drawerOpen && selectedLeadId ? selectedLeadId : null);
 
     const next = params.toString();

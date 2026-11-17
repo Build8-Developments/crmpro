@@ -13,6 +13,8 @@ export interface LeadsTableFilters {
   projectId?: string;
   unassignedOnly?: boolean;
   staleOnly?: boolean;
+  neverContacted?: boolean;
+  noFollowUp?: boolean;
 }
 
 export type LeadsSortField =
@@ -93,6 +95,8 @@ export function buildLeadsListParams(
     ...(state.filters.projectId ? { projectId: state.filters.projectId } : {}),
     ...(state.filters.unassignedOnly ? { unassignedOnly: true } : {}),
     ...(state.filters.staleOnly ? { staleOnly: true } : {}),
+    ...(state.filters.neverContacted ? { neverContacted: true } : {}),
+    ...(state.filters.noFollowUp ? { noFollowUp: true } : {}),
   };
 }
 

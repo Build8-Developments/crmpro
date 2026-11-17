@@ -4,6 +4,7 @@ import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LeadsService } from './leads.service';
+import { AuditWriterService } from '../audit/audit-writer.service';
 
 describe('LeadsService quota enforcement', () => {
   let service: LeadsService;
@@ -42,6 +43,10 @@ describe('LeadsService quota enforcement', () => {
           useValue: { createActivity: jest.fn() },
         },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
+        {
+          provide: AuditWriterService,
+          useValue: { createAuditLog: jest.fn() },
+        },
         { provide: QuotaService, useValue: quotaService },
       ],
     }).compile();

@@ -6,6 +6,13 @@ export const AUDIT_ENTITY_TYPES = {
   EXPORT_JOB: 'ExportJob',
   LEAD_BULK_ACTION: 'LeadBulkAction',
   TEAM: 'Team',
+  LEAD: 'Lead',
+} as const;
+
+export const LEAD_AUDIT_ACTIONS = {
+  ARCHIVED: 'LEAD_ARCHIVED',
+  RESTORED: 'LEAD_RESTORED',
+  DELETED: 'LEAD_DELETED',
 } as const;
 
 export const TEAM_AUDIT_ACTIONS = {

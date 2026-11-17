@@ -60,6 +60,30 @@ export class NotificationTemplateService {
           ),
           priority: NotificationPriority.CRITICAL,
         };
+      case NotificationType.TASK_ASSIGNED:
+        return {
+          title: 'Follow-up Assigned',
+          message: `You have a new follow-up: ${this.asString(input.metadata.taskTitle, 'Follow-up')}${this.leadSuffix(input.metadata)}.`,
+          priority: NotificationPriority.NORMAL,
+        };
+      case NotificationType.TASK_DUE:
+        return {
+          title: 'Follow-up Due Soon',
+          message: `${this.asString(input.metadata.taskTitle, 'A follow-up')}${this.leadSuffix(input.metadata)} is due soon.`,
+          priority: NotificationPriority.HIGH,
+        };
+      case NotificationType.TASK_OVERDUE:
+        return {
+          title: 'Follow-up Overdue',
+          message: `${this.asString(input.metadata.taskTitle, 'A follow-up')}${this.leadSuffix(input.metadata)} is overdue.`,
+          priority: NotificationPriority.HIGH,
+        };
+      case NotificationType.TASK_COMPLETED:
+        return {
+          title: 'Follow-up Completed',
+          message: `${this.asString(input.metadata.taskTitle, 'A follow-up')}${this.leadSuffix(input.metadata)} was completed.`,
+          priority: NotificationPriority.LOW,
+        };
       case NotificationType.REMINDER:
         return {
           title: this.asString(input.metadata.title, 'Reminder'),
@@ -81,6 +105,11 @@ export class NotificationTemplateService {
           priority: NotificationPriority.NORMAL,
         };
     }
+  }
+
+  private leadSuffix(metadata: Record<string, unknown>): string {
+    const leadName = this.asString(metadata.leadName, '');
+    return leadName ? ` for ${leadName}` : '';
   }
 
   private asString(value: unknown, fallback: string): string {
