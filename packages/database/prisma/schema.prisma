@@ -64,6 +64,15 @@ enum LeadActivityEventType {
   TASK_CANCELLED
   MEETING_LOGGED
   SITE_VISIT_LOGGED
+  SLA_BREACHED
+  LEAD_RESUBMITTED
+}
+
+enum SlaAction {
+  /// Notify the team leader (or owners) only.
+  NOTIFY
+  /// Notify and hand the lead to the next agent in the rotation (once).
+  REASSIGN
 }
 
 enum TaskType {
@@ -124,6 +133,8 @@ enum NotificationType {
   TASK_OVERDUE
   TASK_COMPLETED
   SUPPORT_REPLY
+  SLA_BREACHED
+  LEAD_RESUBMITTED
 }
 
 enum SupportConversationStatus {
@@ -244,6 +255,8 @@ model Tenant {
   users            User[]
   teams            Team[]
   tasks            Task[]
+  settings         TenantSettings?
+  apiKeys          ApiKey[]
   fileAssets       FileAsset[]
   developers       Developer[]
   projects         Project[]
@@ -312,6 +325,9 @@ model User {
   /// Set when the user was invited by email; cleared once they set a password.
   invitedAt        DateTime?
   inviteAcceptedAt DateTime?
+  /// Included in automatic lead distribution (round-robin).
+  receivesLeads      Boolean   @default(true)
+  lastAutoAssignedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
@@ -329,6 +345,7 @@ model User {
   assignedTasks      Task[]        @relation("TaskAssignee")
   createdTasks       Task[]        @relation("TaskCreator")
   tokens             UserToken[]
+  apiKeys            ApiKey[]
   auditLogs          AuditLog[]
   importJobs         ImportJob[]
   exportJobs         ExportJob[]
@@ -362,6 +379,42 @@ model Team {
   @@unique([tenantId, name])
   @@index([tenantId, deletedAt])
   @@index([leaderUserId])
+}
+
+/// Per-workspace preferences editable by the tenant (Owner).
+model TenantSettings {
+  tenantId                String    @id @db.Uuid
+  timezone                String    @default("Africa/Cairo")
+  /// ISO 3166-1 alpha-2, used for local phone numbers (e.g. WhatsApp links).
+  defaultCountryCode      String    @default("EG")
+  currency                String    @default("EGP")
+  defaultLocale           String    @default("ar")
+  autoAssignEnabled       Boolean   @default(false)
+  /// Minutes the owner has to make first contact; null = SLA off.
+  slaFirstResponseMinutes Int?
+  slaAction               SlaAction @default(NOTIFY)
+  updatedAt               DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Keys for inbound integrations (website forms, Zapier, ad platforms).
+/// Only a SHA-256 hash is stored; the key is shown once at creation.
+model ApiKey {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  name            String
+  prefix          String
+  keyHash         String    @unique
+  lastUsedAt      DateTime?
+  createdByUserId String    @db.Uuid
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation(fields: [createdByUserId], references: [id])
+
+  @@index([tenantId, revokedAt])
 }
 
 model UserSession {
@@ -519,6 +572,12 @@ model Lead {
   firstContactedAt        DateTime?
   /// Earliest open follow-up task; null when nothing is scheduled.
   nextFollowUpAt          DateTime?
+  /// When the current owner got the lead (SLA clock start).
+  assignedAt              DateTime?
+  /// Set once when first contact missed the tenant's SLA.
+  slaBreachedAt           DateTime?
+  /// Caller-supplied id from an inbound integration (idempotency).
+  externalId              String?
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
   deletedAt               DateTime?
@@ -536,6 +595,8 @@ model Lead {
 
   @@index([tenantId, pipelineStageId, assignedUserId])
   @@index([tenantId, createdAt(sort: Desc)])
+  @@unique([tenantId, externalId])
+  @@index([tenantId, slaBreachedAt])
   @@index([tenantId, nextFollowUpAt])
   @@index([tenantId, status])
   @@index([tenantId, primaryPhoneNormalized])

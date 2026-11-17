@@ -50,6 +50,8 @@ export interface Lead {
   lastContactedAt: string | null;
   firstContactedAt: string | null;
   nextFollowUpAt: string | null;
+  assignedAt: string | null;
+  slaBreachedAt: string | null;
   createdAt: string;
   updatedAt: string;
   source: LeadSourceSummary | null;
@@ -140,6 +142,7 @@ export interface LeadsListParams extends ListQueryParams {
   staleOnly?: boolean;
   neverContacted?: boolean;
   noFollowUp?: boolean;
+  slaBreached?: boolean;
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }

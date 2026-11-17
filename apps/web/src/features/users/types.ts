@@ -15,6 +15,7 @@ export interface UserListItem {
   team: { id: string; name: string } | null;
   /** Invited by email and hasn't set a password yet. */
   invitationPending: boolean;
+  receivesLeads: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

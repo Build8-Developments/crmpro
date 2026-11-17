@@ -11,6 +11,7 @@ const userListSelect = {
   lastLoginAt: true,
   invitedAt: true,
   inviteAcceptedAt: true,
+  receivesLeads: true,
   createdAt: true,
   updatedAt: true,
   role: {
@@ -44,6 +45,7 @@ export function toUserListItem(user: UserListRecord): UserListItem {
     team: user.team,
     invitationPending:
       user.invitedAt !== null && user.inviteAcceptedAt === null,
+    receivesLeads: user.receivesLeads,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

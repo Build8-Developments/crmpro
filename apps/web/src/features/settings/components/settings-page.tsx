@@ -10,6 +10,8 @@ import {
 } from "@/features/settings/components/settings-nav";
 import { WorkspaceSettingsCard } from "@/features/settings/components/workspace-settings-card";
 import { TeamsSettingsCard } from "@/features/teams/components/teams-settings-card";
+import { LeadDistributionCard } from "@/features/tenant-settings/components/lead-distribution-card";
+import { IntegrationsCard } from "@/features/api-keys/components/integrations-card";
 
 export function SettingsPage() {
   const [activeSection, setActiveSection] =
@@ -41,6 +43,8 @@ export function SettingsPage() {
             {activeSection === "profile" ? <ProfileSettingsCard /> : null}
             {activeSection === "workspace" ? <WorkspaceSettingsCard /> : null}
             {activeSection === "teams" ? <TeamsSettingsCard /> : null}
+            {activeSection === "distribution" ? <LeadDistributionCard /> : null}
+            {activeSection === "integrations" ? <IntegrationsCard /> : null}
             {activeSection === "sessions" ? <SessionsSettingsCard /> : null}
             {activeSection === "notifications" ? (
               <NotificationPreferencesCard />

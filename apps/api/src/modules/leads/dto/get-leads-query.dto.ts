@@ -61,4 +61,9 @@ export class GetLeadsQueryDto extends ListQueryDto {
   @Transform(({ value }) => parseOptionalBoolean(value))
   @IsBoolean()
   noFollowUp?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => parseOptionalBoolean(value))
+  @IsBoolean()
+  slaBreached?: boolean;
 }

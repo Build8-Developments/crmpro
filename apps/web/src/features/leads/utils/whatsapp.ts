@@ -1,6 +1,6 @@
 /**
  * Builds a wa.me link. Local numbers (leading 0) get the workspace's country
- * dial code — Egypt (20) until tenant settings provide one.
+ * dial code from tenant settings (Egypt by default).
  */
 export function toWhatsAppUrl(phone: string, defaultDialCode = "20"): string {
   let digits = phone.replace(/[^\d+]/g, "");

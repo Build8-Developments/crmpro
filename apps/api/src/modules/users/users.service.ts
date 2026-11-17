@@ -402,6 +402,36 @@ export class UsersService {
     return user;
   }
 
+  /** Opt a user in/out of automatic lead distribution. */
+  async updateLeadRouting(
+    tenantId: string,
+    actorUserId: string,
+    id: string,
+    receivesLeads: boolean,
+  ): Promise<UserListItem> {
+    await this.getUserOrThrow(tenantId, id);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: { receivesLeads },
+        select: userListSelectClause,
+      });
+
+      await this.auditService.logLeadRoutingUpdated(
+        tenantId,
+        actorUserId,
+        id,
+        { receivesLeads },
+        tx,
+      );
+
+      return updated;
+    });
+
+    return toUserListItem(user);
+  }
+
   private async assertTeamExists(
     tenantId: string,
     teamId: string,

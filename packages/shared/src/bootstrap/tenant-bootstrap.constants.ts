@@ -38,7 +38,8 @@ export const MANAGER_PERMISSION_KEYS: readonly PermissionKey[] =
       key !== PERMISSIONS.USER_MANAGE &&
       key !== PERMISSIONS.ROLE_MANAGE &&
       // Managers see their team's leads, not the whole tenant.
-      key !== PERMISSIONS.LEAD_READ_ALL,
+      key !== PERMISSIONS.LEAD_READ_ALL &&
+      key !== PERMISSIONS.API_KEY_MANAGE,
   );
 
 export const AGENT_PERMISSION_KEYS: readonly PermissionKey[] = [

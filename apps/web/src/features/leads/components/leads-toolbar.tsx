@@ -41,11 +41,13 @@ type QuickChipKey =
   | "unassignedOnly"
   | "staleOnly"
   | "neverContacted"
-  | "noFollowUp";
+  | "noFollowUp"
+  | "slaBreached";
 
 const QUICK_CHIPS: Array<{ key: QuickChipKey; label?: string }> = [
   { key: "neverContacted" },
   { key: "noFollowUp" },
+  { key: "slaBreached" },
   { key: "unassignedOnly", label: "Unassigned" },
   { key: "staleOnly", label: "Stale" },
 ];
@@ -71,7 +73,8 @@ export function LeadsToolbar({
     (filters.unassignedOnly ? 1 : 0) -
     (filters.staleOnly ? 1 : 0) -
     (filters.neverContacted ? 1 : 0) -
-    (filters.noFollowUp ? 1 : 0);
+    (filters.noFollowUp ? 1 : 0) -
+    (filters.slaBreached ? 1 : 0);
 
   return (
     <div className="space-y-3 border-b border-border/50 px-4 py-3">
@@ -155,7 +158,9 @@ export function LeadsToolbar({
       <div className="flex flex-wrap gap-1">
         {QUICK_CHIPS.filter(
           // Own-scope users never see unassigned leads.
-          (chip) => chip.key !== "unassignedOnly" || leadScope !== "own",
+          (chip) =>
+            (chip.key !== "unassignedOnly" && chip.key !== "slaBreached") ||
+            leadScope !== "own",
         ).map((chip) => {
           const active = Boolean(filters[chip.key]);
           return (
@@ -175,7 +180,9 @@ export function LeadsToolbar({
               )}
             >
               {chip.label ??
-                tQuick(chip.key as "neverContacted" | "noFollowUp")}
+                tQuick(
+                  chip.key as "neverContacted" | "noFollowUp" | "slaBreached",
+                )}
             </button>
           );
         })}

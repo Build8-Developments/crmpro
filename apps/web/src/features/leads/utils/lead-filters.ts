@@ -31,6 +31,7 @@ export function countActiveLeadFilters(filters: LeadsTableFilters): number {
   if (filters.staleOnly) count += 1;
   if (filters.neverContacted) count += 1;
   if (filters.noFollowUp) count += 1;
+  if (filters.slaBreached) count += 1;
   return count;
 }
 

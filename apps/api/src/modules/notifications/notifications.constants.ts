@@ -41,6 +41,9 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.TASK_COMPLETED]:
     NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.SUPPORT_REPLY]: NotificationPreferenceCategory.SYSTEM,
+  [NotificationType.SLA_BREACHED]: NotificationPreferenceCategory.LEAD_ASSIGNED,
+  [NotificationType.LEAD_RESUBMITTED]:
+    NotificationPreferenceCategory.LEAD_ASSIGNED,
 };
 
 export const DEFAULT_NOTIFICATION_PRIORITY = NotificationPriority.NORMAL;

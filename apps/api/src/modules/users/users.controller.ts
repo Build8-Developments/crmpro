@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { CheckEmailDto } from './dto/check-email.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
+import { UpdateLeadRoutingDto } from './dto/update-lead-routing.dto';
 import { UserInvitationsService } from './services/user-invitations.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { GetUsersQueryDto } from './dto/get-users-query.dto';
@@ -82,6 +83,22 @@ export class UsersController {
       user.tenantId,
       user.id,
       dto,
+    );
+    return { success: true, data };
+  }
+
+  @Patch(':id/lead-routing')
+  @RequirePermission(PERMISSIONS.TENANT_MANAGE)
+  async updateLeadRouting(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateLeadRoutingDto,
+  ) {
+    const data = await this.usersService.updateLeadRouting(
+      user.tenantId,
+      user.id,
+      id,
+      dto.receivesLeads,
     );
     return { success: true, data };
   }

@@ -62,6 +62,11 @@ export function TodayPage() {
     },
   );
 
+  const slaBreached = useLeads(
+    { slaBreached: true, status: "OPEN", limit: 20, sortBy: "createdAt", sortOrder: "asc" },
+  );
+  const showSla = leadScope !== "own" && (slaBreached.data?.pagination.totalItems ?? 0) > 0;
+
   const openLead = (leadId: string) => router.push(`/leads?id=${leadId}`);
 
   const kpis = [
@@ -135,6 +140,36 @@ export function TodayPage() {
         </div>
 
         {can("lead.read") ? (
+          <div className="space-y-5">
+          {showSla ? (
+            <section className="space-y-2">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-destructive">
+                <AppIcons.alertTriangle className="size-3.5" />
+                {t("sections.slaBreached")} ({slaBreached.data?.pagination.totalItems})
+              </h2>
+              <ul className="divide-y rounded-lg border border-destructive/30 bg-card">
+                {slaBreached.data!.items.map((lead) => (
+                  <li key={lead.id}>
+                    <Link
+                      href={`/leads?id=${lead.id}`}
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-muted/40"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{lead.fullName}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {lead.assignee?.name ?? "—"}
+                          {lead.source ? ` · ${lead.source.name}` : ""}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-destructive">
+                        {lead.assignedAt ? formatRelativeTime(lead.assignedAt) : ""}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           <section className="space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t("sections.notContacted")}
@@ -172,6 +207,7 @@ export function TodayPage() {
               </ul>
             )}
           </section>
+          </div>
         ) : null}
       </div>
 

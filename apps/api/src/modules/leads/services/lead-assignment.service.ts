@@ -81,7 +81,12 @@ export class LeadAssignmentService {
     const activity = await this.prisma.$transaction(async (tx) => {
       await tx.lead.update({
         where: { id: lead.id },
-        data: { assignedUserId: newUserId },
+        // A new owner gets a fresh SLA clock.
+        data: {
+          assignedUserId: newUserId,
+          assignedAt: newUserId ? new Date() : null,
+          slaBreachedAt: null,
+        },
       });
 
       return this.leadActivityService.createActivity(

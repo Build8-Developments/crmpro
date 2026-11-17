@@ -223,6 +223,7 @@ const PERMISSIONS = [
   { key: 'audit.read', description: 'View business audit logs' },
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
+  { key: 'api-key.manage', description: 'Create and revoke inbound API keys' },
 ] as const;
 
 const ADMIN_ROLE_IDS = {

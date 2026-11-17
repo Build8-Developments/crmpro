@@ -45,7 +45,8 @@ export class NotificationTriggerService {
     recipientUserId: string;
     leadId: string;
     leadName: string;
-    actorUserId: string;
+    /** null for automatic (round-robin / SLA) assignments. */
+    actorUserId: string | null;
   }): Promise<void> {
     await this.trigger({
       tenantId: params.tenantId,

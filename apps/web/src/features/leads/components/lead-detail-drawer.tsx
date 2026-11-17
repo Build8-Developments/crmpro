@@ -36,6 +36,7 @@ import { LeadTimelineItem } from "@/features/leads/components/lead-timeline-item
 import { LogActivityDialog } from "@/features/leads/components/log-activity-dialog";
 import type { InteractionType } from "@/features/leads/types";
 import { toWhatsAppUrl } from "@/features/leads/utils/whatsapp";
+import { useDefaultDialCode } from "@/features/tenant-settings/hooks";
 import { formatDueDate } from "@/features/tasks/utils";
 import { formatRelativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
@@ -60,6 +61,7 @@ export function LeadDetailDrawer() {
   const [loggingType, setLoggingType] = useState<InteractionType | null>(null);
   const tActivity = useTranslations("activity.actions");
   const tTasks = useTranslations("tasks.section");
+  const dialCode = useDefaultDialCode();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -209,7 +211,7 @@ export function LeadDetailDrawer() {
                     label={tActivity("whatsapp")}
                     onClick={() => {
                       window.open(
-                        toWhatsAppUrl(lead.primaryPhone),
+                        toWhatsAppUrl(lead.primaryPhone, dialCode),
                         "_blank",
                         "noopener,noreferrer",
                       );

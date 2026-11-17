@@ -160,6 +160,7 @@ export class LeadsService {
           pipelineId: dto.pipelineId,
           pipelineStageId: dto.pipelineStageId,
           assignedUserId: assignee?.id ?? null,
+          assignedAt: assignee ? new Date() : null,
           status: LeadStatus.OPEN,
           fullName,
           primaryPhone,
@@ -332,6 +333,7 @@ export class LeadsService {
           pipelineId: pipeline.pipelineId,
           pipelineStageId: pipeline.pipelineStageId,
           assignedUserId: assignee?.id ?? null,
+          assignedAt: assignee ? new Date() : null,
           status: LeadStatus.OPEN,
           fullName,
           primaryPhone,
@@ -689,6 +691,14 @@ export class LeadsService {
       });
     }
 
+    if (filters.slaBreached) {
+      and.push({
+        status: LeadStatus.OPEN,
+        slaBreachedAt: { not: null },
+        firstContactedAt: null,
+      });
+    }
+
     if (filters.noFollowUp) {
       and.push({
         status: LeadStatus.OPEN,
@@ -776,6 +786,7 @@ export class LeadsService {
         staleOnly: query.staleOnly,
         neverContacted: query.neverContacted,
         noFollowUp: query.noFollowUp,
+        slaBreached: query.slaBreached,
       },
       scope,
     );

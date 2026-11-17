@@ -65,7 +65,7 @@ export const PERMISSION_GROUPS = {
     "notification.delete",
   ],
   AUDIT: ["audit.read"],
-  TENANT: ["tenant.manage", "billing.manage"],
+  TENANT: ["tenant.manage", "billing.manage", "api-key.manage"],
 } as const;
 
 export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
@@ -213,5 +213,6 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "audit.read": "View business audit logs",
   "tenant.manage": "Manage tenant settings",
   "billing.manage": "Manage billing and subscription",
+  "api-key.manage": "Create and revoke inbound API keys",
 };
 

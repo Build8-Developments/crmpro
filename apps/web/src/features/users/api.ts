@@ -40,6 +40,10 @@ export function inviteUser(input: InviteUserInput) {
   return apiClient.post<UserListItem>("/users/invite", input);
 }
 
+export function updateLeadRouting(id: string, receivesLeads: boolean) {
+  return apiClient.patch<UserListItem>(`/users/${id}/lead-routing`, { receivesLeads });
+}
+
 export function resendInvite(id: string) {
   return apiClient.post<{ id: string }>(`/users/${id}/resend-invite`);
 }

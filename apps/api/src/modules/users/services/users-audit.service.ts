@@ -129,6 +129,23 @@ export class UsersAuditService {
     );
   }
 
+  async logLeadRoutingUpdated(
+    tenantId: string,
+    actorUserId: string,
+    userId: string,
+    metadata: Record<string, unknown>,
+    tx?: AuditTx,
+  ): Promise<void> {
+    await this.write(
+      tenantId,
+      actorUserId,
+      userId,
+      USER_AUDIT_ACTIONS.LEAD_ROUTING_UPDATED,
+      metadata,
+      tx,
+    );
+  }
+
   private async write(
     tenantId: string,
     actorUserId: string,

@@ -13,6 +13,8 @@ export const leadSelect = {
   lastContactedAt: true,
   firstContactedAt: true,
   nextFollowUpAt: true,
+  assignedAt: true,
+  slaBreachedAt: true,
   createdAt: true,
   updatedAt: true,
   source: {
@@ -69,6 +71,8 @@ export function toLeadResponse(lead: LeadRecord): LeadResponse {
     lastContactedAt: lead.lastContactedAt,
     firstContactedAt: lead.firstContactedAt,
     nextFollowUpAt: lead.nextFollowUpAt,
+    assignedAt: lead.assignedAt,
+    slaBreachedAt: lead.slaBreachedAt,
     createdAt: lead.createdAt,
     updatedAt: lead.updatedAt,
     source: lead.source,

@@ -70,6 +70,15 @@ export const queryKeys = {
     summary: (bounds?: object) => ["tasks", "summary", bounds ?? {}] as const,
   },
 
+  tenantSettings: {
+    all: () => ["tenant-settings"] as const,
+    detail: () => ["tenant-settings", "detail"] as const,
+  },
+
+  apiKeys: {
+    all: () => ["api-keys"] as const,
+  },
+
   teams: {
     all: () => ["teams"] as const,
     list: () => ["teams", "list"] as const,

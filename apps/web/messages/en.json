@@ -111,6 +111,14 @@
       "teams": {
         "label": "Teams",
         "description": "Sales teams & leaders"
+      },
+      "distribution": {
+        "label": "Lead distribution",
+        "description": "Auto-assign & speed-to-lead"
+      },
+      "integrations": {
+        "label": "Integrations",
+        "description": "API keys & webhooks"
       }
     },
     "notifications": {
@@ -195,7 +203,8 @@
     "followUpColumn": "Follow-up",
     "quickFilters": {
       "neverContacted": "Not contacted",
-      "noFollowUp": "No follow-up"
+      "noFollowUp": "No follow-up",
+      "slaBreached": "Missed SLA"
     }
   },
   "dashboard": {
@@ -258,7 +267,9 @@
       "TASK_CANCELLED": "Follow-up cancelled",
       "TASK_ASSIGNED": "Follow-up reassigned",
       "STATUS_ARCHIVED": "Archived",
-      "STATUS_RESTORED": "Restored"
+      "STATUS_RESTORED": "Restored",
+      "SLA_BREACHED": "First-call SLA missed",
+      "LEAD_RESUBMITTED": "Came back via integration"
     }
   },
   "tasks": {
@@ -322,21 +333,68 @@
       "overdue": "Overdue",
       "dueToday": "Due today",
       "upcoming": "Next 7 days",
-      "notContacted": "Not contacted"
+      "notContacted": "Not contacted",
+      "slaBreached": "Missed SLA"
     },
     "sections": {
       "overdue": "Overdue",
       "today": "Due today",
       "upcoming": "Coming up",
-      "notContacted": "New leads waiting for first contact"
+      "notContacted": "New leads waiting for first contact",
+      "slaBreached": "Leads that missed the first-call SLA"
     },
     "empty": {
       "overdue": "Nothing overdue. Nice.",
       "today": "Nothing else due today.",
       "upcoming": "Nothing scheduled this week.",
-      "notContacted": "Every lead has been contacted."
+      "notContacted": "Every lead has been contacted.",
+      "slaBreached": "Every new lead was called in time."
     },
     "openLead": "Open lead",
     "assignedTo": "for {name}"
+  },
+  "distribution": {
+    "title": "Lead distribution",
+    "description": "Route new leads automatically and make sure every lead gets a fast first call.",
+    "autoAssign": "Auto-assign new leads",
+    "autoAssignHelp": "Unassigned leads from the form, imports and integrations go round-robin to the people checked below.",
+    "receivers": "Who receives leads",
+    "receiversHelp": "Each new lead goes to whoever got one least recently.",
+    "noUsers": "No active users.",
+    "sla": "Speed-to-lead (SLA)",
+    "slaHelp": "If the owner doesn't log a call, WhatsApp, meeting or visit in time, we alert their team leader (or the owners).",
+    "slaOff": "Off",
+    "slaMinutes": "{count, plural, one {# minute} other {# minutes}}",
+    "slaCustom": "Minutes",
+    "slaAction": "When the SLA is missed",
+    "slaNotify": "Alert the team leader",
+    "slaReassign": "Alert and hand the lead to the next agent",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Distribution settings saved",
+    "routingSaved": "Updated"
+  },
+  "integrations": {
+    "title": "Integrations",
+    "description": "Send leads from your website, landing pages, Zapier/Make or ad platforms straight into CRMPro.",
+    "newKey": "New API key",
+    "keyName": "Key name",
+    "keyNamePlaceholder": "e.g. Website contact form",
+    "create": "Create key",
+    "creating": "Creating...",
+    "copyOnce": "Copy this key now — it won't be shown again.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done",
+    "empty": "No API keys yet.",
+    "revoke": "Revoke",
+    "revoked": "Revoked",
+    "revokeConfirm": "Revoke \"{name}\"? Integrations using it will stop immediately.",
+    "lastUsed": "Last used {when}",
+    "neverUsed": "Never used",
+    "endpoint": "Endpoint",
+    "example": "Example",
+    "duplicateRule": "A phone number that already belongs to an open lead is never duplicated: the current owner keeps the lead and gets notified.",
+    "planRequired": "API access is not included in your current plan."
   }
 }

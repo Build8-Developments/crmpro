@@ -13,6 +13,7 @@ Each plan file is self-contained with acceptance criteria and a definition of do
 | 06 | [Access Scoping & Teams](./06-access-scoping.md) | lead data scope (own/team/all), teams, scoped analytics/exports | ✅ complete |
 | 07 | [Daily Work](./07-daily-work.md) | activity logging, follow-ups + reminders, Today view, Kanban, lead lifecycle API | ✅ complete |
 | 08 | [Email & Invitations](./08-email-invites.md) | mail queue + Mailpit, password reset, email invites, email notifications | ✅ complete |
+| 09 | [Distribution, SLA & Inbound API](./09-distribution-sla-inbound.md) | workspace settings, round-robin, speed-to-lead SLA, API keys + inbound webhook | ✅ complete |
 
 ## Working agreement
 

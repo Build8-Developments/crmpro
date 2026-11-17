@@ -33,6 +33,10 @@ import { UsersModule } from './modules/users/users.module';
 import { TeamsModule } from './modules/teams/teams.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { MailModule } from './modules/mail/mail.module';
+import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.module';
+import { LeadDistributionModule } from './modules/lead-distribution/lead-distribution.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { InboundModule } from './modules/inbound/inbound.module';
 import { SupportModule } from './modules/support/support.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
@@ -74,6 +78,10 @@ import { envValidationSchema } from './config/env.validation';
     TeamsModule,
     TasksModule,
     MailModule,
+    TenantSettingsModule,
+    LeadDistributionModule,
+    ApiKeysModule,
+    InboundModule,
     RolesModule,
     SupportModule,
     PublicModule,

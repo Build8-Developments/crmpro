@@ -9,6 +9,8 @@ export type SettingsSectionId =
   | "profile"
   | "workspace"
   | "teams"
+  | "distribution"
+  | "integrations"
   | "sessions"
   | "notifications";
 
@@ -29,6 +31,16 @@ const TRANSLATED_SECTIONS: Array<
     id: "teams",
     icon: AppIcons.users,
     requiredPermission: "team.read",
+  },
+  {
+    id: "distribution",
+    icon: AppIcons.stageChange,
+    requiredPermission: "tenant.manage",
+  },
+  {
+    id: "integrations",
+    icon: AppIcons.activity,
+    requiredPermission: "api-key.manage",
   },
 ];
 
@@ -74,11 +86,9 @@ export function useSettingsSections(): SettingsSectionDefinition[] {
     description: t(`${section.id}.description`),
   }));
 
-  // Keep "teams" right after "workspace".
+  // Workspace-level sections follow "workspace".
   const ordered = SECTIONS.flatMap((section) =>
-    section.id === "workspace"
-      ? [section, ...translated.filter((item) => item.id === "teams")]
-      : [section],
+    section.id === "workspace" ? [section, ...translated] : [section],
   );
 
   return ordered.filter(

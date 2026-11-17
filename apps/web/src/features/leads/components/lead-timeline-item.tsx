@@ -18,6 +18,8 @@ const INTERACTION_ICONS: Partial<Record<string, typeof AppIcons.phone>> = {
   TASK_ASSIGNED: AppIcons.userPlus,
   STATUS_ARCHIVED: AppIcons.archive,
   STATUS_RESTORED: AppIcons.refresh,
+  SLA_BREACHED: AppIcons.alertTriangle,
+  LEAD_RESUBMITTED: AppIcons.refresh,
 };
 
 function asText(value: unknown): string | null {

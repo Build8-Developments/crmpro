@@ -15,6 +15,7 @@ export interface LeadsTableFilters {
   staleOnly?: boolean;
   neverContacted?: boolean;
   noFollowUp?: boolean;
+  slaBreached?: boolean;
 }
 
 export type LeadsSortField =
@@ -97,6 +98,7 @@ export function buildLeadsListParams(
     ...(state.filters.staleOnly ? { staleOnly: true } : {}),
     ...(state.filters.neverContacted ? { neverContacted: true } : {}),
     ...(state.filters.noFollowUp ? { noFollowUp: true } : {}),
+    ...(state.filters.slaBreached ? { slaBreached: true } : {}),
   };
 }
 

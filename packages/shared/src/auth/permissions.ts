@@ -81,6 +81,9 @@ export const PERMISSIONS = {
 
   TENANT_MANAGE: 'tenant.manage',
   BILLING_MANAGE: 'billing.manage',
+
+  /** Create and revoke inbound API keys (website forms, Zapier, ad platforms). */
+  API_KEY_MANAGE: 'api-key.manage',
 } as const;
 
 export const ADMIN_PERMISSIONS = {
@@ -199,7 +202,11 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.SUPPORT_UPDATE,
   ],
   AUDIT: [PERMISSIONS.AUDIT_READ],
-  TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
+  TENANT: [
+    PERMISSIONS.TENANT_MANAGE,
+    PERMISSIONS.BILLING_MANAGE,
+    PERMISSIONS.API_KEY_MANAGE,
+  ],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
 export const ADMIN_PERMISSION_GROUPS = {

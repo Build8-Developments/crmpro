@@ -20,6 +20,8 @@ export type UserListItem = {
   team: UserTeamSummary | null;
   /** Invited by email and hasn't set a password yet. */
   invitationPending: boolean;
+  /** Included in automatic lead distribution. */
+  receivesLeads: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

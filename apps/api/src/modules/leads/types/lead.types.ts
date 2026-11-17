@@ -45,6 +45,8 @@ export interface LeadResponse {
   lastContactedAt: Date | null;
   firstContactedAt: Date | null;
   nextFollowUpAt: Date | null;
+  assignedAt: Date | null;
+  slaBreachedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   source: LeadSourceSummary | null;
@@ -152,6 +154,8 @@ export interface LeadListFilters {
   neverContacted?: boolean;
   /** Open leads with no follow-up scheduled. */
   noFollowUp?: boolean;
+  /** Open leads whose first contact missed the SLA and still wait. */
+  slaBreached?: boolean;
 }
 
 export interface LeadExportParams extends LeadListFilters {
