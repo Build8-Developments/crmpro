@@ -12,6 +12,7 @@ import { NotificationTriggerService } from '../notifications/notification-trigge
 import { QueueService } from '../jobs/queues/queue.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
 import { ImportJobsService } from './import-jobs.service';
+import { LeadDistributionService } from '../lead-distribution/lead-distribution.service';
 
 describe('ImportJobsService tenant suspension', () => {
   let service: ImportJobsService;
@@ -55,6 +56,7 @@ describe('ImportJobsService tenant suspension', () => {
           provide: AuditWriterService,
           useValue: { createAuditLog: jest.fn() },
         },
+        { provide: LeadDistributionService, useValue: {} },
       ],
     }).compile();
 

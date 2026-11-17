@@ -20,7 +20,7 @@ function putToStorage(uploadUrl: string, file: File, contentType: string): Promi
 export async function uploadFile(
   file: File,
   category: CompleteUploadInput["category"],
-  options?: { leadId?: string },
+  options?: { leadId?: string; projectId?: string },
 ) {
   const contentType = file.type || "application/octet-stream";
   const intent = await requestFileUpload({
@@ -35,5 +35,6 @@ export async function uploadFile(
     objectKey: intent.objectKey,
     category,
     ...(options?.leadId ? { leadId: options.leadId } : {}),
+    ...(options?.projectId ? { projectId: options.projectId } : {}),
   });
 }

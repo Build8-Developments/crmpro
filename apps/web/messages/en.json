@@ -513,5 +513,72 @@
     "deleted": "View deleted",
     "delete": "Delete view",
     "empty": "No saved views yet."
+  },
+  "imports": {
+    "title": "Import leads",
+    "description": "Upload an Excel or CSV file, match its columns, then import in the background.",
+    "steps": {
+      "upload": "Upload",
+      "map": "Match columns",
+      "review": "Review"
+    },
+    "uploadHelp": "Any column order works — Arabic or English headers like “الاسم”, “رقم الموبايل” or “Phone” are matched automatically. Each lead needs a name and a phone.",
+    "downloadTemplate": "Download a sample file",
+    "dropHere": "Drop an Excel or CSV file here, or browse",
+    "fileLimits": "Up to 10,000 rows · .xlsx or .csv · max 25 MB",
+    "reading": "Reading file…",
+    "next": "Next",
+    "back": "Back",
+    "cancel": "Cancel",
+    "starting": "Starting…",
+    "start": "Import {count, plural, one {# lead} other {# leads}}",
+    "mapRequired": "Choose a column for: {fields}",
+    "mapHelp": "{rows, plural, one {# row} other {# rows}} found in {file}. Check which column fills each field.",
+    "required": "Required",
+    "customField": "Custom",
+    "example": "e.g. {value}",
+    "dontImport": "Don't import",
+    "columnN": "Column {n}",
+    "notImported": "not imported",
+    "previewTitle": "Preview",
+    "ignoredColumns": "{count, plural, one {# column} other {# columns}} won't be imported",
+    "requiredCustomWarning": "{fields} is required for every lead. Rows without it will fail — map a column for it.",
+    "summary": {
+      "rows": "Rows",
+      "mapped": "Mapped fields",
+      "format": "Format"
+    },
+    "defaultsTitle": "Defaults for every lead",
+    "defaultsHelp": "Used when a row has no value of its own.",
+    "defaults": {
+      "source": "Source",
+      "project": "Project",
+      "pipeline": "Pipeline",
+      "stage": "Stage",
+      "assignee": "Assign to",
+      "none": "None",
+      "defaultPipeline": "Default pipeline",
+      "firstStage": "First stage",
+      "unassigned": "Unassigned (auto-assign if on)"
+    },
+    "duplicatesTitle": "When the phone number already exists",
+    "duplicates": {
+      "SKIP": {
+        "title": "Skip the row",
+        "help": "Recommended — keeps one lead per client."
+      },
+      "CREATE": {
+        "title": "Import anyway",
+        "help": "Creates a second lead with the same phone."
+      }
+    },
+    "errors": {
+      "read": "We couldn't read this file. Check it and try again.",
+      "start": "The import couldn't start. Try again.",
+      "type": "Choose an .xlsx or .csv file",
+      "size": "The file is larger than 25 MB"
+    },
+    "skipped": "Skipped (duplicates)",
+    "duplicateRow": "Duplicate"
   }
 }

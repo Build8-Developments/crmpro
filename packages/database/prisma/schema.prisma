@@ -33,6 +33,20 @@ enum PipelineCloseType {
   LOST
 }
 
+enum ImportDuplicatePolicy {
+  /// Rows whose phone matches an existing lead are skipped (default).
+  SKIP
+  /// Rows are imported even when the phone already exists.
+  CREATE
+}
+
+enum ProjectUpdateType {
+  PRICE_CHANGE
+  NEW_PHASE
+  AVAILABILITY
+  GENERAL
+}
+
 enum InterestLevel {
   LOW
   MEDIUM
@@ -136,6 +150,7 @@ enum NotificationType {
   SUPPORT_REPLY
   SLA_BREACHED
   LEAD_RESUBMITTED
+  PROJECT_UPDATE
 }
 
 enum SupportConversationStatus {
@@ -173,6 +188,7 @@ enum NotificationPreferenceCategory {
   SYSTEM
   SECURITY
   TASK_UPDATES
+  PROJECT_UPDATES
 }
 
 enum AdminActorType {
@@ -260,6 +276,7 @@ model Tenant {
   apiKeys          ApiKey[]
   customFields     CustomFieldDefinition[]
   savedViews       SavedView[]
+  projectUpdates   ProjectUpdate[]
   fileAssets       FileAsset[]
   developers       Developer[]
   projects         Project[]
@@ -350,6 +367,7 @@ model User {
   tokens             UserToken[]
   apiKeys            ApiKey[]
   savedViews         SavedView[]
+  projectUpdates     ProjectUpdate[]
   auditLogs          AuditLog[]
   importJobs         ImportJob[]
   exportJobs         ExportJob[]
@@ -553,10 +571,33 @@ model Project {
   developer           Developer             @relation(fields: [developerId], references: [id])
   fileAssets          FileAsset[]
   leadProjectInterests LeadProjectInterest[]
+  updates             ProjectUpdate[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
   @@index([developerId])
+}
+
+/// News about a project (price change, new phase, availability) broadcast to
+/// everyone who can read projects.
+model ProjectUpdate {
+  id           String            @id @default(uuid()) @db.Uuid
+  tenantId     String            @db.Uuid
+  projectId    String            @db.Uuid
+  authorUserId String            @db.Uuid
+  type         ProjectUpdateType @default(GENERAL)
+  title        String
+  body         String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+  author  User    @relation(fields: [authorUserId], references: [id])
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
 }
 
 model LeadSource {
@@ -641,6 +682,9 @@ model Lead {
   slaBreachedAt           DateTime?
   /// Caller-supplied id from an inbound integration (idempotency).
   externalId              String?
+  /// Import job + 1-based data row that created this lead (retry-safe).
+  importJobId             String?    @db.Uuid
+  importRowNumber         Int?
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
   deletedAt               DateTime?
@@ -655,10 +699,12 @@ model Lead {
   notes                 LeadNote[]
   tasks                 Task[]
   leadProjectInterests  LeadProjectInterest[]
+  importJob             ImportJob?            @relation(fields: [importJobId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, pipelineStageId, assignedUserId])
   @@index([tenantId, createdAt(sort: Desc)])
   @@unique([tenantId, externalId])
+  @@unique([importJobId, importRowNumber])
   @@index([tenantId, slaBreachedAt])
   @@index([tenantId, nextFollowUpAt])
   @@index([tenantId, status])
@@ -827,6 +873,11 @@ model ImportJob {
   processedRows   Int        @default(0)
   successfulRows  Int        @default(0)
   failedRows      Int        @default(0)
+  /// Rows skipped as duplicates of existing leads (not failures).
+  skippedRows     Int        @default(0)
+  duplicatePolicy ImportDuplicatePolicy @default(SKIP)
+  /// Column mapping, defaults and the creator's frozen lead scope.
+  options         Json?
   errorSummary    Json?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -835,6 +886,7 @@ model ImportJob {
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   createdBy User      @relation(fields: [createdByUserId], references: [id])
   fileAsset FileAsset @relation(fields: [fileAssetId], references: [id])
+  leads     Lead[]
 
   @@index([tenantId])
   @@index([status])

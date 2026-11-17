@@ -52,4 +52,14 @@ export interface LeadExportRow {
   interestedProjects: string;
   status: string;
   createdAt: string;
+  budgetMin?: string;
+  budgetMax?: string;
+  /** Custom field key → display text. */
+  customFields?: Record<string, string>;
+}
+
+/** A custom field exported as an extra column. */
+export interface ExportCustomColumn {
+  key: string;
+  label: string;
 }

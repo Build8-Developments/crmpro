@@ -14,6 +14,7 @@ export interface CompleteUploadResponse {
   mimeType: string;
   sizeBytes: string;
   leadId: string | null;
+  projectId: string | null;
   createdAt: Date;
 }
 

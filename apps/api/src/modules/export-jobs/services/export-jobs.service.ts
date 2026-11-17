@@ -45,14 +45,18 @@ import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
 import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
 import {
   CreateExportJobResponse,
+  ExportCustomColumn,
   ExportJobResponse,
+  LeadExportRow,
 } from '../entities/export-job.types';
 import {
   EXPORT_CSV_MIME_TYPE,
+  EXPORT_XLSX_MIME_TYPE,
   EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS,
 } from '../export-jobs.constants';
 import { CsvExportService } from './csv-export.service';
 import { LeadExportService } from './lead-export.service';
+import { XlsxExportService } from './xlsx-export.service';
 
 const EXPORT_JOB_SORT_FIELDS = ['createdAt', 'updatedAt', 'status'] as const;
 
@@ -103,6 +107,7 @@ export class ExportJobsService {
     private readonly filesService: FilesService,
     private readonly leadExportService: LeadExportService,
     private readonly csvExportService: CsvExportService,
+    private readonly xlsxExportService: XlsxExportService,
     private readonly queueService: QueueService,
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
@@ -327,12 +332,18 @@ export class ExportJobsService {
       );
 
       this.logger.log(
-        `Export job ${jobId}: loaded ${rows.length} lead(s) for CSV generation`,
+        `Export job ${jobId}: loaded ${rows.length} lead(s) for ${job.format} generation`,
       );
 
-      const csvBuffer = this.generateExportBuffer(job.format, rows);
+      const customColumns =
+        await this.leadExportService.loadCustomColumns(tenantId);
+      const fileBuffer = await this.generateExportBuffer(
+        job.format,
+        rows,
+        customColumns,
+      );
 
-      this.logger.log(`Export job ${jobId}: CSV generated`);
+      this.logger.log(`Export job ${jobId}: ${job.format} generated`);
 
       await this.prisma.exportJob.update({
         where: { id: jobId },
@@ -344,9 +355,12 @@ export class ExportJobsService {
         tenantId,
         userId,
         category: FileAssetCategory.EXPORT_FILE,
-        buffer: csvBuffer,
+        buffer: fileBuffer,
         fileName,
-        mimeType: EXPORT_CSV_MIME_TYPE,
+        mimeType:
+          job.format === ExportFormat.XLSX
+            ? EXPORT_XLSX_MIME_TYPE
+            : EXPORT_CSV_MIME_TYPE,
       });
 
       this.logger.log(
@@ -409,17 +423,20 @@ export class ExportJobsService {
     }
   }
 
-  private generateExportBuffer(
+  private async generateExportBuffer(
     format: ExportFormat,
-    rows: Parameters<CsvExportService['generateCsv']>[0],
-  ): Buffer {
+    rows: LeadExportRow[],
+    customColumns: ExportCustomColumn[],
+  ): Promise<Buffer> {
     if (format === ExportFormat.CSV) {
-      return this.csvExportService.generateCsv(rows);
+      return this.csvExportService.generateCsv(rows, customColumns);
     }
 
-    throw new BadRequestException(
-      `Export format ${format} is not supported in Phase 1`,
-    );
+    if (format === ExportFormat.XLSX) {
+      return this.xlsxExportService.generateXlsx(rows, customColumns);
+    }
+
+    throw new BadRequestException(`Export format ${format} is not supported`);
   }
 
   private buildExportFileName(jobId: string, format: ExportFormat): string {

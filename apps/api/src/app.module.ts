@@ -39,6 +39,7 @@ import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { InboundModule } from './modules/inbound/inbound.module';
 import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module';
 import { SavedViewsModule } from './modules/saved-views/saved-views.module';
+import { ProjectUpdatesModule } from './modules/project-updates/project-updates.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { SupportModule } from './modules/support/support.module';
 import configuration from './config/configuration';
@@ -87,6 +88,7 @@ import { envValidationSchema } from './config/env.validation';
     InboundModule,
     CustomFieldsModule,
     SavedViewsModule,
+    ProjectUpdatesModule,
     BillingModule,
     RolesModule,
     SupportModule,

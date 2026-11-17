@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateLeadExport } from "@/features/exports/mutations";
+import type { ExportFormat } from "@/features/exports/types";
 import { useExportUiStore } from "@/features/exports/stores/export-ui-store";
 import { usePermissions } from "@/hooks/use-permissions";
 import { ApiError } from "@/lib/api/client";
@@ -32,6 +33,9 @@ export function CreateExportDialog() {
   const { can } = usePermissions();
   const [status, setStatus] = useState<"all" | "OPEN" | "ARCHIVED">("all");
   const [search, setSearch] = useState("");
+  const [format, setFormat] = useState<Extract<ExportFormat, "CSV" | "XLSX">>(
+    "XLSX",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const pending = createExport.isPending;
@@ -52,7 +56,7 @@ export function CreateExportDialog() {
         ...(search.trim() ? { search: search.trim() } : {}),
       };
       const job = await createExport.mutateAsync({
-        format: "CSV",
+        format,
         ...(Object.keys(filters).length > 0 ? { filters } : {}),
       });
       closeCreateDialog();
@@ -76,12 +80,41 @@ export function CreateExportDialog() {
         <DialogHeader>
           <DialogTitle>Export leads</DialogTitle>
           <DialogDescription>
-            Creates a CSV export in the background. Only one export can run at a
-            time.
+            Creates the file in the background, including custom fields. Only
+            one export can run at a time.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Format</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ["XLSX", "Excel (.xlsx)", "Best for Excel and Arabic text"],
+                  ["CSV", "CSV (.csv)", "For other tools and scripts"],
+                ] as const
+              ).map(([value, label, hint]) => (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setFormat(value)}
+                  className={`rounded-lg border px-3 py-2 text-start transition-colors ${
+                    format === value
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {hint}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground">
               Lead status

@@ -156,6 +156,7 @@ describe('FilesController', () => {
       'tenant-1',
       'user-1',
       expect.anything(),
+      false,
     );
   });
 });

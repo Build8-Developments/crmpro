@@ -14,6 +14,8 @@ const LEAD_INVALIDATION_EVENTS = [
   DOMAIN_EVENT_TYPES.LEAD_MOVED_STAGE,
   DOMAIN_EVENT_TYPES.LEAD_ASSIGNED,
   DOMAIN_EVENT_TYPES.LEAD_ACTIVITY_LOGGED,
+  // Imports create leads without per-row events.
+  DOMAIN_EVENT_TYPES.IMPORT_COMPLETED,
 ] as const;
 import { RealtimeGateway } from './realtime.gateway';
 

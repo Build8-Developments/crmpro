@@ -82,7 +82,9 @@ export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleJob(job: Job<BackgroundJobPayload>): Promise<void> {
-    await this.importJobsService.processImportJob(job.data.jobId);
+    await this.importJobsService.processImportJob(job.data.jobId, {
+      isRetry: job.attemptsMade > 0,
+    });
   }
 
   private buildContext(job: Job<BackgroundJobPayload>) {

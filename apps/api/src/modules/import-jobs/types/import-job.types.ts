@@ -1,8 +1,13 @@
-import { JobStatus } from '@crmpro/database';
+import { ImportDuplicatePolicy, JobStatus } from '@crmpro/database';
+import type { StoredLeadScope } from '../../leads/scope/lead-scope.types';
+import type { ImportMapping } from '../mapping/import-fields';
+import type { ImportFileKind } from '../parsing/import-table.reader';
 
 export interface ImportJobErrorEntry {
   row: number;
   reason: string;
+  /** `duplicate` rows were skipped by the duplicate policy, not failed. */
+  kind?: 'error' | 'duplicate';
 }
 
 export interface ImportJobFileSummary {
@@ -23,6 +28,8 @@ export interface ImportJobResponse {
   processedRows: number;
   successfulRows: number;
   failedRows: number;
+  skippedRows: number;
+  duplicatePolicy: ImportDuplicatePolicy;
   errorSummary: ImportJobErrorEntry[] | null;
   fileAsset: ImportJobFileSummary;
   createdBy: ImportJobCreatorSummary;
@@ -31,15 +38,39 @@ export interface ImportJobResponse {
   completedAt: Date | null;
 }
 
-export interface LeadCsvRow {
-  fullName?: string;
-  primaryPhone?: string;
-  secondaryPhone?: string;
-  email?: string;
-  sourceName?: string;
-  assignedUserEmail?: string;
+export interface ImportDefaults {
+  sourceId?: string;
+  pipelineId?: string;
+  stageId?: string;
+  projectId?: string;
+  assignedUserId?: string;
 }
 
-export interface ParsedLeadCsvRow extends LeadCsvRow {
-  __line: number;
+/** Persisted on `ImportJob.options`. */
+export interface ImportJobOptions {
+  /** null: match columns by header name when the job runs. */
+  mapping: ImportMapping | null;
+  defaults: ImportDefaults;
+  /** Creator's lead scope at creation: assignees must stay inside it. */
+  scope: StoredLeadScope;
+}
+
+export interface ImportFieldDescriptor {
+  key: string;
+  label: string;
+  required: boolean;
+  kind: 'core' | 'custom';
+  type?: string;
+  options?: string[] | null;
+}
+
+export interface ImportPreviewResponse {
+  fileAssetId: string;
+  fileName: string;
+  fileKind: ImportFileKind;
+  headers: string[];
+  sampleRows: string[][];
+  totalRows: number;
+  suggestedMapping: ImportMapping;
+  fields: ImportFieldDescriptor[];
 }

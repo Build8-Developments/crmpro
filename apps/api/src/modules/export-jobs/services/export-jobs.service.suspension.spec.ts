@@ -11,6 +11,7 @@ import { NotificationTriggerService } from '../../notifications/notification-tri
 import { QueueService } from '../../jobs/queues/queue.service';
 import { AuditWriterService } from '../../audit/audit-writer.service';
 import { CsvExportService } from './csv-export.service';
+import { XlsxExportService } from './xlsx-export.service';
 import { ExportJobsService } from './export-jobs.service';
 import { LeadExportService } from './lead-export.service';
 
@@ -48,6 +49,7 @@ describe('ExportJobsService tenant suspension', () => {
         { provide: FilesService, useValue: {} },
         { provide: LeadExportService, useValue: {} },
         { provide: CsvExportService, useValue: {} },
+        { provide: XlsxExportService, useValue: {} },
         { provide: QueueService, useValue: {} },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         {

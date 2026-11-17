@@ -315,81 +315,144 @@ export class LeadsService {
       return { success: false, reason: 'Invalid email' };
     }
 
-    const duplicateWarning = await this.detectDuplicates(
-      tenantId,
-      primaryPhoneNormalized,
-      secondaryPhoneNormalized,
-      SYSTEM_LEAD_SCOPE,
-    );
+    if (!row.allowDuplicates) {
+      const duplicateWarning = await this.detectDuplicates(
+        tenantId,
+        primaryPhoneNormalized,
+        secondaryPhoneNormalized,
+        SYSTEM_LEAD_SCOPE,
+      );
 
-    if (duplicateWarning) {
-      return { success: false, reason: 'Duplicate lead detected' };
+      if (duplicateWarning) {
+        return {
+          success: false,
+          reason: 'Duplicate of an existing lead',
+          duplicate: true,
+        };
+      }
     }
 
-    const leadId = await this.prisma.$transaction(async (tx) => {
-      const allowed = await this.quotaService.canCreateLeadInTransaction(
-        tx,
-        tenantId,
-      );
+    const notes = row.notes?.trim() || null;
+    const projectIds = [...new Set(row.projectIds ?? [])];
 
-      if (!allowed) {
-        return null;
-      }
-
-      const lead = await tx.lead.create({
-        data: {
+    let leadId: string | null;
+    try {
+      leadId = await this.prisma.$transaction(async (tx) => {
+        const allowed = await this.quotaService.canCreateLeadInTransaction(
+          tx,
           tenantId,
-          sourceId: row.sourceId ?? null,
-          pipelineId: pipeline.pipelineId,
-          pipelineStageId: pipeline.pipelineStageId,
-          assignedUserId: assignee?.id ?? null,
-          assignedAt: assignee ? new Date() : null,
-          status: LeadStatus.OPEN,
-          fullName,
-          primaryPhone,
-          primaryPhoneNormalized,
-          secondaryPhone,
-          secondaryPhoneNormalized,
-          email,
-        },
-        select: { id: true },
-      });
+        );
 
-      await this.leadActivityService.createActivity(
-        {
-          tenantId,
-          leadId: lead.id,
-          actorUserId,
-          eventType: LeadActivityEventType.LEAD_CREATED,
-          metadata: { source: 'import', importJobId },
-        },
-        tx,
-      );
+        if (!allowed) {
+          return null;
+        }
 
-      if (assignee) {
+        const lead = await tx.lead.create({
+          data: {
+            tenantId,
+            sourceId: row.sourceId ?? null,
+            pipelineId: pipeline.pipelineId,
+            pipelineStageId: pipeline.pipelineStageId,
+            assignedUserId: assignee?.id ?? null,
+            assignedAt: assignee ? new Date() : null,
+            status: LeadStatus.OPEN,
+            fullName,
+            primaryPhone,
+            primaryPhoneNormalized,
+            secondaryPhone,
+            secondaryPhoneNormalized,
+            email,
+            budgetMin: row.budgetMin ?? null,
+            budgetMax: row.budgetMax ?? null,
+            ...(row.customFields !== undefined
+              ? { customFields: row.customFields }
+              : {}),
+            importJobId,
+            importRowNumber: row.importRowNumber ?? null,
+          },
+          select: { id: true },
+        });
+
+        if (projectIds.length > 0) {
+          await tx.leadProjectInterest.createMany({
+            data: projectIds.map((projectId) => ({
+              leadId: lead.id,
+              projectId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        if (notes) {
+          await tx.leadNote.create({
+            data: {
+              tenantId,
+              leadId: lead.id,
+              authorId: actorUserId,
+              content: notes,
+            },
+          });
+        }
+
         await this.leadActivityService.createActivity(
           {
             tenantId,
             leadId: lead.id,
             actorUserId,
-            eventType: LeadActivityEventType.ASSIGNED,
-            metadata: {
-              assignedUserId: assignee.id,
-              assignedUserName: assignee.name,
-            },
+            eventType: LeadActivityEventType.LEAD_CREATED,
+            metadata: { source: 'import', importJobId },
           },
           tx,
         );
+
+        if (assignee) {
+          await this.leadActivityService.createActivity(
+            {
+              tenantId,
+              leadId: lead.id,
+              actorUserId,
+              eventType: LeadActivityEventType.ASSIGNED,
+              metadata: {
+                assignedUserId: assignee.id,
+                assignedUserName: assignee.name,
+              },
+            },
+            tx,
+          );
+        }
+
+        return lead.id;
+      });
+    } catch (error) {
+      // A retried job reached a row an earlier attempt already imported.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002' &&
+        row.importRowNumber !== undefined
+      ) {
+        const existing = await this.prisma.lead.findFirst({
+          where: { importJobId, importRowNumber: row.importRowNumber },
+          select: { id: true, assignedUserId: true },
+        });
+
+        if (existing) {
+          return {
+            success: true,
+            leadId: existing.id,
+            assignedUserId: existing.assignedUserId,
+            alreadyImported: true,
+          };
+        }
       }
 
-      return lead.id;
-    });
+      throw error;
+    }
 
     if (leadId === null) {
       return { success: false, reason: 'Lead quota exceeded' };
     }
 
-    return { success: true, leadId };
+    return { success: true, leadId, assignedUserId: assignee?.id ?? null };
   }
 
   async updateLead(

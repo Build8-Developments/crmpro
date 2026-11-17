@@ -1,5 +1,10 @@
 import type { LeadScope } from '../scope/lead-scope.types';
-import { InterestLevel, LeadStatus, PipelineCloseType } from '@crmpro/database';
+import {
+  InterestLevel,
+  LeadStatus,
+  PipelineCloseType,
+  type Prisma,
+} from '@crmpro/database';
 
 export interface LeadSourceSummary {
   id: string;
@@ -129,6 +134,16 @@ export interface ImportLeadRowInput {
   email?: string | null;
   sourceId?: string | null;
   assignedUserId?: string | null;
+  projectIds?: string[];
+  budgetMin?: number | null;
+  budgetMax?: number | null;
+  notes?: string | null;
+  /** Already validated against the tenant's custom field definitions. */
+  customFields?: Prisma.InputJsonValue;
+  /** Spreadsheet line; with the job id it makes retries idempotent. */
+  importRowNumber?: number;
+  /** DuplicatePolicy CREATE: import even if the phone already exists. */
+  allowDuplicates?: boolean;
 }
 
 export interface DefaultPipelinePlacement {
@@ -137,8 +152,14 @@ export interface DefaultPipelinePlacement {
 }
 
 export type ImportLeadRowResult =
-  | { success: true; leadId: string }
-  | { success: false; reason: string };
+  | {
+      success: true;
+      leadId: string;
+      assignedUserId: string | null;
+      /** The row was imported by an earlier attempt of the same job. */
+      alreadyImported?: boolean;
+    }
+  | { success: false; reason: string; duplicate?: boolean };
 
 export interface LeadListFilters {
   id?: string;

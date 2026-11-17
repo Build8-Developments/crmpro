@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@crmpro/database';
+import { CustomFieldEntity, ExportFormat, Prisma } from '@crmpro/database';
 import { SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { LeadScope } from '../../leads/scope/lead-scope.types';
 import { LeadsService } from '../../leads/leads.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
-import { LeadExportRow } from '../entities/export-job.types';
+import {
+  ExportCustomColumn,
+  LeadExportRow,
+} from '../entities/export-job.types';
 import { EXPORT_PROGRESS_BATCH_SIZE } from '../export-jobs.constants';
+import { formatCustomFieldValue } from './export-columns';
 
 const leadExportSelect = {
   fullName: true,
@@ -15,6 +19,9 @@ const leadExportSelect = {
   email: true,
   status: true,
   createdAt: true,
+  budgetMin: true,
+  budgetMax: true,
+  customFields: true,
   source: { select: { name: true } },
   pipeline: { select: { name: true } },
   pipelineStage: { select: { name: true } },
@@ -100,11 +107,18 @@ export class LeadExportService {
   }
 
   assertSupportedFormat(format: string): void {
-    if (format !== 'CSV') {
-      throw new BadRequestException(
-        `Export format ${format} is not supported in Phase 1`,
-      );
+    if (format !== ExportFormat.CSV && format !== ExportFormat.XLSX) {
+      throw new BadRequestException(`Export format ${format} is not supported`);
     }
+  }
+
+  /** Active custom fields, exported as extra columns after the fixed ones. */
+  async loadCustomColumns(tenantId: string): Promise<ExportCustomColumn[]> {
+    return this.prisma.customFieldDefinition.findMany({
+      where: { tenantId, entity: CustomFieldEntity.LEAD, archivedAt: null },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      select: { key: true, label: true },
+    });
   }
 
   private toExportRow(lead: LeadExportRecord): LeadExportRow {
@@ -122,6 +136,22 @@ export class LeadExportService {
         .join(', '),
       status: lead.status,
       createdAt: lead.createdAt.toISOString(),
+      budgetMin: lead.budgetMin?.toString() ?? '',
+      budgetMax: lead.budgetMax?.toString() ?? '',
+      customFields: this.formatCustomFields(lead.customFields),
     };
+  }
+
+  private formatCustomFields(value: Prisma.JsonValue): Record<string, string> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, raw]) => [
+        key,
+        formatCustomFieldValue(raw),
+      ]),
+    );
   }
 }

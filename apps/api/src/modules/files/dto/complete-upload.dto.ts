@@ -13,6 +13,7 @@ const Phase1Category = {
   IMPORT_FILE: FileAssetCategory.IMPORT_FILE,
   OTHER: FileAssetCategory.OTHER,
   TENANT_LOGO: FileAssetCategory.TENANT_LOGO,
+  PROJECT_BROCHURE: FileAssetCategory.PROJECT_BROCHURE,
 } as const;
 
 type Phase1CategoryValue = (typeof Phase1Category)[keyof typeof Phase1Category];
@@ -30,4 +31,9 @@ export class CompleteUploadDto {
   @IsOptional()
   @IsUUID()
   leadId?: string;
+
+  /** Required for PROJECT_BROCHURE (project files library). */
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
 }

@@ -15,6 +15,7 @@ export const NOTIFICATION_PREFERENCE_CATEGORIES = [
   NotificationPreferenceCategory.SYSTEM,
   NotificationPreferenceCategory.SECURITY,
   NotificationPreferenceCategory.TASK_UPDATES,
+  NotificationPreferenceCategory.PROJECT_UPDATES,
 ] as const;
 
 export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
@@ -44,6 +45,8 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.SLA_BREACHED]: NotificationPreferenceCategory.LEAD_ASSIGNED,
   [NotificationType.LEAD_RESUBMITTED]:
     NotificationPreferenceCategory.LEAD_ASSIGNED,
+  [NotificationType.PROJECT_UPDATE]:
+    NotificationPreferenceCategory.PROJECT_UPDATES,
 };
 
 export const DEFAULT_NOTIFICATION_PRIORITY = NotificationPriority.NORMAL;
@@ -60,6 +63,7 @@ export const NOTIFICATION_PREFERENCE_LABELS: Record<
   [NotificationPreferenceCategory.SYSTEM]: 'System',
   [NotificationPreferenceCategory.SECURITY]: 'Security',
   [NotificationPreferenceCategory.TASK_UPDATES]: 'Task Updates',
+  [NotificationPreferenceCategory.PROJECT_UPDATES]: 'Project Updates',
 };
 
 export const NOTIFICATION_SORT_FIELDS = ['createdAt', 'priority'] as const;

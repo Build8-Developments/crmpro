@@ -48,24 +48,17 @@ export function getImportProgressPercent(job: {
   );
 }
 
+/** Any header order/language works; these are just friendly examples. */
 export const IMPORT_CSV_TEMPLATE = [
-  "fullName,primaryPhone,secondaryPhone,email,sourceName,assignedUserEmail",
-  "Ahmed Hassan,+201000000001,,ahmed@example.com,Facebook,",
-  "Sara Mohamed,+201000000002,+201000000003,sara@example.com,Website,agent@example.com",
+  "Full name,Phone,Secondary phone,Email,Source,Project,Budget,Notes",
+  "Ahmed Hassan,01000000001,,ahmed@example.com,Facebook,,2.5M,Wants a villa",
+  "Sara Mohamed,01000000002,01000000003,sara@example.com,Website,,,",
 ].join("\n");
-
-export const IMPORT_REQUIRED_COLUMNS = ["fullName", "primaryPhone"] as const;
-export const IMPORT_OPTIONAL_COLUMNS = [
-  "secondaryPhone",
-  "email",
-  "sourceName",
-  "assignedUserEmail",
-] as const;
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 
 export function downloadImportTemplate() {
-  const blob = new Blob([IMPORT_CSV_TEMPLATE], {
+  const blob = new Blob(["\uFEFF" + IMPORT_CSV_TEMPLATE], {
     type: "text/csv;charset=utf-8",
   });
   const url = URL.createObjectURL(blob);

@@ -8,4 +8,5 @@ export const PHASE1_UPLOAD_CATEGORIES = [
   'IMPORT_FILE',
   'OTHER',
   'TENANT_LOGO',
+  'PROJECT_BROCHURE',
 ] as const;

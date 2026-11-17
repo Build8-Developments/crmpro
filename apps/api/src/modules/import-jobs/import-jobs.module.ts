@@ -4,7 +4,9 @@ import { EntitlementsModule } from '../../common/entitlements/entitlements.modul
 import { TenantModule } from '../../common/tenant/tenant.module';
 import { AuditModule } from '../audit/audit.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LeadDistributionModule } from '../lead-distribution/lead-distribution.module';
 import { LeadsModule } from '../leads/leads.module';
+import { LeadScopeModule } from '../leads/scope/lead-scope.module';
 import { QueueModule } from '../jobs/queues/queue.module';
 import { ImportJobsController } from './import-jobs.controller';
 import { ImportJobsService } from './import-jobs.service';
@@ -17,6 +19,8 @@ import { ImportJobsService } from './import-jobs.service';
     AuditModule,
     NotificationsModule,
     LeadsModule,
+    LeadScopeModule,
+    LeadDistributionModule,
     QueueModule,
   ],
   controllers: [ImportJobsController],

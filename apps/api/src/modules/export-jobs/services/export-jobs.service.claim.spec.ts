@@ -8,12 +8,16 @@ import { NotificationTriggerService } from '../../notifications/notification-tri
 import { QueueService } from '../../jobs/queues/queue.service';
 import { AuditWriterService } from '../../audit/audit-writer.service';
 import { CsvExportService } from './csv-export.service';
+import { XlsxExportService } from './xlsx-export.service';
 import { ExportJobsService } from './export-jobs.service';
 import { LeadExportService } from './lead-export.service';
 
 describe('ExportJobsService job claiming', () => {
   let service: ExportJobsService;
-  let leadExportService: { fetchAllForExport: jest.Mock };
+  let leadExportService: {
+    fetchAllForExport: jest.Mock;
+    loadCustomColumns: jest.Mock;
+  };
   let filesService: { createServerGeneratedFile: jest.Mock };
   let csvExportService: { generateCsv: jest.Mock };
   let prisma: {
@@ -28,6 +32,7 @@ describe('ExportJobsService job claiming', () => {
   beforeEach(async () => {
     leadExportService = {
       fetchAllForExport: jest.fn(),
+      loadCustomColumns: jest.fn().mockResolvedValue([]),
     };
     filesService = {
       createServerGeneratedFile: jest.fn().mockResolvedValue({ id: 'file-1' }),
@@ -57,6 +62,7 @@ describe('ExportJobsService job claiming', () => {
         { provide: FilesService, useValue: filesService },
         { provide: LeadExportService, useValue: leadExportService },
         { provide: CsvExportService, useValue: csvExportService },
+        { provide: XlsxExportService, useValue: {} },
         { provide: QueueService, useValue: {} },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         {

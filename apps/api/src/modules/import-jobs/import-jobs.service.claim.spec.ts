@@ -9,6 +9,7 @@ import { NotificationTriggerService } from '../notifications/notification-trigge
 import { QueueService } from '../jobs/queues/queue.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
 import { ImportJobsService } from './import-jobs.service';
+import { LeadDistributionService } from '../lead-distribution/lead-distribution.service';
 
 describe('ImportJobsService job claiming', () => {
   let service: ImportJobsService;
@@ -20,6 +21,7 @@ describe('ImportJobsService job claiming', () => {
       update: jest.Mock;
     };
     fileAsset: { findFirst: jest.Mock };
+    [model: string]: unknown;
   };
 
   beforeEach(async () => {
@@ -45,8 +47,15 @@ describe('ImportJobsService job claiming', () => {
           category: 'IMPORT_FILE',
           objectKey: 'imports/file.csv',
           mimeType: 'text/csv',
+          originalFilename: 'leads.csv',
         }),
       },
+      customFieldDefinition: { findMany: jest.fn().mockResolvedValue([]) },
+      tenantSettings: { findUnique: jest.fn().mockResolvedValue(null) },
+      lead: { findMany: jest.fn().mockResolvedValue([]) },
+      leadSource: { findMany: jest.fn().mockResolvedValue([]) },
+      project: { findMany: jest.fn().mockResolvedValue([]) },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -54,10 +63,26 @@ describe('ImportJobsService job claiming', () => {
         ImportJobsService,
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storageService },
-        { provide: LeadsService, useValue: {} },
+        {
+          provide: LeadsService,
+          useValue: {
+            getDefaultPipelinePlacement: jest.fn().mockResolvedValue({
+              pipelineId: 'pipeline-1',
+              pipelineStageId: 'stage-1',
+            }),
+            createLeadFromImport: jest.fn().mockResolvedValue({
+              success: true,
+              leadId: 'lead-1',
+              assignedUserId: null,
+            }),
+          },
+        },
         { provide: QueueService, useValue: {} },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
-        { provide: NotificationTriggerService, useValue: {} },
+        {
+          provide: NotificationTriggerService,
+          useValue: { notifyImportCompleted: jest.fn() },
+        },
         {
           provide: TenantStatusService,
           useValue: {
@@ -68,6 +93,7 @@ describe('ImportJobsService job claiming', () => {
           provide: AuditWriterService,
           useValue: { createAuditLog: jest.fn() },
         },
+        { provide: LeadDistributionService, useValue: {} },
       ],
     }).compile();
 
@@ -87,6 +113,23 @@ describe('ImportJobsService job claiming', () => {
       data: { status: JobStatus.PROCESSING },
     });
     expect(storageService.getObject).toHaveBeenCalled();
+  });
+
+  it('re-claims a PROCESSING job on a worker retry', async () => {
+    prisma.importJob.updateMany.mockResolvedValue({ count: 1 });
+    storageService.getObject.mockResolvedValue(
+      Buffer.from('fullName,primaryPhone\nJane Doe,+201000000000'),
+    );
+
+    await service.processImportJob('job-1', { isRetry: true });
+
+    expect(prisma.importJob.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'job-1',
+        status: { in: [JobStatus.PENDING, JobStatus.PROCESSING] },
+      },
+      data: { status: JobStatus.PROCESSING },
+    });
   });
 
   it('exits without processing when the job was already claimed', async () => {

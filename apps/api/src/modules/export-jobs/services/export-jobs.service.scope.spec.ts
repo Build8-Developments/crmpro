@@ -36,6 +36,7 @@ describe('ExportJobsService lead scoping', () => {
       {} as never, // files
       { assertSupportedFormat: jest.fn() } as never,
       {} as never, // csv
+      {} as never, // xlsx
       { enqueueExportJob: jest.fn() } as never,
       { publish: jest.fn() } as never,
       {} as never, // notifications

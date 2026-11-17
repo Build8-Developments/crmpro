@@ -5,6 +5,8 @@ export const EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS = 600; // 10 minutes
 export const EXPORT_PROGRESS_BATCH_SIZE = 500;
 
 export const EXPORT_CSV_MIME_TYPE = 'text/csv';
+export const EXPORT_XLSX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 export const LEAD_EXPORT_CSV_HEADERS = [
   'Lead Name',
@@ -18,4 +20,23 @@ export const LEAD_EXPORT_CSV_HEADERS = [
   'Interested Projects',
   'Status',
   'Created At',
+  'Budget From',
+  'Budget To',
+] as const;
+
+/** LeadExportRow key for each fixed header, in order. */
+export const LEAD_EXPORT_COLUMN_KEYS = [
+  'leadName',
+  'primaryPhone',
+  'secondaryPhone',
+  'email',
+  'leadSource',
+  'pipeline',
+  'stage',
+  'assignedUser',
+  'interestedProjects',
+  'status',
+  'createdAt',
+  'budgetMin',
+  'budgetMax',
 ] as const;

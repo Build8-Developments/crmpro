@@ -165,6 +165,12 @@ export function ImportJobDetailDrawer() {
                     </span>
                   }
                 />
+                {job.skippedRows > 0 ? (
+                  <DetailRow
+                    label="Skipped (duplicates)"
+                    value={formatNumber(job.skippedRows)}
+                  />
+                ) : null}
                 <DetailRow
                   label="Total rows"
                   value={formatNumber(job.totalRows)}
@@ -205,7 +211,7 @@ export function ImportJobDetailDrawer() {
               {errors.length > 0 ? (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-foreground">
-                    Row errors
+                    Row issues
                     {errors.length >= 100 ? " (showing first 100)" : ""}
                   </p>
                   <ul className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border/60 p-2">
@@ -215,8 +221,13 @@ export function ImportJobDetailDrawer() {
                         className="rounded-md bg-muted/40 px-2.5 py-2 text-xs"
                       >
                         <span className="font-medium text-foreground">
-                          Row {entry.row}
+                          {entry.row > 0 ? `Row ${entry.row}` : "File"}
                         </span>
+                        {entry.kind === "duplicate" ? (
+                          <span className="ms-1.5 rounded bg-amber-500/15 px-1 py-px text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                            Duplicate
+                          </span>
+                        ) : null}
                         <span className="text-muted-foreground">
                           {" "}
                           — {entry.reason}

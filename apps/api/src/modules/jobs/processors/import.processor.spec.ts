@@ -56,6 +56,7 @@ describe('ImportProcessor', () => {
 
     expect(importJobsService.processImportJob).toHaveBeenCalledWith(
       'import-job-1',
+      { isRetry: false },
     );
   });
 });

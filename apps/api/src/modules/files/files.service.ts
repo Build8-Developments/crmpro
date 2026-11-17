@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -53,6 +54,7 @@ const fileAssetSelect = {
   mimeType: true,
   sizeBytes: true,
   leadId: true,
+  projectId: true,
   createdAt: true,
 } satisfies Prisma.FileAssetSelect;
 
@@ -219,6 +221,7 @@ export class FilesService {
     userId: string,
     dto: CompleteUploadDto,
     scope: LeadScope,
+    canManageProjectFiles = false,
   ): Promise<CompleteUploadResponse> {
     const startedAt = Date.now();
 
@@ -268,6 +271,15 @@ export class FilesService {
           ? (dto.leadId ?? null)
           : null;
 
+      const projectId =
+        dto.category === FileAssetCategory.PROJECT_BROCHURE
+          ? await this.validateProjectFileTarget(
+              tenantId,
+              dto.projectId,
+              canManageProjectFiles,
+            )
+          : null;
+
       const file = await this.prisma.$transaction(async (tx) => {
         await this.quotaService.assertCanUseStorageInTransaction(
           tx,
@@ -286,6 +298,7 @@ export class FilesService {
             mimeType: intent.mimeType,
             sizeBytes: BigInt(verified.sizeBytes),
             leadId,
+            projectId,
           },
           select: fileAssetSelect,
         });
@@ -428,9 +441,19 @@ export class FilesService {
     tenantId: string,
     userId: string,
     scope: LeadScope,
+    canManageProjectFiles = false,
   ): Promise<{ id: string }> {
     const startedAt = Date.now();
     const file = await this.getFileOrThrow(fileId, tenantId, scope);
+
+    if (
+      file.category === FileAssetCategory.PROJECT_BROCHURE &&
+      !canManageProjectFiles
+    ) {
+      throw new ForbiddenException(
+        'Only users who can edit projects can remove project files',
+      );
+    }
 
     await this.prisma.$transaction(async (tx) => {
       await tx.fileAsset.update({
@@ -538,6 +561,36 @@ export class FilesService {
     return { sizeBytes: actualSize };
   }
 
+  /** Project files are shared with every project reader: editors only. */
+  private async validateProjectFileTarget(
+    tenantId: string,
+    projectId: string | undefined,
+    canManageProjectFiles: boolean,
+  ): Promise<string> {
+    if (!canManageProjectFiles) {
+      throw new ForbiddenException(
+        'Only users who can edit projects can upload project files',
+      );
+    }
+
+    if (!projectId) {
+      throw new BadRequestException(
+        'projectId is required when category is PROJECT_BROCHURE',
+      );
+    }
+
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return project.id;
+  }
+
   private async getFileOrThrow(
     fileId: string,
     tenantId: string,
@@ -571,6 +624,7 @@ export class FilesService {
       mimeType: file.mimeType,
       sizeBytes: file.sizeBytes.toString(),
       leadId: file.leadId,
+      projectId: file.projectId,
       createdAt: file.createdAt,
     };
   }
@@ -614,6 +668,7 @@ export class FilesService {
       deletedAt: null,
       ...this.buildFileScopeWhere(scope),
       ...(query.category ? { category: query.category } : {}),
+      ...(query.projectId ? { projectId: query.projectId } : {}),
       ...(search && {
         originalFilename: {
           contains: search,

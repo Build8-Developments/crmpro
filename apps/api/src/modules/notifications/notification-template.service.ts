@@ -94,6 +94,18 @@ export class NotificationTemplateService {
           priority: NotificationPriority.NORMAL,
         };
       case NotificationType.SYSTEM:
+      case NotificationType.PROJECT_UPDATE:
+        return {
+          title: `${this.asString(input.metadata.projectName, 'Project')} update`,
+          message: this.asString(
+            input.metadata.title,
+            'A project you follow has a new update.',
+          ),
+          priority:
+            input.metadata.updateType === 'PRICE_CHANGE'
+              ? NotificationPriority.HIGH
+              : NotificationPriority.NORMAL,
+        };
       case NotificationType.SUPPORT_REPLY:
       default:
         return {

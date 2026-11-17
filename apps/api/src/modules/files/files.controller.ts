@@ -75,6 +75,7 @@ export class FilesController {
       user.id,
       dto,
       await this.leadScopeService.resolve(user, permissionKeys),
+      permissionKeys.has(PERMISSIONS.PROJECT_UPDATE),
     );
 
     return { success: true, data };
@@ -108,6 +109,7 @@ export class FilesController {
       user.tenantId,
       user.id,
       await this.leadScopeService.resolve(user, permissionKeys),
+      permissionKeys.has(PERMISSIONS.PROJECT_UPDATE),
     );
 
     return { success: true, data };

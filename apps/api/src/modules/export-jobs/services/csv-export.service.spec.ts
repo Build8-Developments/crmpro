@@ -35,3 +35,36 @@ describe('CsvExportService', () => {
     expect(csv).not.toContain('\t\t');
   });
 });
+
+describe('CsvExportService custom columns', () => {
+  const service = new CsvExportService();
+
+  it('appends custom field columns after the fixed ones', () => {
+    const csv = service
+      .generateCsv(
+        [
+          {
+            leadName: 'Mona',
+            primaryPhone: '+201011111111',
+            secondaryPhone: '',
+            email: '',
+            leadSource: '',
+            pipeline: 'Sales',
+            stage: 'New',
+            assignedUser: '',
+            interestedProjects: '',
+            status: 'OPEN',
+            createdAt: '2026-11-17T00:00:00.000Z',
+            budgetMin: '1500000',
+            customFields: { unit_type: 'Villa' },
+          },
+        ],
+        [{ key: 'unit_type', label: 'Unit type' }],
+      )
+      .toString('utf-8');
+
+    const [header, row] = csv.replace('﻿', '').trim().split('\n');
+    expect(header.endsWith('Budget From,Budget To,Unit type')).toBe(true);
+    expect(row.endsWith('1500000,,Villa')).toBe(true);
+  });
+});
