@@ -6,6 +6,7 @@ export type FileAssetCategory =
   | "PROJECT_BROCHURE"
   | "IMPORT_FILE"
   | "EXPORT_FILE"
+  | "TENANT_LOGO"
   | "OTHER";
 
 export type FileCategoryFilter = FileAssetCategory | "all";
@@ -54,7 +55,7 @@ export interface RequestUploadResponse {
 
 export interface CompleteUploadInput {
   objectKey: string;
-  category: "OTHER" | "IMPORT_FILE";
+  category: "OTHER" | "IMPORT_FILE" | "LEAD_ATTACHMENT" | "TENANT_LOGO";
   leadId?: string;
 }
 

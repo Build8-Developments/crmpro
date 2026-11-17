@@ -12,6 +12,7 @@ const Phase1Category = {
   LEAD_ATTACHMENT: FileAssetCategory.LEAD_ATTACHMENT,
   IMPORT_FILE: FileAssetCategory.IMPORT_FILE,
   OTHER: FileAssetCategory.OTHER,
+  TENANT_LOGO: FileAssetCategory.TENANT_LOGO,
 } as const;
 
 type Phase1CategoryValue = (typeof Phase1Category)[keyof typeof Phase1Category];

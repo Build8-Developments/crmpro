@@ -32,6 +32,7 @@ import {
   getPrimaryProjectInterest,
 } from "@/features/leads/utils/lead-formatters";
 import { LeadFollowUpsSection } from "@/features/leads/components/lead-follow-ups-section";
+import { CustomFieldValuesList } from "@/features/custom-fields/components/custom-field-inputs";
 import { LeadTimelineItem } from "@/features/leads/components/lead-timeline-item";
 import { LogActivityDialog } from "@/features/leads/components/log-activity-dialog";
 import type { InteractionType } from "@/features/leads/types";
@@ -312,6 +313,8 @@ export function LeadDetailDrawer() {
                     value={formatRelativeTime(lead.createdAt)}
                   />
                 </section>
+
+                <CustomFieldValuesList values={lead.customFields ?? {}} />
 
                 {lead.projectInterests.length > 1 ? (
                   <section className="space-y-2">

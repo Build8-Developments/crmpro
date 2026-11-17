@@ -7,7 +7,7 @@ import { updateTenantSettings } from "./api";
 import type { UpdateTenantSettingsInput } from "./types";
 
 export function useUpdateTenantSettings() {
-  const t = useTranslations("distribution");
+  const t = useTranslations("settings");
 
   return useApiMutation({
     mutationFn: (input: UpdateTenantSettingsInput) => updateTenantSettings(input),

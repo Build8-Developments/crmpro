@@ -1,3 +1,4 @@
+import type { CustomFieldValues } from "@/features/custom-fields/types";
 import type { ListQueryParams, PaginatedResponse } from "@/types/pagination";
 
 export type LeadStatus = "OPEN" | "ARCHIVED";
@@ -48,6 +49,7 @@ export interface Lead {
   secondaryPhone: string | null;
   email: string | null;
   lastContactedAt: string | null;
+  customFields: Record<string, unknown>;
   firstContactedAt: string | null;
   nextFollowUpAt: string | null;
   assignedAt: string | null;
@@ -73,6 +75,7 @@ export interface CreateLeadInput {
     projectId: string;
     interestLevel?: InterestLevel;
   }>;
+  customFields?: CustomFieldValues;
 }
 
 export interface DuplicateMatch {
@@ -106,6 +109,7 @@ export interface UpdateLeadInput {
     projectId: string;
     interestLevel?: InterestLevel;
   }>;
+  customFields?: CustomFieldValues;
 }
 
 export interface LeadNote {

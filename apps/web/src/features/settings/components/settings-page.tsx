@@ -12,6 +12,8 @@ import { WorkspaceSettingsCard } from "@/features/settings/components/workspace-
 import { TeamsSettingsCard } from "@/features/teams/components/teams-settings-card";
 import { LeadDistributionCard } from "@/features/tenant-settings/components/lead-distribution-card";
 import { IntegrationsCard } from "@/features/api-keys/components/integrations-card";
+import { CustomFieldsSettingsCard } from "@/features/custom-fields/components/custom-fields-settings-card";
+import { BillingCard } from "@/features/billing/billing-card";
 
 export function SettingsPage() {
   const [activeSection, setActiveSection] =
@@ -45,6 +47,8 @@ export function SettingsPage() {
             {activeSection === "teams" ? <TeamsSettingsCard /> : null}
             {activeSection === "distribution" ? <LeadDistributionCard /> : null}
             {activeSection === "integrations" ? <IntegrationsCard /> : null}
+            {activeSection === "customFields" ? <CustomFieldsSettingsCard /> : null}
+            {activeSection === "billing" ? <BillingCard /> : null}
             {activeSection === "sessions" ? <SessionsSettingsCard /> : null}
             {activeSection === "notifications" ? (
               <NotificationPreferencesCard />

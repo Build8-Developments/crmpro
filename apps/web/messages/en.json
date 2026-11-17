@@ -119,12 +119,21 @@
       "integrations": {
         "label": "Integrations",
         "description": "API keys & webhooks"
+      },
+      "billing": {
+        "label": "Plan & usage",
+        "description": "Subscription and limits"
+      },
+      "customFields": {
+        "label": "Custom fields",
+        "description": "Extra lead details"
       }
     },
     "notifications": {
       "email": "Email",
       "inApp": "In-app"
-    }
+    },
+    "saved": "Settings saved"
   },
   "teams": {
     "title": "Teams",
@@ -396,5 +405,113 @@
     "example": "Example",
     "duplicateRule": "A phone number that already belongs to an open lead is never duplicated: the current owner keeps the lead and gets notified.",
     "planRequired": "API access is not included in your current plan."
+  },
+  "workspace": {
+    "title": "Workspace",
+    "description": "Agency details shared with your team",
+    "name": "Workspace name",
+    "slug": "Sign-in slug",
+    "slugHelp": "Can't be changed — it's what your team types to sign in.",
+    "logo": "Logo",
+    "logoHelp": "PNG, JPG, SVG or WebP up to 2 MB. Shown on sign-in and in the sidebar.",
+    "uploadLogo": "Upload logo",
+    "removeLogo": "Remove",
+    "uploading": "Uploading...",
+    "logoTooBig": "Logo must be 2 MB or smaller.",
+    "timezone": "Timezone",
+    "country": "Country (phone numbers)",
+    "currency": "Currency",
+    "language": "Default language",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "saved": "Workspace updated",
+    "shortcuts": "Shortcuts"
+  },
+  "billing": {
+    "title": "Plan & usage",
+    "description": "Your subscription and how much of it you use. Payments are handled with the CRMPro team.",
+    "plan": "Plan",
+    "contract": "Contract",
+    "noContract": "No active contract on file.",
+    "status": "Status",
+    "price": "Agreed price",
+    "payment": "Payment",
+    "period": "Period",
+    "renews": "Auto-renews",
+    "until": "until {date}",
+    "openEnded": "open-ended",
+    "grace": "{days}-day grace period",
+    "usage": "Usage",
+    "users": "Users",
+    "leads": "Leads",
+    "projects": "Projects",
+    "storage": "Storage",
+    "unlimited": "Unlimited",
+    "features": "Included features",
+    "contactSupport": "To change your plan, contact support.",
+    "paymentMethods": {
+      "BANK_TRANSFER": "Bank transfer",
+      "CASH": "Cash",
+      "CHEQUE": "Cheque",
+      "INSTAPAY": "InstaPay",
+      "OTHER": "Other"
+    },
+    "featureNames": {
+      "analytics": "Analytics dashboard",
+      "importExport": "Import & export",
+      "apiAccess": "API access & integrations",
+      "customBranding": "Custom branding",
+      "prioritySupport": "Priority support"
+    }
+  },
+  "customFields": {
+    "title": "Custom fields",
+    "description": "Capture what matters to your agency on every lead (unit type, bedrooms, payment preference…).",
+    "newField": "New field",
+    "empty": "No custom fields yet.",
+    "label": "Label",
+    "key": "Key",
+    "type": "Type",
+    "options": "Options",
+    "optionsHelp": "One per line",
+    "required": "Required",
+    "archived": "Archived",
+    "archive": "Archive",
+    "restore": "Restore",
+    "edit": "Edit",
+    "save": "Save field",
+    "saving": "Saving...",
+    "created": "Field created",
+    "updated": "Field updated",
+    "showArchived": "Show archived",
+    "limit": "Up to 30 active fields.",
+    "types": {
+      "TEXT": "Text",
+      "NUMBER": "Number",
+      "DATE": "Date",
+      "SELECT": "Single choice",
+      "MULTI_SELECT": "Multiple choice",
+      "BOOLEAN": "Yes / No",
+      "URL": "Link"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "choose": "Choose…",
+    "sectionTitle": "Details"
+  },
+  "savedViews": {
+    "button": "Views",
+    "allLeads": "All leads",
+    "mine": "My views",
+    "shared": "Shared with the team",
+    "save": "Save current view",
+    "name": "View name",
+    "share": "Share with the team",
+    "create": "Save view",
+    "saving": "Saving...",
+    "saved": "View saved",
+    "deleted": "View deleted",
+    "delete": "Delete view",
+    "empty": "No saved views yet."
   }
 }

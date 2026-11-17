@@ -11,6 +11,7 @@ import {
   TaskStatus,
 } from '@crmpro/database';
 import { AuditWriterService } from '../audit/audit-writer.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import {
   AUDIT_ENTITY_TYPES,
   LEAD_AUDIT_ACTIONS,
@@ -76,6 +77,7 @@ export class LeadsService {
     private readonly domainEventBus: DomainEventBus,
     private readonly quotaService: QuotaService,
     private readonly auditWriter: AuditWriterService,
+    private readonly customFieldsService: CustomFieldsService,
   ) {}
 
   async listLeads(
@@ -143,6 +145,13 @@ export class LeadsService {
 
     this.ensurePhonesDistinct(primaryPhoneNormalized, secondaryPhoneNormalized);
 
+    const customFields = await this.customFieldsService.resolveLeadValues(
+      tenantId,
+      null,
+      dto.customFields,
+      { creating: true },
+    );
+
     const duplicateWarning = await this.detectDuplicates(
       tenantId,
       primaryPhoneNormalized,
@@ -168,6 +177,7 @@ export class LeadsService {
           secondaryPhone,
           secondaryPhoneNormalized,
           email: dto.email ?? null,
+          ...(customFields ? { customFields } : {}),
         },
         select: { id: true },
       });
@@ -446,6 +456,16 @@ export class LeadsService {
       existing.id,
     );
 
+    const customFields =
+      dto.customFields !== undefined
+        ? await this.customFieldsService.resolveLeadValues(
+            tenantId,
+            existing.customFields,
+            dto.customFields,
+            { creating: false },
+          )
+        : undefined;
+
     await this.prisma.$transaction(async (tx) => {
       await tx.lead.update({
         where: { id: existing.id },
@@ -460,6 +480,7 @@ export class LeadsService {
             ? { secondaryPhone, secondaryPhoneNormalized }
             : {}),
           ...(dto.email !== undefined ? { email: dto.email } : {}),
+          ...(customFields !== undefined ? { customFields } : {}),
         },
       });
 

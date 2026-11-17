@@ -7,6 +7,7 @@ import { LeadsService } from './leads.service';
 import type { LeadScope } from './scope/lead-scope.types';
 import { LeadActivityService } from './services/lead-activity.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 
 const agentScope: LeadScope = { kind: 'own', actorUserId: 'agent-1' };
 const teamScope: LeadScope = {
@@ -65,6 +66,12 @@ describe('LeadsService scope isolation', () => {
         {
           provide: AuditWriterService,
           useValue: { createAuditLog: jest.fn() },
+        },
+        {
+          provide: CustomFieldsService,
+          useValue: {
+            resolveLeadValues: jest.fn().mockResolvedValue(undefined),
+          },
         },
         {
           provide: QuotaService,

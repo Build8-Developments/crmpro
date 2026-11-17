@@ -9,9 +9,14 @@ export interface TenantSettings {
   autoAssignEnabled: boolean;
   slaFirstResponseMinutes: number | null;
   slaAction: SlaAction;
+  logoFileAssetId: string | null;
   updatedAt: string;
+  /** From the tenant record. */
+  workspaceName: string;
+  /** Short-lived signed URL. */
+  logoUrl: string | null;
 }
 
 export type UpdateTenantSettingsInput = Partial<
-  Omit<TenantSettings, "tenantId" | "updatedAt">
+  Omit<TenantSettings, "tenantId" | "updatedAt" | "logoUrl">
 >;

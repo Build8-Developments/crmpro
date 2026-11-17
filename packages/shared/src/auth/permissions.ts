@@ -84,6 +84,11 @@ export const PERMISSIONS = {
 
   /** Create and revoke inbound API keys (website forms, Zapier, ad platforms). */
   API_KEY_MANAGE: 'api-key.manage',
+
+  /** Define, reorder and archive custom lead fields. */
+  CUSTOM_FIELD_MANAGE: 'custom-field.manage',
+  /** Share saved lead views with the whole workspace. */
+  SAVED_VIEW_SHARE: 'saved-view.share',
 } as const;
 
 export const ADMIN_PERMISSIONS = {
@@ -206,6 +211,8 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.TENANT_MANAGE,
     PERMISSIONS.BILLING_MANAGE,
     PERMISSIONS.API_KEY_MANAGE,
+    PERMISSIONS.CUSTOM_FIELD_MANAGE,
+    PERMISSIONS.SAVED_VIEW_SHARE,
   ],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 

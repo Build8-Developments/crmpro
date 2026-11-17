@@ -20,6 +20,7 @@ enum FileAssetCategory {
   IMPORT_FILE
   EXPORT_FILE
   OTHER
+  TENANT_LOGO
 }
 
 enum LeadStatus {
@@ -257,6 +258,8 @@ model Tenant {
   tasks            Task[]
   settings         TenantSettings?
   apiKeys          ApiKey[]
+  customFields     CustomFieldDefinition[]
+  savedViews       SavedView[]
   fileAssets       FileAsset[]
   developers       Developer[]
   projects         Project[]
@@ -346,6 +349,7 @@ model User {
   createdTasks       Task[]        @relation("TaskCreator")
   tokens             UserToken[]
   apiKeys            ApiKey[]
+  savedViews         SavedView[]
   auditLogs          AuditLog[]
   importJobs         ImportJob[]
   exportJobs         ExportJob[]
@@ -393,6 +397,8 @@ model TenantSettings {
   /// Minutes the owner has to make first contact; null = SLA off.
   slaFirstResponseMinutes Int?
   slaAction               SlaAction @default(NOTIFY)
+  /// FileAsset (category TENANT_LOGO) shown on sign-in and in the sidebar.
+  logoFileAssetId         String?   @db.Uuid
   updatedAt               DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -415,6 +421,63 @@ model ApiKey {
   createdBy User   @relation(fields: [createdByUserId], references: [id])
 
   @@index([tenantId, revokedAt])
+}
+
+enum CustomFieldEntity {
+  LEAD
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTI_SELECT
+  BOOLEAN
+  URL
+}
+
+/// Tenant-defined extra fields. Values live in `Lead.customFields` keyed by
+/// `key`; the key never changes so renaming a label keeps the data.
+model CustomFieldDefinition {
+  id         String            @id @default(uuid()) @db.Uuid
+  tenantId   String            @db.Uuid
+  entity     CustomFieldEntity @default(LEAD)
+  key        String
+  label      String
+  type       CustomFieldType
+  /// SELECT / MULTI_SELECT choices: string[]
+  options    Json?
+  isRequired Boolean           @default(false)
+  sortOrder  Int               @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, entity, key])
+  @@index([tenantId, entity, archivedAt])
+}
+
+/// A named set of lead filters + sort. Personal by default; shared views are
+/// visible to the whole tenant but results still follow each viewer's scope.
+model SavedView {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  filters   Json     @default("{}")
+  sort      Json     @default("{}")
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, isShared])
 }
 
 model UserSession {

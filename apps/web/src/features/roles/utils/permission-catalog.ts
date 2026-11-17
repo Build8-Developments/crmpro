@@ -65,7 +65,13 @@ export const PERMISSION_GROUPS = {
     "notification.delete",
   ],
   AUDIT: ["audit.read"],
-  TENANT: ["tenant.manage", "billing.manage", "api-key.manage"],
+  TENANT: [
+    "tenant.manage",
+    "billing.manage",
+    "api-key.manage",
+    "custom-field.manage",
+    "saved-view.share",
+  ],
 } as const;
 
 export type PermissionGroupKey = keyof typeof PERMISSION_GROUPS;
@@ -214,5 +220,7 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "tenant.manage": "Manage tenant settings",
   "billing.manage": "Manage billing and subscription",
   "api-key.manage": "Create and revoke inbound API keys",
+  "custom-field.manage": "Define and archive custom lead fields",
+  "saved-view.share": "Share saved lead views with the workspace",
 };
 

@@ -15,7 +15,7 @@ export class TenantSettingsController {
   /** Readable by every member: the UI needs timezone, currency and locale. */
   @Get()
   async get(@CurrentUser() user: AuthenticatedUser) {
-    const data = await this.settings.get(user.tenantId);
+    const data = await this.settings.getView(user.tenantId);
     return { success: true, data };
   }
 

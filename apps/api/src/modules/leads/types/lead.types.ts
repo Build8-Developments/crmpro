@@ -43,6 +43,7 @@ export interface LeadResponse {
   secondaryPhone: string | null;
   email: string | null;
   lastContactedAt: Date | null;
+  customFields: Record<string, unknown>;
   firstContactedAt: Date | null;
   nextFollowUpAt: Date | null;
   assignedAt: Date | null;

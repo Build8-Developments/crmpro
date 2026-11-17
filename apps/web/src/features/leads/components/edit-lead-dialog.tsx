@@ -1,5 +1,8 @@
 "use client";
 
+import { CustomFieldInputs } from "@/features/custom-fields/components/custom-field-inputs";
+import type { CustomFieldValues } from "@/features/custom-fields/types";
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +49,7 @@ export function EditLeadDialog() {
   const [sourceId, setSourceId] = useState<string>();
   const [projectId, setProjectId] = useState<string>();
   const [interestLevel, setInterestLevel] = useState<string>();
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({});
 
   useEffect(() => {
     if (!open || !lead) return;
@@ -60,6 +64,7 @@ export function EditLeadDialog() {
     setSourceId(lead.source?.id);
     setProjectId(interest?.projectId);
     setInterestLevel(interest?.interestLevel ?? undefined);
+    setCustomFields((lead.customFields ?? {}) as CustomFieldValues);
   }, [open, lead]);
 
   const handleClose = () => {
@@ -92,6 +97,9 @@ export function EditLeadDialog() {
               },
             ]
           : [],
+        // Only send fields the user changed, so an untouched required field
+        // on an older lead doesn't block unrelated edits.
+        ...(changedCustomFields(lead?.customFields ?? {}, customFields)),
       },
     });
 
@@ -203,6 +211,8 @@ export function EditLeadDialog() {
               </div>
             </div>
 
+            <CustomFieldInputs values={customFields} onChange={setCustomFields} />
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
@@ -264,4 +274,17 @@ function SelectField({
       </Select>
     </div>
   );
+}
+
+function changedCustomFields(
+  original: Record<string, unknown>,
+  current: CustomFieldValues,
+): { customFields?: CustomFieldValues } {
+  const changed: CustomFieldValues = {};
+  for (const [key, value] of Object.entries(current)) {
+    if (JSON.stringify(original[key] ?? null) !== JSON.stringify(value ?? null)) {
+      changed[key] = value;
+    }
+  }
+  return Object.keys(changed).length > 0 ? { customFields: changed } : {};
 }

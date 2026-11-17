@@ -7,4 +7,5 @@ export const PHASE1_UPLOAD_CATEGORIES = [
   'LEAD_ATTACHMENT',
   'IMPORT_FILE',
   'OTHER',
+  'TENANT_LOGO',
 ] as const;

@@ -5,6 +5,7 @@ import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LeadsService } from './leads.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 
 describe('LeadsService quota enforcement', () => {
   let service: LeadsService;
@@ -46,6 +47,12 @@ describe('LeadsService quota enforcement', () => {
         {
           provide: AuditWriterService,
           useValue: { createAuditLog: jest.fn() },
+        },
+        {
+          provide: CustomFieldsService,
+          useValue: {
+            resolveLeadValues: jest.fn().mockResolvedValue(undefined),
+          },
         },
         { provide: QuotaService, useValue: quotaService },
       ],

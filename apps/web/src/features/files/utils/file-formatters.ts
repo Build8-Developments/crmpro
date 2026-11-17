@@ -6,6 +6,7 @@ const CATEGORY_LABELS: Record<FileAssetCategory, string> = {
   PROJECT_BROCHURE: "Brochure",
   IMPORT_FILE: "Import",
   EXPORT_FILE: "Export",
+  TENANT_LOGO: "Logo",
   OTHER: "Other",
 };
 

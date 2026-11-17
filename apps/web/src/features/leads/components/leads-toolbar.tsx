@@ -23,6 +23,7 @@ import { useTranslations } from "next-intl";
 import { useLeadScope } from "@/hooks/use-lead-scope";
 import { usePermissions } from "@/hooks/use-permissions";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
+import { SavedViewsMenu } from "@/features/saved-views/components/saved-views-menu";
 import { ActiveFilterBadges } from "./active-filter-badges";
 
 interface LeadsToolbarProps {
@@ -90,6 +91,7 @@ export function LeadsToolbar({
           />
         </div>
 
+        <SavedViewsMenu />
         <LeadsFiltersSheet
           filters={filters}
           onFiltersChange={onFiltersChange}

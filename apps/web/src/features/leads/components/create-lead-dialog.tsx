@@ -1,5 +1,8 @@
 "use client";
 
+import { CustomFieldInputs } from "@/features/custom-fields/components/custom-field-inputs";
+import type { CustomFieldValues } from "@/features/custom-fields/types";
+
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +49,7 @@ export function CreateLeadDialog() {
   const [interestLevel, setInterestLevel] = useState<string>();
   const [pipelineId, setPipelineId] = useState<string>();
   const [pipelineStageId, setPipelineStageId] = useState<string>();
+  const [customFields, setCustomFields] = useState<CustomFieldValues>({});
 
   const pipelineOptions = useMemo(() => pipelines.data ?? [], [pipelines.data]);
 
@@ -111,6 +115,7 @@ export function CreateLeadDialog() {
             ],
           }
         : {}),
+      ...(Object.keys(customFields).length > 0 ? { customFields } : {}),
     });
 
     handleClose();
@@ -238,6 +243,8 @@ export function CreateLeadDialog() {
               </Select>
             </div>
           </div>
+
+          <CustomFieldInputs values={customFields} onChange={setCustomFields} />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

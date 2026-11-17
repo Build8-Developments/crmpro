@@ -79,6 +79,16 @@ export const queryKeys = {
     all: () => ["api-keys"] as const,
   },
 
+  customFields: {
+    all: () => ["custom-fields"] as const,
+    list: (includeArchived: boolean) =>
+      ["custom-fields", "list", includeArchived] as const,
+  },
+
+  savedViews: {
+    all: () => ["saved-views"] as const,
+  },
+
   teams: {
     all: () => ["teams"] as const,
     list: () => ["teams", "list"] as const,

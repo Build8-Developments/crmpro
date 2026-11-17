@@ -11,6 +11,7 @@ export const leadSelect = {
   secondaryPhoneNormalized: true,
   email: true,
   lastContactedAt: true,
+  customFields: true,
   firstContactedAt: true,
   nextFollowUpAt: true,
   assignedAt: true,
@@ -69,6 +70,10 @@ export function toLeadResponse(lead: LeadRecord): LeadResponse {
     secondaryPhone: lead.secondaryPhone,
     email: lead.email,
     lastContactedAt: lead.lastContactedAt,
+    customFields:
+      lead.customFields && typeof lead.customFields === 'object'
+        ? (lead.customFields as Record<string, unknown>)
+        : {},
     firstContactedAt: lead.firstContactedAt,
     nextFollowUpAt: lead.nextFollowUpAt,
     assignedAt: lead.assignedAt,

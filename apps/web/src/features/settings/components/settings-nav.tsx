@@ -10,7 +10,9 @@ export type SettingsSectionId =
   | "workspace"
   | "teams"
   | "distribution"
+  | "customFields"
   | "integrations"
+  | "billing"
   | "sessions"
   | "notifications";
 
@@ -38,9 +40,19 @@ const TRANSLATED_SECTIONS: Array<
     requiredPermission: "tenant.manage",
   },
   {
+    id: "customFields",
+    icon: AppIcons.edit,
+    requiredPermission: "lead.read",
+  },
+  {
     id: "integrations",
     icon: AppIcons.activity,
     requiredPermission: "api-key.manage",
+  },
+  {
+    id: "billing",
+    icon: AppIcons.chartBar,
+    requiredPermission: "billing.manage",
   },
 ];
 

@@ -16,6 +16,7 @@ import { LeadNotesService } from './services/lead-notes.service';
 import { LeadStageService } from './services/lead-stage.service';
 import { LeadTimelineService } from './services/lead-timeline.service';
 import { LeadScopeModule } from './scope/lead-scope.module';
+import { CustomFieldsModule } from '../custom-fields/custom-fields.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { LeadScopeModule } from './scope/lead-scope.module';
     LeadActivityModule,
     LeadAttachmentModule,
     LeadScopeModule,
+    CustomFieldsModule,
   ],
   controllers: [LeadsController, LeadNotesController, LeadsBulkController],
   providers: [

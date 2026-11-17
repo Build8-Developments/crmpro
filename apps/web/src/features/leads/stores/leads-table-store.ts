@@ -22,7 +22,8 @@ export type LeadsSortField =
   | "createdAt"
   | "updatedAt"
   | "fullName"
-  | "lastContactedAt";
+  | "lastContactedAt"
+  | "nextFollowUpAt";
 
 interface LeadsTableState {
   page: number;

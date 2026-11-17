@@ -224,6 +224,8 @@ const PERMISSIONS = [
   { key: 'tenant.manage', description: 'Manage tenant settings' },
   { key: 'billing.manage', description: 'Manage billing and subscription' },
   { key: 'api-key.manage', description: 'Create and revoke inbound API keys' },
+  { key: 'custom-field.manage', description: 'Define and archive custom lead fields' },
+  { key: 'saved-view.share', description: 'Share saved lead views with the workspace' },
 ] as const;
 
 const ADMIN_ROLE_IDS = {

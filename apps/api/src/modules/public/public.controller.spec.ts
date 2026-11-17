@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
+import { TenantSettingsService } from '../tenant-settings/tenant-settings.service';
 
 describe('PublicService', () => {
   let service: PublicService;
@@ -24,7 +25,14 @@ describe('PublicService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PublicService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        PublicService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: TenantSettingsService,
+          useValue: { getLogoUrl: jest.fn().mockResolvedValue(null) },
+        },
+      ],
     }).compile();
 
     service = module.get(PublicService);
@@ -47,7 +55,7 @@ describe('PublicService', () => {
 
     expect(prisma.tenant.findFirst).toHaveBeenCalledWith({
       where: { slug: 'prime-estates', deletedAt: null },
-      select: { name: true, slug: true },
+      select: { id: true, name: true, slug: true },
     });
   });
 

@@ -37,6 +37,9 @@ import { TenantSettingsModule } from './modules/tenant-settings/tenant-settings.
 import { LeadDistributionModule } from './modules/lead-distribution/lead-distribution.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { InboundModule } from './modules/inbound/inbound.module';
+import { CustomFieldsModule } from './modules/custom-fields/custom-fields.module';
+import { SavedViewsModule } from './modules/saved-views/saved-views.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { SupportModule } from './modules/support/support.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
@@ -82,6 +85,9 @@ import { envValidationSchema } from './config/env.validation';
     LeadDistributionModule,
     ApiKeysModule,
     InboundModule,
+    CustomFieldsModule,
+    SavedViewsModule,
+    BillingModule,
     RolesModule,
     SupportModule,
     PublicModule,
