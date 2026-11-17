@@ -72,6 +72,7 @@ export interface DownloadUrlResponse {
 
 export type FilesListParams = ListQueryParams & {
   category?: FileAssetCategory;
+  projectId?: string;
   sortBy?: "createdAt" | "originalFilename" | "sizeBytes";
 };
 

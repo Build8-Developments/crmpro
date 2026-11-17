@@ -112,6 +112,10 @@ export const queryKeys = {
     list: (params?: ListQueryParams) =>
       ["projects", "list", params ?? {}] as const,
     detail: (id: string) => ["projects", "detail", id] as const,
+    updatesAll: () => ["projects", "updates"] as const,
+    updates: (projectId?: string) =>
+      ["projects", "updates", projectId ?? "all"] as const,
+    files: (projectId: string) => ["projects", "files", projectId] as const,
   },
 
   files: {

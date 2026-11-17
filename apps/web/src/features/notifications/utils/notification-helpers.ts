@@ -20,6 +20,9 @@ export const NOTIFICATION_ICONS: Record<NotificationType, AppIcon> = {
   TASK_OVERDUE: AppIcons.users,
   TASK_COMPLETED: AppIcons.users,
   SUPPORT_REPLY: AppIcons.lifeBuoy,
+  SLA_BREACHED: AppIcons.clock,
+  LEAD_RESUBMITTED: AppIcons.refresh,
+  PROJECT_UPDATE: AppIcons.projects,
 };
 
 function metaString(
@@ -46,7 +49,15 @@ export function getNotificationHref(notification: Notification): string | null {
     case "TASK_DUE":
     case "TASK_OVERDUE":
     case "TASK_COMPLETED":
+    case "SLA_BREACHED":
+    case "LEAD_RESUBMITTED":
       return leadId ? `/leads?id=${encodeURIComponent(leadId)}` : "/leads";
+    case "PROJECT_UPDATE": {
+      const projectId = metaString(notification.metadata, "projectId");
+      return projectId
+        ? `/projects?projectId=${encodeURIComponent(projectId)}&tab=updates`
+        : "/projects";
+    }
     case "IMPORT_COMPLETED":
       return "/imports";
     case "EXPORT_COMPLETED":

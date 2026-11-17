@@ -22,6 +22,9 @@ describe('LeadsService quota enforcement', () => {
     };
 
     const prisma = {
+      tenantSettings: {
+        findUnique: jest.fn().mockResolvedValue({ defaultCountryCode: 'EG' }),
+      },
       lead: { findMany: jest.fn().mockResolvedValue([]) },
       user: { findFirst: jest.fn().mockResolvedValue(null) },
       leadSource: { findFirst: jest.fn() },

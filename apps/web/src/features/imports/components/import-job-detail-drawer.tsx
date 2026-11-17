@@ -203,7 +203,7 @@ export function ImportJobDetailDrawer() {
                 ) : (
                   <>
                     <AppIcons.exports className="size-3.5" />
-                    Download source CSV
+                    Download source file
                   </>
                 )}
               </Button>

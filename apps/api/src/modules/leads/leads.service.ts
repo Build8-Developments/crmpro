@@ -26,7 +26,10 @@ import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
 import { normalizeDisplayName } from '../../common/utils/name-normalization.util';
-import { normalizePhone } from '../../common/utils/phone-normalization.util';
+import {
+  normalizePhone,
+  phoneMatchVariants,
+} from '../../common/utils/phone-normalization.util';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { GetLeadsQueryDto } from './dto/get-leads-query.dto';
 import { ProjectInterestDto } from './dto/project-interest.dto';
@@ -1065,6 +1068,30 @@ export class LeadsService {
     }
   }
 
+  private readonly countryCodeCache = new Map<
+    string,
+    { code: string | null; expiresAt: number }
+  >();
+
+  /** Workspace country for phone matching (cached for a minute). */
+  private async getTenantCountryCode(tenantId: string): Promise<string | null> {
+    const cached = this.countryCodeCache.get(tenantId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.code;
+    }
+
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+      select: { defaultCountryCode: true },
+    });
+    const code = settings?.defaultCountryCode ?? null;
+    this.countryCodeCache.set(tenantId, {
+      code,
+      expiresAt: Date.now() + 60_000,
+    });
+    return code;
+  }
+
   private async detectDuplicates(
     tenantId: string,
     primaryPhoneNormalized: string,
@@ -1074,11 +1101,15 @@ export class LeadsService {
   ): Promise<DuplicateWarning | null> {
     // Soft detection only — never blocks create/update. Uses composite indexes:
     // Lead_tenantId_primaryPhoneNormalized_idx, Lead_tenantId_secondaryPhoneNormalized_idx
-    const phones = [primaryPhoneNormalized];
-
-    if (secondaryPhoneNormalized) {
-      phones.push(secondaryPhoneNormalized);
-    }
+    // "010…" and "+2010…" are the same client: match every spelling.
+    const countryCode = await this.getTenantCountryCode(tenantId);
+    const phones = [
+      ...new Set(
+        [primaryPhoneNormalized, secondaryPhoneNormalized]
+          .filter((phone): phone is string => Boolean(phone))
+          .flatMap((phone) => phoneMatchVariants(phone, countryCode)),
+      ),
+    ];
 
     const matches = await this.prisma.lead.findMany({
       where: {

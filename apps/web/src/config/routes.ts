@@ -139,7 +139,7 @@ export const navGroups: NavGroup[] = [
       {
         label: "Imports",
         href: "/imports",
-        subtitle: "Import leads from CSV",
+        subtitle: "Import leads from Excel or CSV",
         icon: AppIcons.imports,
         requiredPermissions: ["import-job.read"],
         searchable: true,

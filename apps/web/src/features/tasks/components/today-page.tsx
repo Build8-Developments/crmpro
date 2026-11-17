@@ -1,5 +1,6 @@
 "use client";
 
+import { ProjectUpdatesWidget } from "@/features/project-updates/components/project-updates-widget";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -137,6 +138,7 @@ export function TodayPage() {
             onOpenLead={openLead}
             showAssignee={showAssignee}
           />
+          <ProjectUpdatesWidget />
         </div>
 
         {can("lead.read") ? (

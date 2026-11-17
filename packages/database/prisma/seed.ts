@@ -1005,8 +1005,51 @@ async function seedFollowUps(tenantId: string, leadIds: string[]): Promise<void>
   }
 }
 
+/** Project news for the Today widget and the project drawer. */
+async function seedProjectUpdates(tenantId: string, authorUserId: string): Promise<void> {
+  const hour = 60 * 60 * 1000;
+  const updates = [
+    {
+      projectId: PROJECT_IDS.mivida,
+      type: 'PRICE_CHANGE' as const,
+      title: 'New price list from 1 December',
+      body: 'Apartments +7%. Current prices hold for reservations before 30 November.',
+      ago: 3 * hour,
+    },
+    {
+      projectId: PROJECT_IDS.palmHillsNewCairo,
+      type: 'NEW_PHASE' as const,
+      title: 'Phase 3 launch — EOIs open',
+      body: 'Townhouses and twin houses, 10% down payment over 8 years.',
+      ago: 26 * hour,
+    },
+    {
+      projectId: PROJECT_IDS.madinaty,
+      type: 'AVAILABILITY' as const,
+      title: 'Only 12 B8 apartments left',
+      body: null,
+      ago: 50 * hour,
+    },
+  ];
+
+  for (const update of updates) {
+    await prisma.projectUpdate.create({
+      data: {
+        tenantId,
+        projectId: update.projectId,
+        authorUserId,
+        type: update.type,
+        title: update.title,
+        body: update.body,
+        createdAt: new Date(Date.now() - update.ago),
+      },
+    });
+  }
+}
+
 async function clearTenantSampleData(tenantId: string): Promise<void> {
   await prisma.task.deleteMany({ where: { tenantId } });
+  await prisma.projectUpdate.deleteMany({ where: { tenantId } });
   await prisma.exportJob.deleteMany({ where: { tenantId } });
   await prisma.importJob.deleteMany({ where: { tenantId } });
   await prisma.fileAsset.deleteMany({ where: { tenantId } });
@@ -1767,6 +1810,7 @@ async function seedTenantCrmData(
   });
 
   await seedFollowUps(tenantId, leadIds);
+  await seedProjectUpdates(tenantId, ownerId);
   await seedNotificationPreferences(tenantId, userIds);
   await seedNotifications({ tenantId, userIds, leadIds });
 

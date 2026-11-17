@@ -6,7 +6,8 @@ export type NotificationPreferenceCategory =
   | "MARKETING"
   | "SYSTEM"
   | "SECURITY"
-  | "TASK_UPDATES";
+  | "TASK_UPDATES"
+  | "PROJECT_UPDATES";
 
 export interface NotificationPreference {
   category: NotificationPreferenceCategory;

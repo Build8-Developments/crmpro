@@ -10,6 +10,9 @@ function build(options: { txError?: Error; duplicate?: boolean } = {}) {
     leadNote: { create: jest.fn() },
   };
   const prisma = {
+    tenantSettings: {
+      findUnique: jest.fn().mockResolvedValue({ defaultCountryCode: 'EG' }),
+    },
     lead: {
       findMany: jest
         .fn()
@@ -111,6 +114,26 @@ describe('LeadsService.createLeadFromImport', () => {
         pipeline,
       ),
     ).resolves.toMatchObject({ success: true });
+  });
+
+  it('matches "010…" against leads stored as "+2010…"', async () => {
+    const { service, prisma } = build({ duplicate: true });
+
+    await service.createLeadFromImport(
+      'tenant-1',
+      'user-1',
+      'job-1',
+      { fullName: 'Mona Hassan', primaryPhone: '01011111111' },
+      pipeline,
+    );
+
+    const [[query]] = prisma.lead.findMany.mock.calls as Array<
+      [{ where: { OR: Array<Record<string, string>> } }]
+    >;
+    const phones = query.where.OR.map((clause) => Object.values(clause)[0]);
+    expect(phones).toEqual(
+      expect.arrayContaining(['01011111111', '+201011111111', '201011111111']),
+    );
   });
 
   it('treats a unique clash on the row marker as already imported', async () => {

@@ -580,5 +580,42 @@
     },
     "skipped": "Skipped (duplicates)",
     "duplicateRow": "Duplicate"
+  },
+  "projectUpdates": {
+    "types": {
+      "PRICE_CHANGE": "Price change",
+      "NEW_PHASE": "New phase",
+      "AVAILABILITY": "Availability",
+      "GENERAL": "Update"
+    },
+    "postTitle": "Share an update with the team",
+    "titlePlaceholder": "e.g. New price list from 1 December",
+    "bodyPlaceholder": "Details (optional) — prices, payment plans, units left…",
+    "notifyTeam": "Notify everyone who sees projects",
+    "post": "Post update",
+    "posting": "Posting…",
+    "empty": "No updates yet.",
+    "loadMore": "Load more",
+    "delete": "Delete update",
+    "widgetTitle": "Latest project updates",
+    "widgetEmpty": "No project news yet."
+  },
+  "projectFiles": {
+    "help": "Brochures, price sheets and floor plans for the whole team.",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "uploaded": "Files uploaded",
+    "uploadFailed": "Upload failed",
+    "tooBig": "{name} is larger than 25 MB",
+    "empty": "No files yet.",
+    "download": "Download",
+    "delete": "Delete file"
+  },
+  "projectDetail": {
+    "tabs": {
+      "updates": "Updates",
+      "files": "Files"
+    },
+    "interestedLeads": "{count, plural, one {# interested lead} other {# interested leads}}"
   }
 }

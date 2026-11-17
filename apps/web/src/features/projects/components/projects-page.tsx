@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
 import { CreateProjectDialog } from "@/features/projects/components/create-project-dialog";
 import { DeleteProjectDialog } from "@/features/projects/components/delete-project-dialog";
 import { EditProjectDialog } from "@/features/projects/components/edit-project-dialog";
+import { ProjectDetailDrawer } from "@/features/projects/components/project-detail-drawer";
 import { ProjectsEmptyState } from "@/features/projects/components/projects-empty-state";
 import { ProjectsHeader } from "@/features/projects/components/projects-header";
 import { ProjectsPagination } from "@/features/projects/components/projects-pagination";
@@ -44,6 +46,17 @@ export function ProjectsPage() {
   const setHighlightedProjectId = useProjectUiStore(
     (s) => s.setHighlightedProjectId,
   );
+
+  // Deep links from notifications / Today: /projects?projectId=…&tab=updates
+  const searchParams = useSearchParams();
+  const openDetail = useProjectUiStore((s) => s.openDetail);
+  const linkedProjectId = searchParams.get("projectId");
+  const linkedTab = searchParams.get("tab");
+  useEffect(() => {
+    if (linkedProjectId && (linkedTab === "updates" || linkedTab === "files")) {
+      openDetail(linkedProjectId, linkedTab);
+    }
+  }, [linkedProjectId, linkedTab, openDetail]);
 
   useProjectsUrlState({
     debouncedSearch,
@@ -186,6 +199,7 @@ export function ProjectsPage() {
 
       <CreateProjectDialog defaultDeveloperId={developerId} />
       <EditProjectDialog />
+      <ProjectDetailDrawer />
       <DeleteProjectDialog />
     </div>
   );

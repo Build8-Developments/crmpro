@@ -13,7 +13,10 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { normalizeDisplayName } from '../../common/utils/name-normalization.util';
-import { normalizePhone } from '../../common/utils/phone-normalization.util';
+import {
+  normalizePhone,
+  phoneMatchVariants,
+} from '../../common/utils/phone-normalization.util';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { buildNotificationDedupeKey } from '../notifications/utils/notification-dedupe.util';
@@ -60,7 +63,18 @@ export class InboundLeadsService {
     const secondary = dto.secondaryPhone
       ? normalizePhone(dto.secondaryPhone)
       : null;
-    const phones = secondary ? [phone, secondary] : [phone];
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+      select: { defaultCountryCode: true },
+    });
+    // Ad platforms send "+2010…" while agents type "010…": same client.
+    const phones = [
+      ...new Set(
+        (secondary ? [phone, secondary] : [phone]).flatMap((value) =>
+          phoneMatchVariants(value, settings?.defaultCountryCode),
+        ),
+      ),
+    ];
     const existing = await this.prisma.lead.findFirst({
       where: {
         tenantId,

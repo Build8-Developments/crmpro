@@ -15,6 +15,7 @@ Each plan file is self-contained with acceptance criteria and a definition of do
 | 08 | [Email & Invitations](./08-email-invites.md) | mail queue + Mailpit, password reset, email invites, email notifications | ✅ complete |
 | 09 | [Distribution, SLA & Inbound API](./09-distribution-sla-inbound.md) | workspace settings, round-robin, speed-to-lead SLA, API keys + inbound webhook | ✅ complete |
 | 10 | [Workspace & Customization](./10-workspace-customization.md) | workspace name/logo, billing view, custom fields, saved views | ✅ complete |
+| 11 | [Import/Export & Project Updates](./11-import-export-project-updates.md) | Excel import wizard with Arabic header matching, retry-safe imports, XLSX export, project updates & files | ✅ complete |
 
 ## Working agreement
 

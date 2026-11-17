@@ -7,6 +7,7 @@ describe('InboundLeadsService', () => {
     leadProjectInterest: { create: jest.Mock };
   };
   let prisma: {
+    tenantSettings: { findUnique: jest.Mock };
     lead: { findFirst: jest.Mock };
     pipeline: { findFirst: jest.Mock };
     leadSource: { findFirst: jest.Mock; create: jest.Mock };
@@ -27,6 +28,9 @@ describe('InboundLeadsService', () => {
       leadProjectInterest: { create: jest.fn() },
     };
     prisma = {
+      tenantSettings: {
+        findUnique: jest.fn().mockResolvedValue({ defaultCountryCode: 'EG' }),
+      },
       lead: { findFirst: jest.fn().mockResolvedValue(null) },
       pipeline: {
         findFirst: jest

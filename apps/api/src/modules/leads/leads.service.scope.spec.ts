@@ -19,6 +19,7 @@ const teamScope: LeadScope = {
 describe('LeadsService scope isolation', () => {
   let service: LeadsService;
   let prisma: {
+    tenantSettings: { findUnique: jest.Mock };
     lead: { findMany: jest.Mock; findFirst: jest.Mock; count: jest.Mock };
     user: { findFirst: jest.Mock };
     leadSource: { findFirst: jest.Mock };
@@ -31,6 +32,9 @@ describe('LeadsService scope isolation', () => {
   beforeEach(async () => {
     createdLead = jest.fn().mockResolvedValue({ id: 'lead-new' });
     prisma = {
+      tenantSettings: {
+        findUnique: jest.fn().mockResolvedValue({ defaultCountryCode: 'EG' }),
+      },
       lead: {
         findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn(),

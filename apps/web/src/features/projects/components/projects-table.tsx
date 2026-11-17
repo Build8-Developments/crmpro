@@ -1,5 +1,6 @@
 "use client";
 
+import { useProjectUiStore } from "@/features/projects/stores/project-ui-store";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
@@ -135,6 +136,7 @@ function ProjectTableRow({
   onHighlightProject?: (projectId: string) => void;
 }) {
   const rowRef = useRef<HTMLTableRowElement>(null);
+  const openDetail = useProjectUiStore((s) => s.openDetail);
   const isHighlighted = highlightedProjectId === project.id;
   const leadCount = project.interestedLeadCount ?? 0;
 
@@ -154,7 +156,10 @@ function ProjectTableRow({
             isHighlighted && "bg-primary/5",
             !project.isActive && "opacity-70",
           )}
-          onClick={() => onHighlightProject?.(project.id)}
+          onClick={() => {
+            onHighlightProject?.(project.id);
+            openDetail(project.id);
+          }}
         >
           <td className="px-3 py-2.5">
             <div className="flex min-w-0 items-center gap-2.5">
