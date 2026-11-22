@@ -1,4 +1,5 @@
 import type {
+  ExportFormat,
   ExportJobStatus,
   ExportType,
 } from "@/features/exports/types";
@@ -17,6 +18,16 @@ const TYPE_LABELS: Record<ExportType, string> = {
   DEVELOPERS: "Developers",
   ACTIVITIES: "Activities",
 };
+
+const FORMAT_LABELS: Record<ExportFormat, string> = {
+  XLSX: "Excel",
+  CSV: "CSV",
+  PDF: "PDF",
+};
+
+export function formatExportFormat(format: ExportFormat): string {
+  return FORMAT_LABELS[format] ?? format;
+}
 
 export function formatExportStatus(status: ExportJobStatus): string {
   return STATUS_LABELS[status] ?? status;

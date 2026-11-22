@@ -21,8 +21,16 @@ import {
 } from "@/components/ui/select";
 import { useCreateLeadExport } from "@/features/exports/mutations";
 import { useExportUiStore } from "@/features/exports/stores/export-ui-store";
+import type { ExportFormat } from "@/features/exports/types";
 import { usePermissions } from "@/hooks/use-permissions";
 import { ApiError } from "@/lib/api/client";
+
+type LeadExportFormat = Extract<ExportFormat, "XLSX" | "CSV">;
+
+const FORMAT_OPTIONS: { value: LeadExportFormat; label: string }[] = [
+  { value: "XLSX", label: "Excel (.xlsx)" },
+  { value: "CSV", label: "CSV (.csv)" },
+];
 
 export function CreateExportDialog() {
   const open = useExportUiStore((s) => s.createDialogOpen);
@@ -30,6 +38,7 @@ export function CreateExportDialog() {
   const openJobDetail = useExportUiStore((s) => s.openJobDetail);
   const createExport = useCreateLeadExport();
   const { can } = usePermissions();
+  const [format, setFormat] = useState<LeadExportFormat>("XLSX");
   const [status, setStatus] = useState<"all" | "OPEN" | "ARCHIVED">("all");
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +48,7 @@ export function CreateExportDialog() {
   const handleClose = () => {
     if (pending) return;
     closeCreateDialog();
+    setFormat("XLSX");
     setStatus("all");
     setSearch("");
     setError(null);
@@ -52,10 +62,11 @@ export function CreateExportDialog() {
         ...(search.trim() ? { search: search.trim() } : {}),
       };
       const job = await createExport.mutateAsync({
-        format: "CSV",
+        format,
         ...(Object.keys(filters).length > 0 ? { filters } : {}),
       });
       closeCreateDialog();
+      setFormat("XLSX");
       setStatus("all");
       setSearch("");
       openJobDetail(job.id);
@@ -76,12 +87,34 @@ export function CreateExportDialog() {
         <DialogHeader>
           <DialogTitle>Export leads</DialogTitle>
           <DialogDescription>
-            Creates a CSV export in the background. Only one export can run at a
+            Creates the file in the background. Only one export can run at a
             time.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">
+              File format
+            </label>
+            <Select
+              value={format}
+              onValueChange={(value) => setFormat(value as LeadExportFormat)}
+              disabled={pending}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FORMAT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground">
               Lead status
@@ -120,7 +153,11 @@ export function CreateExportDialog() {
           </div>
 
           <p className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            Format: CSV · Includes contact, source, stage, agent, and projects.
+            {format === "XLSX"
+              ? "Excel keeps phone numbers as text and budgets and dates as real values."
+              : "CSV opens in any spreadsheet app."}{" "}
+            Includes contact, source, stage, agent, projects, budget, and
+            profile fields.
           </p>
 
           {error ? <p className="text-xs text-destructive">{error}</p> : null}

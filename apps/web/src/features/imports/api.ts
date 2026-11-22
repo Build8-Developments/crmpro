@@ -5,6 +5,7 @@ import type {
   ImportJob,
   ImportJobsListParams,
   ImportJobsListResponse,
+  ImportPreview,
 } from "./types";
 
 export function getImportJobs(params?: ImportJobsListParams) {
@@ -23,4 +24,8 @@ export function getImportJob(id: string) {
 
 export function createLeadImportJob(input: CreateLeadImportJobInput) {
   return apiClient.post<ImportJob>("/import-jobs/leads", input);
+}
+
+export function previewLeadImport(fileAssetId: string) {
+  return apiClient.post<ImportPreview>("/import-jobs/preview", { fileAssetId });
 }

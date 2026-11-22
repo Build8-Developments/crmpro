@@ -17,8 +17,9 @@ export function ImportsEmptyState() {
       </span>
       <h2 className="mt-4 text-base font-semibold">No imports yet</h2>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Upload a CSV with lead data to create multiple leads at once. Required
-        columns: fullName and primaryPhone.
+        Upload a CSV or Excel file to create many leads at once. Any column
+        layout works, in English or Arabic, as long as it has a name and a
+        phone column.
       </p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         <Button
@@ -32,7 +33,7 @@ export function ImportsEmptyState() {
         {can("import-job.create") ? (
           <Button type="button" size="sm" onClick={openCreateDialog}>
             <AppIcons.upload className="size-3.5" />
-            Import CSV
+            Import leads
           </Button>
         ) : null}
       </div>

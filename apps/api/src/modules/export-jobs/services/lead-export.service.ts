@@ -1,11 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@crmpro/database';
+import { ExportFormat, Prisma } from '@crmpro/database';
 import { SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { LeadsService } from '../../leads/leads.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
 import { LeadExportRow } from '../entities/export-job.types';
+import {
+  CONTACT_CHANNEL_LABELS,
+  CONTACT_TIME_LABELS,
+  PAYMENT_PREFERENCE_LABELS,
+  PURCHASE_PURPOSE_LABELS,
+} from '@crmpro/shared/leads';
 import { EXPORT_PROGRESS_BATCH_SIZE } from '../export-jobs.constants';
+import { type LeadScope, leadScopeWhere } from '../../../common/auth';
 
 const leadExportSelect = {
   fullName: true,
@@ -14,6 +21,17 @@ const leadExportSelect = {
   email: true,
   status: true,
   createdAt: true,
+  occupation: true,
+  residenceArea: true,
+  paymentPreference: true,
+  contactChannelPreference: true,
+  contactTimePreference: true,
+  purchasePurpose: true,
+  budgetMin: true,
+  budgetMax: true,
+  heat: true,
+  lastContactedAt: true,
+  lostReason: { select: { name: true } },
   source: { select: { name: true } },
   pipeline: { select: { name: true } },
   pipelineStage: { select: { name: true } },
@@ -40,13 +58,17 @@ export class LeadExportService {
   buildWhereInput(
     tenantId: string,
     params: LeadExportParams,
+    scope: LeadScope,
   ): Prisma.LeadWhereInput {
-    return this.leadsService.buildLeadsWhereInput(tenantId, params);
+    return {
+      AND: [
+        this.leadsService.buildLeadsWhereInput(tenantId, params),
+        leadScopeWhere(scope),
+      ],
+    };
   }
 
-  buildOrderBy(
-    params: LeadExportParams,
-  ): Prisma.LeadOrderByWithRelationInput {
+  buildOrderBy(params: LeadExportParams): Prisma.LeadOrderByWithRelationInput {
     return this.leadsService.buildLeadsOrderBy(
       params.sortBy,
       params.sortOrder as SortOrder | undefined,
@@ -56,18 +78,20 @@ export class LeadExportService {
   async countLeadsForExport(
     tenantId: string,
     params: LeadExportParams,
+    scope: LeadScope,
   ): Promise<number> {
     return this.prisma.lead.count({
-      where: this.buildWhereInput(tenantId, params),
+      where: this.buildWhereInput(tenantId, params, scope),
     });
   }
 
   async fetchAllForExport(
     tenantId: string,
     params: LeadExportParams,
+    scope: LeadScope,
     onProgress?: (processedRows: number, totalRows: number) => Promise<void>,
   ): Promise<LeadExportRow[]> {
-    const where = this.buildWhereInput(tenantId, params);
+    const where = this.buildWhereInput(tenantId, params, scope);
     const orderBy = this.buildOrderBy(params);
     const totalRows = await this.prisma.lead.count({ where });
     const rows: LeadExportRow[] = [];
@@ -98,9 +122,9 @@ export class LeadExportService {
   }
 
   assertSupportedFormat(format: string): void {
-    if (format !== 'CSV') {
+    if (format !== ExportFormat.CSV && format !== ExportFormat.XLSX) {
       throw new BadRequestException(
-        `Export format ${format} is not supported in Phase 1`,
+        `Export format ${format} is not supported. Use CSV or XLSX.`,
       );
     }
   }
@@ -120,6 +144,25 @@ export class LeadExportService {
         .join(', '),
       status: lead.status,
       createdAt: lead.createdAt.toISOString(),
+      occupation: lead.occupation ?? '',
+      residenceArea: lead.residenceArea ?? '',
+      paymentPreference: lead.paymentPreference
+        ? PAYMENT_PREFERENCE_LABELS[lead.paymentPreference]
+        : '',
+      contactChannel: lead.contactChannelPreference
+        ? CONTACT_CHANNEL_LABELS[lead.contactChannelPreference]
+        : '',
+      contactTime: lead.contactTimePreference
+        ? CONTACT_TIME_LABELS[lead.contactTimePreference]
+        : '',
+      purchasePurpose: lead.purchasePurpose
+        ? PURCHASE_PURPOSE_LABELS[lead.purchasePurpose]
+        : '',
+      budgetMin: lead.budgetMin?.toString() ?? '',
+      budgetMax: lead.budgetMax?.toString() ?? '',
+      heat: lead.heat,
+      lastContactedAt: lead.lastContactedAt?.toISOString() ?? '',
+      lostReason: lead.lostReason?.name ?? '',
     };
   }
 }

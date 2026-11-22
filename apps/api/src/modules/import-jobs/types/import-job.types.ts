@@ -1,8 +1,16 @@
-import { JobStatus } from '@crmpro/database';
+import { ImportDuplicatePolicy, JobStatus } from '@crmpro/database';
+import type { StoredLeadScope } from '../../../common/auth';
+import type { ImportField, ImportMapping } from '../mapping/import-fields';
+import type { ImportFileType } from '../parsing/import-table.reader';
+
+export type ImportJobErrorKind = 'error' | 'duplicate';
 
 export interface ImportJobErrorEntry {
+  /** Spreadsheet line (header = 1); 0 for whole-file errors. */
   row: number;
   reason: string;
+  /** Missing on jobs created before duplicates were reported separately. */
+  kind?: ImportJobErrorKind;
 }
 
 export interface ImportJobFileSummary {
@@ -16,6 +24,33 @@ export interface ImportJobCreatorSummary {
   email: string;
 }
 
+/** Validated defaults stored on the job and applied to every row. */
+export interface ImportDefaults {
+  sourceId?: string;
+  pipelineId?: string;
+  pipelineStageId?: string;
+  projectId?: string;
+  assignedUserId?: string;
+}
+
+/** Shape of ImportJob.options (never returned to clients as-is). */
+export interface StoredImportJobOptions {
+  version: number;
+  /** null: match columns automatically by header (legacy / API clients). */
+  mapping: ImportMapping | null;
+  defaults: ImportDefaults;
+  /** The importer held lead.assign: assignee column/default are honoured. */
+  canAssign: boolean;
+  /** The importer's lead scope: assignees must be inside it. */
+  scope: StoredLeadScope;
+}
+
+/** Public part of the job options. */
+export interface ImportJobOptionsResponse {
+  mapping: ImportMapping | null;
+  defaults: ImportDefaults;
+}
+
 export interface ImportJobResponse {
   id: string;
   status: JobStatus;
@@ -23,6 +58,10 @@ export interface ImportJobResponse {
   processedRows: number;
   successfulRows: number;
   failedRows: number;
+  /** Rows skipped because the phone already belongs to a lead. */
+  skippedRows: number;
+  duplicatePolicy: ImportDuplicatePolicy;
+  options: ImportJobOptionsResponse | null;
   errorSummary: ImportJobErrorEntry[] | null;
   fileAsset: ImportJobFileSummary;
   createdBy: ImportJobCreatorSummary;
@@ -31,15 +70,23 @@ export interface ImportJobResponse {
   completedAt: Date | null;
 }
 
-export interface LeadCsvRow {
-  fullName?: string;
-  primaryPhone?: string;
-  secondaryPhone?: string;
-  email?: string;
-  sourceName?: string;
-  assignedUserEmail?: string;
+export interface ImportFieldDescriptor {
+  key: ImportField;
+  label: string;
+  required: boolean;
 }
 
-export interface ParsedLeadCsvRow extends LeadCsvRow {
-  __line: number;
+export interface ImportPreviewResponse {
+  fileAssetId: string;
+  fileName: string;
+  fileType: ImportFileType;
+  headers: string[];
+  /** First rows, one value per header (same order). */
+  sampleRows: string[][];
+  /** Non-blank data rows in the file. */
+  totalRows: number;
+  /** Header → suggested field (null = not imported). */
+  suggestedMapping: ImportMapping;
+  /** Every field a column can be mapped to, in display order. */
+  fields: ImportFieldDescriptor[];
 }

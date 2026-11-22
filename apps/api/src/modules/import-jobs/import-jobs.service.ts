@@ -1,17 +1,18 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AuditActorType,
   FileAssetCategory,
+  ImportDuplicatePolicy,
   ImportJob,
   JobStatus,
   Prisma,
-  AuditActorType,
 } from '@crmpro/database';
-import { parse } from 'csv-parse/sync';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -22,6 +23,11 @@ import { TenantAccessService } from '../../common/tenant-access/tenant-access.se
 import { TenantInactiveException } from '../../common/tenant-access/tenant-access.exception';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
+import type {
+  DefaultPipelinePlacement,
+  ImportLeadProfile,
+  SystemLeadInput,
+} from '../leads/types/lead.types';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { ImportCompletedEvent } from '../../common/events/domain-event.types';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
@@ -31,18 +37,65 @@ import {
   IMPORT_AUDIT_ACTIONS,
 } from '../audit/audit.constants';
 import { AuditWriterService } from '../audit/audit-writer.service';
-import { CreateLeadImportJobDto } from './dto/create-lead-import-job.dto';
-import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
+import { MAX_UPLOAD_FILE_SIZE_BYTES } from '../files/files.constants';
 import {
+  isAssigneeInScope,
+  parseStoredLeadScope,
+  toStoredLeadScope,
+  type LeadScope,
+} from '../../common/auth';
+import {
+  CreateLeadImportJobDto,
+  ImportDefaultsDto,
+} from './dto/create-lead-import-job.dto';
+import { GetImportJobsQueryDto } from './dto/get-import-jobs-query.dto';
+import { ImportLookups } from './import-lookups';
+import {
+  IMPORT_OPTIONS_VERSION,
+  IMPORT_PREVIEW_ROWS,
+  MAX_DUPLICATE_SUMMARY_ENTRIES,
   MAX_ERROR_SUMMARY_ENTRIES,
+  MAX_IMPORT_COLUMNS,
+  MAX_IMPORT_ROWS,
   PROGRESS_UPDATE_BATCH_SIZE,
-  REQUIRED_CSV_HEADERS,
 } from './import-jobs.constants';
 import {
+  describeMissingFields,
+  IMPORT_FIELD_LABELS,
+  IMPORT_FIELDS,
+  isImportField,
+  missingRequiredFields,
+  parseImportMapping,
+  REQUIRED_IMPORT_FIELDS,
+  suggestMapping,
+  type ImportField,
+  type ImportMapping,
+} from './mapping/import-fields';
+import {
+  cleanImportedPhone,
+  cleanImportedText,
+  parseContactChannel,
+  parseContactTime,
+  parseImportedAmount,
+  parseImportedBudget,
+  parsePaymentPreference,
+  parsePurchasePurpose,
+} from './mapping/import-values';
+import {
+  detectImportFileType,
+  readImportTable,
+  type ImportFileType,
+  type ImportTable,
+  type ImportTableRow,
+} from './parsing/import-table.reader';
+import {
+  ImportDefaults,
   ImportJobErrorEntry,
+  ImportJobErrorKind,
+  ImportJobOptionsResponse,
   ImportJobResponse,
-  LeadCsvRow,
-  ParsedLeadCsvRow,
+  ImportPreviewResponse,
+  StoredImportJobOptions,
 } from './types/import-job.types';
 
 const importJobSelect = {
@@ -52,6 +105,9 @@ const importJobSelect = {
   processedRows: true,
   successfulRows: true,
   failedRows: true,
+  skippedRows: true,
+  duplicatePolicy: true,
+  options: true,
   errorSummary: true,
   createdAt: true,
   updatedAt: true,
@@ -79,7 +135,66 @@ type ValidatedImportFile = {
   id: string;
   objectKey: string;
   mimeType: string;
+  originalFilename: string;
+  fileType: ImportFileType;
 };
+
+/** Who is importing: decides assignee handling and file visibility. */
+export interface ImportActor {
+  scope: LeadScope;
+  /** Holds lead.assign. */
+  canAssign: boolean;
+}
+
+type RowOutcome = 'success' | 'failure' | 'skipped';
+
+type ColumnIndexes = Partial<Record<ImportField, number>>;
+
+interface JobRunContext {
+  jobId: string;
+  tenantId: string;
+  userId: string;
+  duplicatePolicy: ImportDuplicatePolicy;
+  columns: ColumnIndexes;
+  defaults: ImportDefaults;
+  canAssign: boolean;
+  placement: DefaultPipelinePlacement;
+  lookups: ImportLookups;
+}
+
+/** Row errors and duplicates, each capped separately. */
+class RowReport {
+  readonly entries: ImportJobErrorEntry[] = [];
+  private errors = 0;
+  private duplicates = 0;
+
+  add(row: number, reason: string, kind: ImportJobErrorKind): void {
+    if (kind === 'duplicate') {
+      if (this.duplicates >= MAX_DUPLICATE_SUMMARY_ENTRIES) return;
+      this.duplicates += 1;
+    } else {
+      if (this.errors >= MAX_ERROR_SUMMARY_ENTRIES) return;
+      this.errors += 1;
+    }
+    this.entries.push({ row, reason, kind });
+  }
+}
+
+function importOwnerWhere(scope: LeadScope): { createdByUserId?: string } {
+  return scope.kind === 'all' || scope.actorUserId === null
+    ? {}
+    : { createdByUserId: scope.actorUserId };
+}
+
+/**
+ * Import files hold bulk lead data: without whole-organization visibility
+ * people can only preview/import files they uploaded themselves.
+ */
+function fileOwnerWhere(scope: LeadScope): { uploadedByUserId?: string } {
+  return scope.kind === 'all' || scope.actorUserId === null
+    ? {}
+    : { uploadedByUserId: scope.actorUserId };
+}
 
 @Injectable()
 export class ImportJobsService {
@@ -96,12 +211,78 @@ export class ImportJobsService {
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /** Headers, a few rows and a suggested column mapping (nothing is saved). */
+  async previewImport(
+    tenantId: string,
+    fileAssetId: string,
+    actor: ImportActor,
+  ): Promise<ImportPreviewResponse> {
+    const file = await this.validateImportFile(
+      fileAssetId,
+      tenantId,
+      fileOwnerWhere(actor.scope),
+    );
+    const table = await this.readFile(file);
+    const suggestedMapping = suggestMapping(table.headers);
+    if (!actor.canAssign) {
+      for (const [header, field] of Object.entries(suggestedMapping)) {
+        if (field === 'assignee') suggestedMapping[header] = null;
+      }
+    }
+
+    return {
+      fileAssetId: file.id,
+      fileName: file.originalFilename,
+      fileType: table.fileType,
+      headers: table.headers,
+      sampleRows: table.rows
+        .slice(0, IMPORT_PREVIEW_ROWS)
+        .map((row) => row.values),
+      totalRows: table.rows.length,
+      suggestedMapping,
+      fields: IMPORT_FIELDS.filter(
+        (key) => actor.canAssign || key !== 'assignee',
+      ).map((key) => ({
+        key,
+        label: IMPORT_FIELD_LABELS[key],
+        required: REQUIRED_IMPORT_FIELDS.includes(key),
+      })),
+    };
+  }
+
   async createLeadImportJob(
     tenantId: string,
     userId: string,
     dto: CreateLeadImportJobDto,
+    actor: ImportActor,
   ): Promise<ImportJobResponse> {
-    const file = await this.validateImportFile(dto.fileAssetId, tenantId);
+    const file = await this.validateImportFile(
+      dto.fileAssetId,
+      tenantId,
+      fileOwnerWhere(actor.scope),
+    );
+
+    let mapping: ImportMapping | null = null;
+    if (dto.mapping !== undefined && dto.mapping !== null) {
+      mapping = parseImportMapping(dto.mapping);
+      // Assignment is a manager's call: without lead.assign the column is
+      // simply not imported.
+      if (!actor.canAssign) {
+        for (const [header, field] of Object.entries(mapping)) {
+          if (field === 'assignee') mapping[header] = null;
+        }
+      }
+    }
+
+    const defaults = await this.validateDefaults(tenantId, dto.defaults, actor);
+    const duplicatePolicy = dto.duplicatePolicy ?? ImportDuplicatePolicy.SKIP;
+    const options: StoredImportJobOptions = {
+      version: IMPORT_OPTIONS_VERSION,
+      mapping,
+      defaults,
+      canAssign: actor.canAssign,
+      scope: toStoredLeadScope(actor.scope),
+    };
 
     const job = await this.prisma.importJob.create({
       data: {
@@ -109,6 +290,8 @@ export class ImportJobsService {
         createdByUserId: userId,
         fileAssetId: file.id,
         status: JobStatus.PENDING,
+        duplicatePolicy,
+        options: options as unknown as Prisma.InputJsonValue,
       },
       select: importJobSelect,
     });
@@ -121,12 +304,24 @@ export class ImportJobsService {
       action: IMPORT_AUDIT_ACTIONS.STARTED,
       entityType: AUDIT_ENTITY_TYPES.IMPORT_JOB,
       entityId: job.id,
+      metadata: {
+        duplicatePolicy,
+        mapping: mapping ? 'manual' : 'auto',
+      },
     });
 
     return this.toImportJobResponse(job);
   }
 
-  async processImportJob(jobId: string): Promise<void> {
+  /**
+   * `isRetry`: a previous worker attempt crashed mid-file, so the job is
+   * still PROCESSING; it is claimed again and rows the first attempt already
+   * imported come back as already-created (importJobId + importRowNumber).
+   */
+  async processImportJob(
+    jobId: string,
+    options: { isRetry?: boolean } = {},
+  ): Promise<void> {
     const job = await this.prisma.importJob.findUnique({
       where: { id: jobId },
       select: {
@@ -135,6 +330,8 @@ export class ImportJobsService {
         tenantId: true,
         createdByUserId: true,
         fileAssetId: true,
+        duplicatePolicy: true,
+        options: true,
       },
     });
 
@@ -161,7 +358,7 @@ export class ImportJobsService {
       throw error;
     }
 
-    const claimed = await this.claimImportJob(job.id);
+    const claimed = await this.claimImportJob(job.id, options.isRetry === true);
     if (!claimed) {
       this.logger.log(
         `Import job ${jobId} was not claimed (already processing or completed)`,
@@ -169,13 +366,7 @@ export class ImportJobsService {
       return;
     }
 
-    const file = await this.validateImportFile(job.fileAssetId, job.tenantId);
-    await this.processLeadImportJob(
-      job.id,
-      job.tenantId,
-      job.createdByUserId,
-      file,
-    );
+    await this.processLeadImportJob(job);
   }
 
   async failImportJobIfActive(
@@ -198,17 +389,21 @@ export class ImportJobsService {
   async getImportJob(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<ImportJobResponse> {
-    const job = await this.getImportJobOrThrow(id, tenantId);
+    const job = await this.getImportJobOrThrow(id, tenantId, scope);
     return this.toImportJobResponse(job);
   }
 
   async listImportJobs(
     tenantId: string,
     query: GetImportJobsQueryDto,
+    scope: LeadScope,
   ): Promise<PaginatedResponse<ImportJobResponse>> {
     const { page, limit, skip, take } = getPaginationParams(query);
-    const where = { tenantId };
+    // Imports carry lead names and phones in their error rows: without
+    // whole-organization visibility people only see their own imports.
+    const where = { tenantId, ...importOwnerWhere(scope) };
 
     const [jobs, totalItems] = await this.prisma.$transaction([
       this.prisma.importJob.findMany({
@@ -229,11 +424,16 @@ export class ImportJobsService {
     );
   }
 
-  private async claimImportJob(jobId: string): Promise<boolean> {
+  private async claimImportJob(
+    jobId: string,
+    isRetry: boolean,
+  ): Promise<boolean> {
     const result = await this.prisma.importJob.updateMany({
       where: {
         id: jobId,
-        status: JobStatus.PENDING,
+        status: isRetry
+          ? { in: [JobStatus.PENDING, JobStatus.PROCESSING] }
+          : JobStatus.PENDING,
       },
       data: { status: JobStatus.PROCESSING },
     });
@@ -241,88 +441,91 @@ export class ImportJobsService {
     return result.count === 1;
   }
 
-  private async processLeadImportJob(
-    jobId: string,
-    tenantId: string,
-    userId: string,
-    file: ValidatedImportFile,
-  ): Promise<void> {
-    const errors: ImportJobErrorEntry[] = [];
-    let successfulRows = 0;
-    let failedRows = 0;
+  private async processLeadImportJob(job: {
+    id: string;
+    tenantId: string;
+    createdByUserId: string;
+    fileAssetId: string;
+    duplicatePolicy: ImportDuplicatePolicy;
+    options: Prisma.JsonValue;
+  }): Promise<void> {
+    const { id: jobId, tenantId, createdByUserId: userId } = job;
+    const report = new RowReport();
+    const counts = { successfulRows: 0, failedRows: 0, skippedRows: 0 };
     let totalRows = 0;
 
     try {
-      const csvBuffer = await this.downloadCsv(file.objectKey);
-      const rows = this.parseCsv(csvBuffer);
-      totalRows = rows.length;
+      const options = this.parseStoredOptions(job.options);
+      const file = await this.validateImportFile(job.fileAssetId, tenantId);
+      const table = await this.readFile(file);
+      totalRows = table.rows.length;
+
+      const columns = this.resolveColumns(table, options.mapping);
+      if (!options.canAssign) delete columns.assignee;
+
+      const [placement, lookups] = await Promise.all([
+        this.resolvePlacement(tenantId, options.defaults),
+        ImportLookups.load(this.prisma, tenantId, {
+          scope: options.scope,
+          includeUsers: options.canAssign && columns.assignee !== undefined,
+        }),
+      ]);
 
       await this.prisma.importJob.update({
         where: { id: jobId },
         data: { totalRows },
       });
 
-      const pipeline =
-        await this.leadsService.getDefaultPipelinePlacement(tenantId);
+      const context: JobRunContext = {
+        jobId,
+        tenantId,
+        userId,
+        duplicatePolicy: job.duplicatePolicy,
+        columns,
+        defaults: options.canAssign
+          ? options.defaults
+          : { ...options.defaults, assignedUserId: undefined },
+        canAssign: options.canAssign,
+        placement,
+        lookups,
+      };
 
       let processedRows = 0;
 
-      for (const row of rows) {
-        const result = await this.processRow(
-          tenantId,
-          userId,
-          jobId,
-          row,
-          pipeline,
-          errors,
-        );
+      for (const row of table.rows) {
+        const outcome = await this.processRow(context, row, report);
 
-        if (result === 'success') {
-          successfulRows += 1;
-        } else {
-          failedRows += 1;
-        }
+        if (outcome === 'success') counts.successfulRows += 1;
+        else if (outcome === 'skipped') counts.skippedRows += 1;
+        else counts.failedRows += 1;
 
         processedRows += 1;
 
-        const isLastRow = processedRows === totalRows;
-
         if (
           processedRows % PROGRESS_UPDATE_BATCH_SIZE === 0 ||
-          isLastRow
+          processedRows === totalRows
         ) {
           await this.persistProgress(jobId, {
             processedRows,
-            successfulRows,
-            failedRows,
-            errors,
+            ...counts,
+            errors: report.entries,
           });
         }
       }
 
       await this.finalizeJob(jobId, tenantId, userId, {
         totalRows,
-        successfulRows,
-        failedRows,
-        errors,
+        ...counts,
+        errors: report.entries,
       });
     } catch (error: unknown) {
-      const reason =
-        error instanceof BadRequestException
-          ? (error.message as string)
-          : error instanceof Error
-            ? error.message
-            : 'Import failed';
-
-      if (errors.length < MAX_ERROR_SUMMARY_ENTRIES) {
-        errors.push({ row: 0, reason });
-      }
+      const reason = error instanceof Error ? error.message : 'Import failed';
+      report.add(0, reason, 'error');
 
       await this.finalizeJob(jobId, tenantId, userId, {
         totalRows,
-        successfulRows,
-        failedRows,
-        errors,
+        ...counts,
+        errors: report.entries,
         catastrophic: true,
       });
     }
@@ -331,18 +534,22 @@ export class ImportJobsService {
   private async validateImportFile(
     fileAssetId: string,
     tenantId: string,
+    ownerWhere: { uploadedByUserId?: string } = {},
   ): Promise<ValidatedImportFile> {
     const file = await this.prisma.fileAsset.findFirst({
       where: {
         id: fileAssetId,
         tenantId,
         deletedAt: null,
+        ...ownerWhere,
       },
       select: {
         id: true,
         category: true,
         objectKey: true,
         mimeType: true,
+        originalFilename: true,
+        sizeBytes: true,
       },
     });
 
@@ -356,67 +563,224 @@ export class ImportJobsService {
       );
     }
 
-    return file;
+    if (
+      file.sizeBytes !== undefined &&
+      file.sizeBytes !== null &&
+      Number(file.sizeBytes) > MAX_UPLOAD_FILE_SIZE_BYTES
+    ) {
+      throw new BadRequestException(this.fileTooLargeMessage());
+    }
+
+    const originalFilename = file.originalFilename ?? '';
+    const fileType = detectImportFileType(
+      originalFilename,
+      file.mimeType ?? '',
+    );
+    if (!fileType) {
+      throw new BadRequestException('Upload a .csv or .xlsx file');
+    }
+
+    return {
+      id: file.id,
+      objectKey: file.objectKey,
+      mimeType: file.mimeType,
+      originalFilename,
+      fileType,
+    };
   }
 
-  private async downloadCsv(objectKey: string): Promise<Buffer> {
-    return this.storageService.getObject(objectKey);
+  private fileTooLargeMessage(): string {
+    const megabytes = Math.round(MAX_UPLOAD_FILE_SIZE_BYTES / (1024 * 1024));
+    return `The file is larger than ${megabytes} MB`;
   }
 
-  private parseCsv(buffer: Buffer): ParsedLeadCsvRow[] {
-    const content = buffer.toString('utf-8');
-
-    if (content.trim().length === 0) {
-      throw new BadRequestException('CSV file is empty');
+  private async readFile(
+    file: ValidatedImportFile,
+  ): Promise<ImportTable & { fileType: ImportFileType }> {
+    const buffer = await this.storageService.getObject(file.objectKey);
+    // The stored size is client-declared at upload: check the real bytes too.
+    if (buffer.length > MAX_UPLOAD_FILE_SIZE_BYTES) {
+      throw new BadRequestException(this.fileTooLargeMessage());
     }
-
-    let headersValidated = false;
-
-    const rows = parse(content, {
-      columns: (headers: string[]) => {
-        this.validateHeaders(headers.map((header) => header.trim()));
-        headersValidated = true;
-        return headers.map((header) => header.trim());
-      },
-      trim: true,
-      bom: true,
-      on_record: (record, context) => {
-        const row = record as LeadCsvRow;
-
-        if (this.isBlankRow(row)) {
-          return null;
-        }
-
-        return { ...row, __line: context.lines };
-      },
-    }) as ParsedLeadCsvRow[];
-
-    if (!headersValidated) {
-      throw new BadRequestException('CSV file is missing a header row');
-    }
-
-    return rows;
+    return readImportTable(buffer, file.fileType, {
+      maxRows: MAX_IMPORT_ROWS,
+      maxColumns: MAX_IMPORT_COLUMNS,
+    });
   }
 
-  private validateHeaders(headers: string[]): void {
-    if (headers.length === 0) {
-      throw new BadRequestException('CSV file is missing a header row');
+  /** Field → column index, from the stored mapping or the headers. */
+  private resolveColumns(
+    table: ImportTable,
+    stored: ImportMapping | null,
+  ): ColumnIndexes {
+    const mapping = stored ?? suggestMapping(table.headers);
+    const missing = missingRequiredFields(mapping);
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `The file has no column for: ${describeMissingFields(missing)}`,
+      );
     }
 
-    const normalized = headers.map((header) => header.trim());
-    const unique = new Set(normalized);
-
-    if (unique.size !== normalized.length) {
-      throw new BadRequestException('CSV headers must be unique');
-    }
-
-    for (const required of REQUIRED_CSV_HEADERS) {
-      if (!unique.has(required)) {
+    const columns: ColumnIndexes = {};
+    for (const [header, field] of Object.entries(mapping)) {
+      if (!isImportField(field)) continue;
+      const index = table.headers.indexOf(header);
+      if (index === -1) {
         throw new BadRequestException(
-          `CSV is missing required header: ${required}`,
+          `Column "${header}" (${IMPORT_FIELD_LABELS[field]}) is not in the file`,
         );
       }
+      columns[field] = index;
     }
+    return columns;
+  }
+
+  /** Every default must belong to the tenant (assignee: and the scope). */
+  private async validateDefaults(
+    tenantId: string,
+    dto: ImportDefaultsDto | undefined,
+    actor: ImportActor,
+  ): Promise<ImportDefaults> {
+    if (!dto) return {};
+
+    const defaults: ImportDefaults = {};
+
+    if (dto.sourceId) {
+      const source = await this.prisma.leadSource.findFirst({
+        where: { id: dto.sourceId, tenantId },
+        select: { id: true },
+      });
+      if (!source) throw new BadRequestException('Source not found');
+      defaults.sourceId = source.id;
+    }
+
+    if (dto.pipelineStageId) {
+      const stage = await this.prisma.pipelineStage.findFirst({
+        where: {
+          id: dto.pipelineStageId,
+          pipeline: { tenantId },
+          ...(dto.pipelineId ? { pipelineId: dto.pipelineId } : {}),
+        },
+        select: { id: true, pipelineId: true, isClosed: true },
+      });
+      if (!stage) {
+        throw new BadRequestException(
+          dto.pipelineId
+            ? 'That stage does not belong to the selected pipeline'
+            : 'Pipeline stage not found',
+        );
+      }
+      if (stage.isClosed) {
+        throw new BadRequestException(
+          'Imported leads cannot start in a closed stage',
+        );
+      }
+      defaults.pipelineId = stage.pipelineId;
+      defaults.pipelineStageId = stage.id;
+    } else if (dto.pipelineId) {
+      const pipeline = await this.prisma.pipeline.findFirst({
+        where: { id: dto.pipelineId, tenantId },
+        select: {
+          id: true,
+          stages: {
+            where: { isClosed: false },
+            orderBy: { sortOrder: 'asc' },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      });
+      if (!pipeline) throw new BadRequestException('Pipeline not found');
+      if (pipeline.stages.length === 0) {
+        throw new BadRequestException('That pipeline has no open stage');
+      }
+      defaults.pipelineId = pipeline.id;
+      defaults.pipelineStageId = pipeline.stages[0].id;
+    }
+
+    if (dto.projectId) {
+      const project = await this.prisma.project.findFirst({
+        where: { id: dto.projectId, tenantId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!project) throw new BadRequestException('Project not found');
+      defaults.projectId = project.id;
+    }
+
+    if (dto.assignedUserId) {
+      if (!actor.canAssign) {
+        throw new ForbiddenException(
+          'You do not have permission to assign leads',
+        );
+      }
+      const user = await this.prisma.user.findFirst({
+        where: {
+          id: dto.assignedUserId,
+          tenantId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!user || !isAssigneeInScope(actor.scope, user.id)) {
+        throw new BadRequestException('Assigned user not found');
+      }
+      defaults.assignedUserId = user.id;
+    }
+
+    return defaults;
+  }
+
+  /** The chosen stage if it still exists and is open, else the default. */
+  private async resolvePlacement(
+    tenantId: string,
+    defaults: ImportDefaults,
+  ): Promise<DefaultPipelinePlacement> {
+    if (defaults.pipelineId && defaults.pipelineStageId) {
+      const stage = await this.prisma.pipelineStage.findFirst({
+        where: {
+          id: defaults.pipelineStageId,
+          pipelineId: defaults.pipelineId,
+          pipeline: { tenantId },
+          isClosed: false,
+        },
+        select: { id: true },
+      });
+      if (stage) {
+        return {
+          pipelineId: defaults.pipelineId,
+          pipelineStageId: stage.id,
+        };
+      }
+    }
+
+    return this.leadsService.getDefaultPipelinePlacement(tenantId);
+  }
+
+  private parseStoredOptions(value: Prisma.JsonValue): {
+    mapping: ImportMapping | null;
+    defaults: ImportDefaults;
+    canAssign: boolean;
+    scope: LeadScope;
+  } {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      // Jobs created before the wizard: auto-match, no defaults, and the
+      // assignee column behaves as it did (tenant-wide, honoured).
+      return {
+        mapping: null,
+        defaults: {},
+        canAssign: true,
+        scope: parseStoredLeadScope(null),
+      };
+    }
+
+    const stored = value as unknown as Partial<StoredImportJobOptions>;
+    return {
+      mapping: stored.mapping ?? null,
+      defaults: stored.defaults ?? {},
+      canAssign: stored.canAssign === true,
+      scope: parseStoredLeadScope(stored.scope),
+    };
   }
 
   private async persistProgress(
@@ -425,6 +789,7 @@ export class ImportJobsService {
       processedRows: number;
       successfulRows: number;
       failedRows: number;
+      skippedRows: number;
       errors: ImportJobErrorEntry[];
     },
   ): Promise<void> {
@@ -434,131 +799,156 @@ export class ImportJobsService {
         processedRows: params.processedRows,
         successfulRows: params.successfulRows,
         failedRows: params.failedRows,
+        skippedRows: params.skippedRows,
         ...(params.errors.length > 0
           ? {
-              errorSummary:
-                params.errors as unknown as Prisma.InputJsonValue,
+              errorSummary: params.errors as unknown as Prisma.InputJsonValue,
             }
           : {}),
       },
     });
   }
 
-  private isBlankRow(row: LeadCsvRow): boolean {
-    return Object.values(row).every(
-      (value) => value === undefined || value.trim().length === 0,
+  private buildRow(
+    context: JobRunContext,
+    row: ImportTableRow,
+  ):
+    | { input: SystemLeadInput; metadata: Record<string, string> }
+    | { error: string } {
+    const cell = (field: ImportField): string => {
+      const index = context.columns[field];
+      return index === undefined ? '' : (row.values[index] ?? '').trim();
+    };
+
+    const fullName = cleanImportedText(cell('fullName'), 200);
+    if (!fullName) return { error: 'Missing name' };
+    const primaryPhone = cleanImportedPhone(cell('primaryPhone'));
+    if (!primaryPhone) return { error: 'Missing phone' };
+
+    const sourceName = cell('source');
+    const sourceId =
+      (sourceName ? context.lookups.resolveSourceId(sourceName) : null) ??
+      context.defaults.sourceId ??
+      null;
+
+    const assigneeValue = context.canAssign ? cell('assignee') : '';
+    const assignedUserId =
+      (assigneeValue
+        ? context.lookups.resolveAssigneeId(assigneeValue)
+        : null) ??
+      context.defaults.assignedUserId ??
+      null;
+
+    const projectIds = [
+      ...new Set([
+        ...context.lookups.resolveProjectIds(cell('project')),
+        ...(context.defaults.projectId ? [context.defaults.projectId] : []),
+      ]),
+    ];
+
+    const secondaryPhone = cleanImportedPhone(cell('secondaryPhone'));
+    const notes = cell('notes');
+
+    // Names that matched nothing stay on the timeline instead of vanishing.
+    const metadata: Record<string, string> = {};
+    if (sourceName && !context.lookups.resolveSourceId(sourceName)) {
+      metadata.submittedSource = cleanImportedText(sourceName, 200) ?? '';
+    }
+    const unknownProjects = context.lookups.unknownProjectNames(
+      cell('project'),
     );
+    if (unknownProjects.length > 0) {
+      metadata.submittedProject =
+        cleanImportedText(unknownProjects.join(', '), 500) ?? '';
+    }
+
+    return {
+      input: {
+        fullName,
+        primaryPhone,
+        secondaryPhone: secondaryPhone || null,
+        email: cell('email') || null,
+        sourceId,
+        assignedUserId,
+        projectIds,
+        message: notes || null,
+        profile: this.buildProfile(cell),
+      },
+      metadata,
+    };
+  }
+
+  /** Unknown option values and unreadable amounts are ignored, not fatal. */
+  private buildProfile(
+    cell: (field: ImportField) => string,
+  ): ImportLeadProfile {
+    const range = parseImportedBudget(cell('budget'));
+    let budgetMin = parseImportedAmount(cell('budgetMin')) ?? range.min;
+    let budgetMax = parseImportedAmount(cell('budgetMax')) ?? range.max;
+    if (
+      budgetMin !== undefined &&
+      budgetMax !== undefined &&
+      budgetMin > budgetMax
+    ) {
+      [budgetMin, budgetMax] = [budgetMax, budgetMin];
+    }
+
+    return {
+      occupation: cleanImportedText(cell('occupation')),
+      residenceArea: cleanImportedText(cell('residenceArea')),
+      paymentPreference: parsePaymentPreference(cell('paymentPreference')),
+      contactChannelPreference: parseContactChannel(
+        cell('contactChannelPreference'),
+      ),
+      contactTimePreference: parseContactTime(cell('contactTimePreference')),
+      purchasePurpose: parsePurchasePurpose(cell('purchasePurpose')),
+      budgetMin,
+      budgetMax,
+    };
   }
 
   private async processRow(
-    tenantId: string,
-    userId: string,
-    importJobId: string,
-    row: ParsedLeadCsvRow,
-    pipeline: { pipelineId: string; pipelineStageId: string },
-    errors: ImportJobErrorEntry[],
-  ): Promise<'success' | 'failure'> {
-    const fullName = row.fullName?.trim() ?? '';
-    const primaryPhone = row.primaryPhone?.trim() ?? '';
-
-    if (fullName.length === 0) {
-      this.pushError(errors, row.__line, 'Missing fullName');
+    context: JobRunContext,
+    row: ImportTableRow,
+    report: RowReport,
+  ): Promise<RowOutcome> {
+    const built = this.buildRow(context, row);
+    if ('error' in built) {
+      report.add(row.line, built.error, 'error');
       return 'failure';
     }
 
-    if (primaryPhone.length === 0) {
-      this.pushError(errors, row.__line, 'Missing primaryPhone');
-      return 'failure';
-    }
-
-    const sourceId = await this.resolveSourceId(
-      tenantId,
-      row.sourceName?.trim(),
-    );
-    const assignedUserId = await this.resolveAssigneeId(
-      tenantId,
-      row.assignedUserEmail?.trim(),
-    );
-
-    const result = await this.leadsService.createLeadFromImport(
-      tenantId,
-      userId,
-      importJobId,
+    const result = await this.leadsService.createSystemLead(
+      context.tenantId,
+      built.input,
+      context.placement,
       {
-        fullName,
-        primaryPhone,
-        secondaryPhone: row.secondaryPhone?.trim() || null,
-        email: row.email?.trim() || null,
-        sourceId,
-        assignedUserId,
+        origin: 'import',
+        actorUserId: context.userId,
+        importJobId: context.jobId,
+        importRowNumber: row.line,
+        duplicatePolicy: context.duplicatePolicy,
+        ...(Object.keys(built.metadata).length > 0 && {
+          metadata: built.metadata,
+        }),
       },
-      pipeline,
     );
 
-    if (!result.success) {
-      this.pushError(errors, row.__line, result.reason);
-      return 'failure';
+    switch (result.status) {
+      case 'created':
+      case 'already-created':
+        return 'success';
+      case 'duplicate':
+        report.add(
+          row.line,
+          'A lead with this phone number already exists',
+          'duplicate',
+        );
+        return 'skipped';
+      case 'failed':
+        report.add(row.line, result.reason, 'error');
+        return 'failure';
     }
-
-    return 'success';
-  }
-
-  private async resolveSourceId(
-    tenantId: string,
-    sourceName?: string,
-  ): Promise<string | null> {
-    if (!sourceName) {
-      return null;
-    }
-
-    const source = await this.prisma.leadSource.findFirst({
-      where: {
-        tenantId,
-        name: { equals: sourceName, mode: 'insensitive' },
-      },
-      select: { id: true },
-    });
-
-    return source?.id ?? null;
-  }
-
-  private async resolveAssigneeId(
-    tenantId: string,
-    assignedUserEmail?: string,
-  ): Promise<string | null> {
-    if (!assignedUserEmail) {
-      return null;
-    }
-
-    const email = assignedUserEmail.trim().toLowerCase();
-
-    if (email.length === 0) {
-      return null;
-    }
-
-    const user = await this.prisma.user.findFirst({
-      where: {
-        tenantId,
-        email,
-        isActive: true,
-        deletedAt: null,
-      },
-      select: { id: true },
-    });
-
-    return user?.id ?? null;
-  }
-
-  private pushError(
-    errors: ImportJobErrorEntry[],
-    row: number,
-    reason: string,
-  ): void {
-    if (errors.length >= MAX_ERROR_SUMMARY_ENTRIES) {
-      return;
-    }
-
-    errors.push({ row, reason });
   }
 
   private async finalizeJob(
@@ -569,6 +959,7 @@ export class ImportJobsService {
       totalRows: number;
       successfulRows: number;
       failedRows: number;
+      skippedRows: number;
       errors: ImportJobErrorEntry[];
       catastrophic?: boolean;
     },
@@ -580,9 +971,11 @@ export class ImportJobsService {
       data: {
         status,
         totalRows: params.totalRows,
-        processedRows: params.successfulRows + params.failedRows,
+        processedRows:
+          params.successfulRows + params.failedRows + params.skippedRows,
         successfulRows: params.successfulRows,
         failedRows: params.failedRows,
+        skippedRows: params.skippedRows,
         errorSummary:
           params.errors.length > 0
             ? (params.errors as unknown as Prisma.InputJsonValue)
@@ -602,13 +995,12 @@ export class ImportJobsService {
         totalRows: params.totalRows,
         successfulRows: params.successfulRows,
         failedRows: params.failedRows,
+        skippedRows: params.skippedRows,
         status,
       },
     });
 
-    void this.domainEventBus.publish(
-      new ImportCompletedEvent(tenantId, jobId),
-    );
+    void this.domainEventBus.publish(new ImportCompletedEvent(tenantId, jobId));
 
     if (
       status === JobStatus.COMPLETED ||
@@ -624,8 +1016,8 @@ export class ImportJobsService {
     }
   }
 
+  /** Skipped duplicates are not failures: all-skipped is still COMPLETED. */
   private resolveFinalStatus(params: {
-    totalRows: number;
     successfulRows: number;
     failedRows: number;
     catastrophic?: boolean;
@@ -648,9 +1040,10 @@ export class ImportJobsService {
   private async getImportJobOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<ImportJobRecord> {
     const job = await this.prisma.importJob.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, ...importOwnerWhere(scope) },
       select: importJobSelect,
     });
 
@@ -669,12 +1062,28 @@ export class ImportJobsService {
       processedRows: job.processedRows,
       successfulRows: job.successfulRows,
       failedRows: job.failedRows,
+      skippedRows: job.skippedRows ?? 0,
+      duplicatePolicy: job.duplicatePolicy ?? ImportDuplicatePolicy.SKIP,
+      options: this.toOptionsResponse(job.options),
       errorSummary: this.parseErrorSummary(job.errorSummary),
       fileAsset: job.fileAsset,
       createdBy: job.createdBy,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
       completedAt: job.completedAt,
+    };
+  }
+
+  private toOptionsResponse(
+    value: ImportJob['options'] | undefined,
+  ): ImportJobOptionsResponse | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+    const stored = value as unknown as Partial<StoredImportJobOptions>;
+    return {
+      mapping: stored.mapping ?? null,
+      defaults: stored.defaults ?? {},
     };
   }
 

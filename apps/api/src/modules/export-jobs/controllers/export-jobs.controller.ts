@@ -9,7 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
-import { PermissionsGuard, RequirePermission } from '../../../common/auth';
+import {
+  CurrentLeadScope,
+  type LeadScope,
+  PermissionsGuard,
+  RequirePermission,
+} from '../../../common/auth';
 import { PLAN_FEATURES } from '../../../common/entitlements/entitlement.constants';
 import { RequirePlanFeature } from '../../../common/entitlements/decorators/require-plan-feature.decorator';
 import { PlanEntitlementGuard } from '../../../common/entitlements/guards/plan-entitlement.guard';
@@ -30,12 +35,14 @@ export class ExportJobsController {
   @RequirePlanFeature(PLAN_FEATURES.IMPORT_EXPORT)
   async createLeadExportJob(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Body() dto: CreateLeadExportDto,
   ) {
     const data = await this.exportJobsService.createLeadExportJob(
       user.tenantId,
       user.id,
       dto,
+      scope,
     );
 
     return { success: true, data };
@@ -45,11 +52,13 @@ export class ExportJobsController {
   @RequirePermission(PERMISSIONS.EXPORT_JOB_READ)
   async listExportJobs(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: GetExportJobsQueryDto,
   ) {
     const data = await this.exportJobsService.listExportJobs(
       user.tenantId,
       query,
+      scope,
     );
 
     return { success: true, data };
@@ -59,9 +68,14 @@ export class ExportJobsController {
   @RequirePermission(PERMISSIONS.EXPORT_JOB_READ)
   async getExportJob(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const data = await this.exportJobsService.getExportJob(id, user.tenantId);
+    const data = await this.exportJobsService.getExportJob(
+      id,
+      user.tenantId,
+      scope,
+    );
 
     return { success: true, data };
   }

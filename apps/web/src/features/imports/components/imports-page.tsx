@@ -14,7 +14,7 @@ import { CreateImportDialog } from "@/features/imports/components/create-import-
 import { ImportJobDetailDrawer } from "@/features/imports/components/import-job-detail-drawer";
 import { ImportsEmptyState } from "@/features/imports/components/imports-empty-state";
 import { ImportsHeader } from "@/features/imports/components/imports-header";
-import { ImportsPagination } from "@/features/imports/components/imports-pagination";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { ImportsSkeleton } from "@/features/imports/components/imports-skeleton";
 import { ImportsTable } from "@/features/imports/components/imports-table";
 import { ImportsToolbar } from "@/features/imports/components/imports-toolbar";
@@ -79,9 +79,11 @@ export function ImportsPage() {
           <>
             <ImportsTable jobs={jobs} onSelectJob={openJobDetail} />
             {pagination ? (
-              <ImportsPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="imports"
+                hideOnSinglePage
               />
             ) : null}
           </>

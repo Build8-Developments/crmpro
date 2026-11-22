@@ -64,7 +64,10 @@ describe('ImportJobsService job claiming', () => {
             assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
           },
         },
-        { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
+        {
+          provide: AuditWriterService,
+          useValue: { createAuditLog: jest.fn() },
+        },
       ],
     }).compile();
 

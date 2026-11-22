@@ -11,6 +11,7 @@ import { ExportJobsController } from './controllers/export-jobs.controller';
 import { CsvExportService } from './services/csv-export.service';
 import { ExportJobsService } from './services/export-jobs.service';
 import { LeadExportService } from './services/lead-export.service';
+import { XlsxExportService } from './services/xlsx-export.service';
 
 @Module({
   imports: [
@@ -24,7 +25,12 @@ import { LeadExportService } from './services/lead-export.service';
     QueueModule,
   ],
   controllers: [ExportJobsController],
-  providers: [ExportJobsService, LeadExportService, CsvExportService],
+  providers: [
+    ExportJobsService,
+    LeadExportService,
+    CsvExportService,
+    XlsxExportService,
+  ],
   exports: [ExportJobsService],
 })
 export class ExportJobsModule {}

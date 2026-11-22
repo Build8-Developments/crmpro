@@ -49,7 +49,10 @@ describe('ImportJobsService tenant suspension', () => {
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         { provide: NotificationTriggerService, useValue: {} },
         { provide: TenantAccessService, useValue: tenantAccessService },
-        { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
+        {
+          provide: AuditWriterService,
+          useValue: { createAuditLog: jest.fn() },
+        },
       ],
     }).compile();
 
