@@ -39,7 +39,8 @@ export class MonitoringController {
   @Get('internal/monitoring/snapshot')
   @UseGuards(InternalMonitoringGuard)
   @ApiOperation({
-    summary: 'Internal ops snapshot for platform admin (health + jobs + metrics)',
+    summary:
+      'Internal ops snapshot for platform admin (health + jobs + metrics)',
   })
   @ApiResponse({ status: 200, description: 'Combined monitoring snapshot' })
   async getInternalSnapshot() {

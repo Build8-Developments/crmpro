@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JobStatus, Prisma } from '@crmpro/database';
+import { JobStatus, Prisma, TenantStatus } from '@crmpro/database';
 import { StorageLoggingService } from '../../common/logging/storage-logging.service';
 import { LoggingService } from '../../common/logging/logging.service';
 import { RequestContextService } from '../../common/logging/request-context.service';
@@ -21,6 +21,10 @@ import {
 } from './cleanup.constants';
 import { CleanupTaskResult } from './cleanup.types';
 import { CleanupHealthService } from './cleanup-health.service';
+import { ACCESSIBLE_TENANT_STATUSES } from '../../common/tenant-access/tenant-access.constants';
+
+const TENANT_INACTIVE_JOB_MESSAGE =
+  'Workspace is suspended or cancelled; the job was stopped.';
 
 @Injectable()
 export class CleanupService {
@@ -106,11 +110,14 @@ export class CleanupService {
       case CleanupJobName.ORPHAN_S3_OBJECTS:
         return this.cleanupOrphanS3Objects();
       default:
-        throw new Error(`Unsupported cleanup job: ${jobName}`);
+        throw new Error(`Unsupported cleanup job: ${String(jobName)}`);
     }
   }
 
-  async cleanupExpiredUploadIntents(): Promise<{ deleted: number; updated: number }> {
+  async cleanupExpiredUploadIntents(): Promise<{
+    deleted: number;
+    updated: number;
+  }> {
     const batchSize = this.getBatchSize();
     const ttlMinutes = this.getUploadIntentTtlMinutes();
     const now = new Date();
@@ -149,7 +156,10 @@ export class CleanupService {
     return { deleted, updated: 0 };
   }
 
-  async cleanupStaleImportJobs(): Promise<{ deleted: number; updated: number }> {
+  async cleanupStaleImportJobs(): Promise<{
+    deleted: number;
+    updated: number;
+  }> {
     const batchSize = this.getBatchSize();
     const timeoutMinutes = this.getImportJobTimeoutMinutes();
     const cutoff = new Date(Date.now() - timeoutMinutes * 60 * 1000);
@@ -161,7 +171,7 @@ export class CleanupService {
           status: JobStatus.PROCESSING,
           updatedAt: { lt: cutoff },
         },
-        select: { id: true },
+        select: { id: true, tenant: { select: { status: true } } },
         take: batchSize,
       });
 
@@ -170,6 +180,30 @@ export class CleanupService {
       }
 
       for (const job of batch) {
+        // Never re-queue work for a suspended/cancelled workspace: the worker
+        // would refuse it and the job would loop. Park it as FAILED instead.
+        if (!this.isTenantActive(job.tenant.status)) {
+          const parked = await this.prisma.importJob.updateMany({
+            where: {
+              id: job.id,
+              status: JobStatus.PROCESSING,
+              updatedAt: { lt: cutoff },
+            },
+            data: {
+              status: JobStatus.FAILED,
+              completedAt: new Date(),
+              errorSummary: [{ row: 0, reason: TENANT_INACTIVE_JOB_MESSAGE }],
+            },
+          });
+          if (parked.count === 1) {
+            updated += 1;
+            this.logger.warn(
+              `${STALE_IMPORT_JOB_RECLAIMED} jobId=${job.id} parked=tenant-inactive`,
+            );
+          }
+          continue;
+        }
+
         const reclaimed = await this.prisma.importJob.updateMany({
           where: {
             id: job.id,
@@ -194,9 +228,7 @@ export class CleanupService {
         await this.queueService.requeueImportJob(job.id);
         updated += 1;
 
-        this.logger.warn(
-          `${STALE_IMPORT_JOB_RECLAIMED} jobId=${job.id}`,
-        );
+        this.logger.warn(`${STALE_IMPORT_JOB_RECLAIMED} jobId=${job.id}`);
       }
 
       if (batch.length < batchSize) {
@@ -207,7 +239,10 @@ export class CleanupService {
     return { deleted: 0, updated };
   }
 
-  async cleanupStaleExportJobs(): Promise<{ deleted: number; updated: number }> {
+  async cleanupStaleExportJobs(): Promise<{
+    deleted: number;
+    updated: number;
+  }> {
     const batchSize = this.getBatchSize();
     const timeoutMinutes = this.getExportJobTimeoutMinutes();
     const cutoff = new Date(Date.now() - timeoutMinutes * 60 * 1000);
@@ -219,7 +254,7 @@ export class CleanupService {
           status: JobStatus.PROCESSING,
           updatedAt: { lt: cutoff },
         },
-        select: { id: true },
+        select: { id: true, tenant: { select: { status: true } } },
         take: batchSize,
       });
 
@@ -228,6 +263,28 @@ export class CleanupService {
       }
 
       for (const job of batch) {
+        if (!this.isTenantActive(job.tenant.status)) {
+          const parked = await this.prisma.exportJob.updateMany({
+            where: {
+              id: job.id,
+              status: JobStatus.PROCESSING,
+              updatedAt: { lt: cutoff },
+            },
+            data: {
+              status: JobStatus.FAILED,
+              errorMessage: TENANT_INACTIVE_JOB_MESSAGE,
+              completedAt: new Date(),
+            },
+          });
+          if (parked.count === 1) {
+            updated += 1;
+            this.logger.warn(
+              `${STALE_EXPORT_JOB_RECLAIMED} jobId=${job.id} parked=tenant-inactive`,
+            );
+          }
+          continue;
+        }
+
         const reclaimed = await this.prisma.exportJob.updateMany({
           where: {
             id: job.id,
@@ -251,9 +308,7 @@ export class CleanupService {
         await this.queueService.requeueExportJob(job.id);
         updated += 1;
 
-        this.logger.warn(
-          `${STALE_EXPORT_JOB_RECLAIMED} jobId=${job.id}`,
-        );
+        this.logger.warn(`${STALE_EXPORT_JOB_RECLAIMED} jobId=${job.id}`);
       }
 
       if (batch.length < batchSize) {
@@ -264,7 +319,10 @@ export class CleanupService {
     return { deleted: 0, updated };
   }
 
-  async cleanupExpiredSessions(): Promise<{ deleted: number; updated: number }> {
+  async cleanupExpiredSessions(): Promise<{
+    deleted: number;
+    updated: number;
+  }> {
     const batchSize = this.getBatchSize();
     const retentionDays = this.getSessionRetentionDays();
     const purgeBefore = new Date(
@@ -301,7 +359,10 @@ export class CleanupService {
     return { deleted, updated: 0 };
   }
 
-  async cleanupOrphanS3Objects(): Promise<{ deleted: number; updated: number }> {
+  async cleanupOrphanS3Objects(): Promise<{
+    deleted: number;
+    updated: number;
+  }> {
     const batchSize = this.getBatchSize();
     let deleted = 0;
     let continuationToken: string | undefined;
@@ -355,6 +416,10 @@ export class CleanupService {
     } while (continuationToken);
 
     return { deleted, updated: 0 };
+  }
+
+  private isTenantActive(status: TenantStatus): boolean {
+    return ACCESSIBLE_TENANT_STATUSES.has(status);
   }
 
   private getBatchSize(): number {

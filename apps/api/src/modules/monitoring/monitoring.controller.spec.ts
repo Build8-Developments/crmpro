@@ -61,9 +61,7 @@ describe('MonitoringController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MonitoringController],
-      providers: [
-        { provide: MonitoringService, useValue: monitoringService },
-      ],
+      providers: [{ provide: MonitoringService, useValue: monitoringService }],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockGuard)

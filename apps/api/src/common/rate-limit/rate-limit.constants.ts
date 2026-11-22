@@ -1,6 +1,14 @@
 export const AUTH_RATE_LIMIT_METADATA_KEY = 'authRateLimit';
 
-export type AuthRateLimitKind = 'login' | 'refresh';
+/**
+ * login / refresh: sign-in. password-reset: "forgot password" requests (they
+ * send email). account-token: using an emailed link (reset, invitation).
+ */
+export type AuthRateLimitKind =
+  | 'login'
+  | 'refresh'
+  | 'password-reset'
+  | 'account-token';
 
 export const RATE_LIMIT_CONFIG_KEYS = {
   plane: 'app.name',
@@ -14,6 +22,9 @@ export const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 900;
 export const DEFAULT_LOGIN_PER_EMAIL_LIMIT = 5;
 export const DEFAULT_LOGIN_PER_IP_LIMIT = 20;
 export const DEFAULT_REFRESH_PER_IP_LIMIT = 60;
+export const DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT = 3;
+export const DEFAULT_PASSWORD_RESET_PER_IP_LIMIT = 10;
+export const DEFAULT_ACCOUNT_TOKEN_PER_IP_LIMIT = 20;
 
 // Both backends share one Redis, so keys carry the plane name: without it the
 // tenant and admin planes would decrement the same counter and could lock each

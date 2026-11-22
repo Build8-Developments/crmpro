@@ -1,5 +1,5 @@
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { ServerOptions } from 'socket.io';
+import { Server, ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import { INestApplicationContext, Logger } from '@nestjs/common';
@@ -15,7 +15,7 @@ export class RedisIoAdapter extends IoAdapter {
     super(app);
   }
 
-  async connectToRedis(): Promise<void> {
+  connectToRedis(): Promise<void> {
     const configService = this.app.get(ConfigService);
 
     const connection: RedisConnectionConfig = {
@@ -36,10 +36,18 @@ export class RedisIoAdapter extends IoAdapter {
     });
 
     this.adapterConstructor = createAdapter(pubClient, subClient);
+    return Promise.resolve();
   }
 
-  createIOServer(port: number, options?: ServerOptions): any {
-    const server = super.createIOServer(port, options);
+  createIOServer(port: number, options?: ServerOptions): Server {
+    // Same fail-closed allowlist as HTTP CORS: gateways must never reflect
+    // an arbitrary origin (socket.io would otherwise accept any site).
+    const origins =
+      this.app.get(ConfigService).get<string[]>('cors.origins') ?? [];
+    const server = super.createIOServer(port, {
+      ...options,
+      cors: { origin: origins.length ? origins : false, credentials: true },
+    }) as Server;
     server.adapter(this.adapterConstructor);
     return server;
   }

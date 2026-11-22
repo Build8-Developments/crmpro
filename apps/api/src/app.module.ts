@@ -32,6 +32,17 @@ import { UsersModule } from './modules/users/users.module';
 import { SupportModule } from './modules/support/support.module';
 import { AccountModule } from './modules/account/account.module';
 import { OrganizationModule } from './modules/organization/organization.module';
+import { WorkflowModule } from './modules/workflow/workflow.module';
+import { DealsModule } from './modules/deals/deals.module';
+import { TeamsModule } from './modules/teams/teams.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
+import { SavedViewsModule } from './modules/saved-views/saved-views.module';
+import { MailModule } from './modules/mail/mail.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { InboundModule } from './modules/inbound/inbound.module';
+import { TargetsModule } from './modules/targets/targets.module';
+import { SourceSpendModule } from './modules/source-spend/source-spend.module';
+import { StatsModule } from './modules/stats/stats.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 
@@ -52,6 +63,12 @@ import { envValidationSchema } from './config/env.validation';
     PipelinesModule,
     LeadSourcesModule,
     LeadsModule,
+    TeamsModule,
+    SchedulerModule,
+    SavedViewsModule,
+    MailModule,
+    ApiKeysModule,
+    InboundModule,
     DevelopersModule,
     ProjectsModule,
     FilesModule,
@@ -69,6 +86,11 @@ import { envValidationSchema } from './config/env.validation';
     SupportModule,
     AccountModule,
     OrganizationModule,
+    WorkflowModule,
+    DealsModule,
+    TargetsModule,
+    SourceSpendModule,
+    StatsModule,
     PublicModule,
   ],
   controllers: [],

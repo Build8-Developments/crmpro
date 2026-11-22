@@ -6,7 +6,10 @@ import { ImportProcessor } from './import.processor';
 
 describe('ImportProcessor', () => {
   let processor: ImportProcessor;
-  let importJobsService: { processImportJob: jest.Mock; failImportJobIfActive: jest.Mock };
+  let importJobsService: {
+    processImportJob: jest.Mock;
+    failImportJobIfActive: jest.Mock;
+  };
 
   beforeEach(async () => {
     importJobsService = {
@@ -15,7 +18,9 @@ describe('ImportProcessor', () => {
     };
 
     const bullService = {
-      getConnectionOptions: jest.fn().mockReturnValue({ host: 'localhost', port: 6379 }),
+      getConnectionOptions: jest
+        .fn()
+        .mockReturnValue({ host: 'localhost', port: 6379 }),
       getPrefix: jest.fn().mockReturnValue('crmpro'),
       getImportConcurrency: jest.fn().mockReturnValue(3),
       getDefaultJobOptions: jest.fn().mockReturnValue({ attempts: 3 }),
@@ -41,10 +46,36 @@ describe('ImportProcessor', () => {
   });
 
   it('executes import processing through ImportJobsService', async () => {
-    await (processor as unknown as { handleJob: (job: { data: { jobId: string } }) => Promise<void> }).handleJob({
+    await (
+      processor as unknown as {
+        handleJob: (job: { data: { jobId: string } }) => Promise<void>;
+      }
+    ).handleJob({
       data: { jobId: 'import-job-1' },
     });
 
-    expect(importJobsService.processImportJob).toHaveBeenCalledWith('import-job-1');
+    expect(importJobsService.processImportJob).toHaveBeenCalledWith(
+      'import-job-1',
+      { isRetry: false },
+    );
+  });
+
+  it('marks BullMQ retries so a PROCESSING job can be re-claimed', async () => {
+    await (
+      processor as unknown as {
+        handleJob: (job: {
+          data: { jobId: string };
+          attemptsMade: number;
+        }) => Promise<void>;
+      }
+    ).handleJob({
+      data: { jobId: 'import-job-1' },
+      attemptsMade: 1,
+    });
+
+    expect(importJobsService.processImportJob).toHaveBeenCalledWith(
+      'import-job-1',
+      { isRetry: true },
+    );
   });
 });

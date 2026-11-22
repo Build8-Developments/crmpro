@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ContractStatus, TenantStatus } from '@crmpro/database';
+import { TenantStatus } from '@crmpro/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { TENANT_ACCESS_MESSAGES } from './tenant-access.constants';
 import { TenantInactiveException } from './tenant-access.exception';
@@ -102,9 +102,9 @@ describe('TenantAccessService', () => {
     await expect(service.assertTenantAccessible('tenant-1')).rejects.toThrow(
       new ForbiddenException(TENANT_ACCESS_MESSAGES.SUSPENDED),
     );
-    await expect(service.assertTenantAccessible('tenant-1')).rejects.toBeInstanceOf(
-      TenantInactiveException,
-    );
+    await expect(
+      service.assertTenantAccessible('tenant-1'),
+    ).rejects.toBeInstanceOf(TenantInactiveException);
   });
 
   it('blocks CANCELLED tenants with inactive message', async () => {

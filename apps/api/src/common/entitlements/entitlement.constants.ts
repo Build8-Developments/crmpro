@@ -3,6 +3,7 @@ export const PLAN_FEATURE_METADATA_KEY = 'planFeature';
 export const PLAN_FEATURES = {
   ANALYTICS: 'analytics',
   IMPORT_EXPORT: 'importExport',
+  API_ACCESS: 'apiAccess',
 } as const;
 
 export const FEATURE_UNAVAILABLE_MESSAGE =

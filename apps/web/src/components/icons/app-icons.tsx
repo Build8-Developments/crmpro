@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 import type { IconProps } from "@tabler/icons-react";
 import {
+  IconKey,
+  IconCalendarCheck,
   IconLayoutDashboard,
   IconUsers,
   IconLayoutKanban,
@@ -63,7 +65,11 @@ import {
   IconEyeOff,
   IconRefresh,
   IconArchive,
+  IconArrowMerge,
   IconTrash,
+  IconCash,
+  IconContract,
+  IconTrophy,
 } from "@tabler/icons-react";
 
 /**
@@ -120,6 +126,8 @@ export const AppIcons = {
   alertCircle: IconAlertCircle,
   chartBar: IconChartBar,
   clock: IconClock,
+  today: IconCalendarCheck,
+  key: IconKey,
   percentage: IconPercentage,
   progress: IconProgress,
   userQuestion: IconUserQuestion,
@@ -142,6 +150,10 @@ export const AppIcons = {
   refresh: IconRefresh,
   archive: IconArchive,
   trash: IconTrash,
+  merge: IconArrowMerge,
+  deals: IconCash,
+  contract: IconContract,
+  performance: IconTrophy,
 } satisfies Record<string, AppIcon>;
 
 export type AppIconName = keyof typeof AppIcons;

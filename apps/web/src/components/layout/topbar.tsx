@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useClientValue } from "@/hooks/use-client-value";
 import { usePathname, useRouter } from "next/navigation";
 import { PRODUCT_NAME } from "@/components/brand/product-logo";
 import { AppIcons } from "@/components/icons/app-icons";
@@ -38,11 +39,7 @@ import { useBreadcrumbStore } from "@/stores/breadcrumb-store";
 
 function CommandTrigger({ onOpen }: { onOpen?: () => void }) {
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    setIsMac(/mac/i.test(navigator.platform));
-  }, []);
+  const isMac = useClientValue(() => /mac/i.test(navigator.platform), false);
 
   return (
     <button
@@ -349,11 +346,13 @@ export function Topbar() {
     "notifications" | "create" | "user" | null
   >(null);
 
-  useEffect(() => {
-    if (commandPaletteOpen) {
-      setMobileOverlay(null);
-    }
-  }, [commandPaletteOpen]);
+  // Opening the command palette closes any mobile overlay (adjusted during
+  // render rather than in an effect).
+  const [paletteWasOpen, setPaletteWasOpen] = useState(commandPaletteOpen);
+  if (commandPaletteOpen !== paletteWasOpen) {
+    setPaletteWasOpen(commandPaletteOpen);
+    if (commandPaletteOpen) setMobileOverlay(null);
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-2 sm:px-3 md:px-4">

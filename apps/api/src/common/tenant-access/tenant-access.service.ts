@@ -2,14 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { ContractStatus, TenantStatus } from '@crmpro/database';
 import { isWithinContractGrace } from '@crmpro/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { TENANT_ACCESS_MESSAGES } from './tenant-access.constants';
+import {
+  ACCESSIBLE_TENANT_STATUSES,
+  TENANT_ACCESS_MESSAGES,
+} from './tenant-access.constants';
 import { TenantInactiveException } from './tenant-access.exception';
-
-// TRIAL is the schema default, so tenants created outside provisioning land there.
-const ACCESSIBLE_TENANT_STATUSES = new Set<TenantStatus>([
-  TenantStatus.ACTIVE,
-  TenantStatus.TRIAL,
-]);
 
 const contractGraceSelect = {
   contractEndAt: true,

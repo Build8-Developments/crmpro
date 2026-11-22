@@ -17,6 +17,9 @@ import {
   DEFAULT_RATE_LIMIT_PLANE,
   DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
   DEFAULT_REFRESH_PER_IP_LIMIT,
+  DEFAULT_ACCOUNT_TOKEN_PER_IP_LIMIT,
+  DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT,
+  DEFAULT_PASSWORD_RESET_PER_IP_LIMIT,
   MAX_EMAIL_KEY_LENGTH,
   RATE_LIMIT_CONFIG_KEYS,
   RATE_LIMIT_KEY_PREFIX,
@@ -37,10 +40,9 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const kind = this.reflector.getAllAndOverride<AuthRateLimitKind | undefined>(
-      AUTH_RATE_LIMIT_METADATA_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const kind = this.reflector.getAllAndOverride<
+      AuthRateLimitKind | undefined
+    >(AUTH_RATE_LIMIT_METADATA_KEY, [context.getHandler(), context.getClass()]);
 
     if (!kind) {
       return true;
@@ -96,6 +98,33 @@ export class RateLimitGuard implements CanActivate {
     clientIp: string,
     body: unknown,
   ): RateLimitBucket[] {
+    if (kind === 'account-token') {
+      return [
+        {
+          key: `${keyPrefix}:account-token:ip:${clientIp}`,
+          limit: DEFAULT_ACCOUNT_TOKEN_PER_IP_LIMIT,
+        },
+      ];
+    }
+
+    if (kind === 'password-reset') {
+      const email = normalizeEmail(body);
+      return [
+        ...(email
+          ? [
+              {
+                key: `${keyPrefix}:password-reset:email:${email}`,
+                limit: DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT,
+              },
+            ]
+          : []),
+        {
+          key: `${keyPrefix}:password-reset:ip:${clientIp}`,
+          limit: DEFAULT_PASSWORD_RESET_PER_IP_LIMIT,
+        },
+      ];
+    }
+
     if (kind === 'refresh') {
       return [
         {

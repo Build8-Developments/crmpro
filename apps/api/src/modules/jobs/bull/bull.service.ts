@@ -10,7 +10,6 @@ import Redis from 'ioredis';
 import { RedisConnectionConfig } from '@crmpro/shared';
 import {
   BULL_CONFIG_KEYS,
-  CLEANUP_QUEUE,
   DEFAULT_BULL_PREFIX,
   DEFAULT_CLEANUP_CONCURRENCY,
   DEFAULT_EXPORT_CONCURRENCY,
@@ -18,9 +17,6 @@ import {
   DEFAULT_NOTIFICATION_CONCURRENCY,
   DEFAULT_JOB_ATTEMPTS,
   DEFAULT_JOB_BACKOFF_DELAY_MS,
-  EXPORT_QUEUE,
-  IMPORT_QUEUE,
-  NOTIFICATION_QUEUE,
   QUEUE_NAMES,
   QueueName,
   REDIS_CONFIG_KEYS,
@@ -107,8 +103,9 @@ export class BullService implements OnModuleInit, OnModuleDestroy {
 
   getNotificationConcurrency(): number {
     return (
-      this.configService.get<number>(BULL_CONFIG_KEYS.notificationConcurrency) ??
-      DEFAULT_NOTIFICATION_CONCURRENCY
+      this.configService.get<number>(
+        BULL_CONFIG_KEYS.notificationConcurrency,
+      ) ?? DEFAULT_NOTIFICATION_CONCURRENCY
     );
   }
 

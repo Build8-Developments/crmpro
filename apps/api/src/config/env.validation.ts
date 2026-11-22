@@ -25,13 +25,17 @@ export const envValidationSchema = Joi.object({
   CLEANUP_STALE_JOBS_INTERVAL_MS: Joi.number().integer().min(1).optional(),
   CLEANUP_SESSIONS_INTERVAL_MS: Joi.number().integer().min(1).optional(),
   CLEANUP_ORPHAN_S3_CRON: Joi.string().optional(),
-  LOG_LEVEL: Joi.string()
-    .valid('debug', 'info', 'warn', 'error')
-    .optional(),
+  LOG_LEVEL: Joi.string().valid('debug', 'info', 'warn', 'error').optional(),
   ENABLE_HTTP_LOGGING: Joi.string().valid('true', 'false', '1', '0').optional(),
-  ENABLE_WORKER_LOGGING: Joi.string().valid('true', 'false', '1', '0').optional(),
-  ENABLE_QUERY_LOGGING: Joi.string().valid('true', 'false', '1', '0').optional(),
-  ENABLE_STORAGE_LOGGING: Joi.string().valid('true', 'false', '1', '0').optional(),
+  ENABLE_WORKER_LOGGING: Joi.string()
+    .valid('true', 'false', '1', '0')
+    .optional(),
+  ENABLE_QUERY_LOGGING: Joi.string()
+    .valid('true', 'false', '1', '0')
+    .optional(),
+  ENABLE_STORAGE_LOGGING: Joi.string()
+    .valid('true', 'false', '1', '0')
+    .optional(),
   ENABLE_AUTH_LOGGING: Joi.string().valid('true', 'false', '1', '0').optional(),
   SLOW_QUERY_THRESHOLD_MS: Joi.number().integer().min(1).optional(),
   API_VERSION: Joi.string().optional(),
@@ -39,12 +43,35 @@ export const envValidationSchema = Joi.object({
   ANALYTICS_CACHE_TTL_SECONDS: Joi.number().integer().min(1).optional(),
   NOTIFICATION_UNREAD_TTL_SECONDS: Joi.number().integer().min(1).optional(),
   BULL_NOTIFICATION_CONCURRENCY: Joi.number().integer().min(1).optional(),
-  JWT_ACCESS_SECRET: Joi.string().min(1).required(),
+  // HS256 secrets shorter than 32 chars are brute-forceable offline.
+  JWT_ACCESS_SECRET: Joi.string().min(32).required(),
+  /** Reverse-proxy hops in front of the app; client IPs come from X-Forwarded-For only that deep. */
+  ENABLE_SWAGGER: Joi.boolean().optional(),
+  // Email. "log" prints messages (development only — it would print reset and
+  // invite links), "smtp" sends them. Production must send.
+  MAIL_TRANSPORT: Joi.string()
+    .valid('log', 'smtp')
+    .default('log')
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.valid('smtp').required(),
+    }),
+  MAIL_FROM: Joi.string().default('CRMPro <no-reply@crmpro.local>'),
+  SMTP_HOST: Joi.string().when('MAIL_TRANSPORT', {
+    is: 'smtp',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  SMTP_PORT: Joi.number().port().default(587),
+  SMTP_SECURE: Joi.string().valid('true', 'false').default('false'),
+  SMTP_USER: Joi.string().allow('').optional(),
+  SMTP_PASS: Joi.string().allow('').optional(),
+  /** Public origin of the web app, used in email links. */
+  APP_WEB_URL: Joi.string().uri().default('http://localhost:3001'),
+  TRUST_PROXY_HOPS: Joi.number().integer().min(0).max(10).default(1),
   JWT_ACCESS_EXPIRATION: Joi.string().default('15m'),
   REFRESH_TOKEN_EXPIRATION: Joi.string().default('7d'),
-  REFRESH_COOKIE_CROSS_ORIGIN: Joi.string()
-    .valid('true', 'false')
-    .optional(),
+  REFRESH_COOKIE_CROSS_ORIGIN: Joi.string().valid('true', 'false').optional(),
   JWT_REFRESH_EXPIRATION: Joi.string().optional(),
   CORS_ORIGINS: Joi.string().min(1).required(),
   AWS_REGION: Joi.string().required(),

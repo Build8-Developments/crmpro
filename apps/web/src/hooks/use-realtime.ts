@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { queryKeys } from "@/lib/query/query-keys";
 import { useRealtimeStore } from "@/stores/realtime-store";
+import { resolveSocketOrigin } from "@/lib/realtime/resolve-socket-origin";
 
 const playNotificationSound = () => {
   const audio = new Audio("/sounds/notification.mp3");
@@ -21,7 +22,9 @@ export function useRealtimeStream() {
 
   // Use refs to avoid recreating the socket when QC changes
   const queryClientRef = useRef(queryClient);
-  queryClientRef.current = queryClient;
+  useEffect(() => {
+    queryClientRef.current = queryClient;
+  }, [queryClient]);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -30,14 +33,18 @@ export function useRealtimeStream() {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
+        setSocket(null);
       }
       return;
     }
 
-    // Next.js rewrite buffering breaks SSE, but for WebSockets we can use the direct URL
-    // Socket.io defaults to polling then upgrades to websockets.
-    const socketBase = process.env.NEXT_PUBLIC_SSE_URL?.replace('/api/v1', '') || process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '');
-    const socketUrl = socketBase || "http://localhost:3000";
+    const socketUrl = resolveSocketOrigin();
+    if (!socketUrl) {
+      console.error(
+        "[realtime] No socket origin: set NEXT_PUBLIC_SSE_URL. Realtime is disabled.",
+      );
+      return;
+    }
 
     const socket = io(socketUrl, {
       auth: {
@@ -52,8 +59,15 @@ export function useRealtimeStream() {
     socketRef.current = socket;
     setSocket(socket);
 
+    // The first `connect` is the handshake; any later one is a reconnect after a
+    // drop, so refetch what is on screen to backfill events we missed.
+    let hasConnected = false;
     socket.on("connect", () => {
-      console.log("WebSocket connected");
+      if (!hasConnected) {
+        hasConnected = true;
+        return;
+      }
+      void queryClientRef.current.invalidateQueries({ refetchType: "active" });
     });
 
     socket.on("invalidate", (payload) => {
@@ -72,6 +86,16 @@ export function useRealtimeStream() {
           queryKey: queryKeys.notifications.unreadCount(),
           refetchType: "all",
         });
+      }
+
+      // Data-free hints from the tenant room: refetch what is on screen; the
+      // API re-applies each user's lead visibility.
+      if (payload.entity === "leads" || payload.entity === "tasks") {
+        void qc.invalidateQueries({ queryKey: queryKeys.today(), refetchType: "active" });
+        void qc.invalidateQueries({ queryKey: queryKeys.leads.all(), refetchType: "active" });
+        if (payload.entity === "leads") {
+          void qc.invalidateQueries({ queryKey: queryKeys.dashboard.all(), refetchType: "active" });
+        }
       }
 
       if (payload.entity === "support-messages") {
@@ -93,9 +117,6 @@ export function useRealtimeStream() {
       console.error("WebSocket connection error:", err.message);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.log("WebSocket disconnected:", reason);
-    });
 
     return () => {
       socket.disconnect();
