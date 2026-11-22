@@ -33,7 +33,7 @@ describe('AuditController RBAC', () => {
       switchToHttp: () => ({
         getRequest: () => ({ admin }),
       }),
-    }) as Parameters<AdminPermissionsGuard['canActivate']>[0];
+    }) as unknown as Parameters<AdminPermissionsGuard['canActivate']>[0];
 
   beforeEach(async () => {
     permissionsService = {
@@ -107,8 +107,9 @@ describe('AuditController', () => {
   });
 
   it('lists audit logs', async () => {
-    await expect(controller.listAuditLogs({ page: 1, limit: 20 })).resolves
-      .toEqual({
+    await expect(
+      controller.listAuditLogs({ page: 1, limit: 20 }),
+    ).resolves.toEqual({
       success: true,
       data: {
         items: [],

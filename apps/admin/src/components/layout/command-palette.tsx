@@ -51,11 +51,12 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [toggle]);
 
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-    }
-  }, [open]);
+  // Closing the palette clears the query (adjusted during render).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setQuery("");
+  }
 
   const go = (href: string) => {
     close();

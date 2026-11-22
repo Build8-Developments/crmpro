@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useClientValue } from "@/hooks/use-client-value";
+import { useDocumentTheme } from "@/hooks/use-document-theme";
 import { usePathname, useRouter } from "next/navigation";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -24,11 +26,7 @@ import { useAuthStore } from "@/stores/auth-store";
 
 function CommandTrigger({ onOpen }: { onOpen?: () => void }) {
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    setIsMac(/mac/i.test(navigator.platform));
-  }, []);
+  const isMac = useClientValue(() => /mac/i.test(navigator.platform), false);
 
   return (
     <button
@@ -134,12 +132,7 @@ function QuickActions({
 }
 
 function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
+  const theme = useDocumentTheme();
 
   const toggleTheme = () => {
     const nextTheme = theme === "dark" ? "light" : "dark";
@@ -151,7 +144,6 @@ function ThemeToggle() {
     root.classList.toggle("dark", nextTheme === "dark");
     root.style.colorScheme = nextTheme;
     localStorage.setItem("crmpro-theme", nextTheme);
-    setTheme(nextTheme);
 
     window.setTimeout(() => {
       root.classList.remove("theme-transition");
@@ -253,11 +245,13 @@ export function Topbar() {
     null,
   );
 
-  useEffect(() => {
-    if (commandPaletteOpen) {
-      setMobileOverlay(null);
-    }
-  }, [commandPaletteOpen]);
+  // Opening the command palette closes any mobile overlay (adjusted during
+  // render rather than in an effect).
+  const [paletteWasOpen, setPaletteWasOpen] = useState(commandPaletteOpen);
+  if (commandPaletteOpen !== paletteWasOpen) {
+    setPaletteWasOpen(commandPaletteOpen);
+    if (commandPaletteOpen) setMobileOverlay(null);
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-2 sm:px-3 md:px-4">

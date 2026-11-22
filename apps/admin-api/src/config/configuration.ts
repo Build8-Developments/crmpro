@@ -3,6 +3,11 @@ import {
   resolveRedisConnectionConfig,
 } from '@crmpro/shared';
 
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined || value === '') return fallback;
+  return value.toLowerCase() === 'true';
+}
+
 export default () => {
   const redisConnection = resolveRedisConnectionConfig({
     REDIS_URL: process.env.REDIS_URL,
@@ -16,6 +21,7 @@ export default () => {
       port: parseInt(process.env.PORT ?? '3100', 10),
       nodeEnv: process.env.NODE_ENV ?? 'development',
       version: process.env.API_VERSION ?? '1.0.0',
+      trustProxyHops: parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10),
     },
     database: {
       url: process.env.DATABASE_URL,
@@ -38,6 +44,11 @@ export default () => {
       accessSecret: process.env.JWT_ACCESS_SECRET,
       accessExpiration: process.env.JWT_ACCESS_EXPIRATION ?? '15m',
       refreshExpiration: process.env.JWT_REFRESH_EXPIRATION ?? '30d',
+      /** SameSite=None; Secure refresh cookie when the admin SPA is on another site (prod only). */
+      refreshCookieCrossOrigin: parseBoolean(
+        process.env.REFRESH_COOKIE_CROSS_ORIGIN,
+        false,
+      ),
     },
     cors: {
       origins: (process.env.CORS_ORIGINS ?? '')

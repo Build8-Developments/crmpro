@@ -10,6 +10,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   AGENT_PERMISSION_KEYS,
   DEFAULT_LEAD_SOURCES,
+  DEFAULT_LOST_REASONS,
   DEFAULT_PIPELINE,
   DEFAULT_PIPELINE_STAGES,
   DEFAULT_TENANT_ROLES,
@@ -194,7 +195,7 @@ export class TenantProvisioningService {
         : null,
     );
 
-    return { id: contract!.id, planId: contract!.planId };
+    return { id: contract.id, planId: contract.planId };
   }
 
   /**
@@ -390,6 +391,15 @@ export class TenantProvisioningService {
     await tx.leadSource.createMany({
       data: DEFAULT_LEAD_SOURCES.map((name) => ({ tenantId, name })),
     });
+    await tx.lostReason.createMany({
+      data: DEFAULT_LOST_REASONS.map((reason, index) => ({
+        tenantId,
+        name: reason.name,
+        sortOrder: index + 1,
+        recyclable: reason.recyclable,
+        recycleAfterDays: reason.recycleAfterDays,
+      })),
+    });
   }
 
   private async createDefaultPipeline(
@@ -410,10 +420,13 @@ export class TenantProvisioningService {
         pipelineId: pipeline.id,
         name: stage.name,
         color: stage.color,
+        icon: stage.icon,
         sortOrder: index,
         isSystem: stage.isClosed,
         isClosed: stage.isClosed,
         closeType: stage.closeType,
+        staleAfterDays: stage.staleAfterDays,
+        stuckAfterDays: stage.stuckAfterDays,
       })),
     });
   }

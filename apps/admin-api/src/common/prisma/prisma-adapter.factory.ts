@@ -15,6 +15,9 @@ import type { Pool } from 'pg';
  * deliberately does NOT touch the top-level adapter: non-transactional
  * queries go through the pool and keep their concurrency.
  */
+type AnyFunction = (...args: unknown[]) => unknown;
+type AsyncFunction<R> = (...args: unknown[]) => Promise<R>;
+
 function serializeTransactionQueryable<T extends object>(target: T): T {
   let queue: Promise<unknown> = Promise.resolve();
 
@@ -29,15 +32,16 @@ function serializeTransactionQueryable<T extends object>(target: T): T {
 
   return new Proxy(target, {
     get(tx, prop, receiver) {
-      const value = Reflect.get(tx, prop, receiver);
+      const value: unknown = Reflect.get(tx, prop, receiver);
 
       if (prop === 'queryRaw' || prop === 'executeRaw') {
+        const query = value as AsyncFunction<unknown>;
         return (...args: unknown[]) =>
-          enqueue(() => (value as (...a: unknown[]) => Promise<unknown>).apply(tx, args));
+          enqueue(() => Reflect.apply(query, tx, args));
       }
 
       if (typeof value === 'function') {
-        return (value as (...a: unknown[]) => unknown).bind(tx);
+        return (value as AnyFunction).bind(tx) as AnyFunction;
       }
 
       return value;
@@ -51,29 +55,30 @@ export function createPrismaPgAdapter(pool: Pool): PrismaPg {
   // there, not on the factory.
   return new Proxy(new PrismaPg(pool), {
     get(factory, prop, receiver) {
-      const value = Reflect.get(factory, prop, receiver);
+      const value: unknown = Reflect.get(factory, prop, receiver);
 
       if (prop === 'connect') {
+        const connect = value as AsyncFunction<object>;
         return async (...args: unknown[]) => {
-          const adapter = await (
-            value as (...a: unknown[]) => Promise<object>
-          ).apply(factory, args);
+          const adapter = await Reflect.apply(connect, factory, args);
           return new Proxy(adapter, {
             get(inner, innerProp, innerReceiver) {
-              const innerValue = Reflect.get(inner, innerProp, innerReceiver);
+              const innerValue: unknown = Reflect.get(
+                inner,
+                innerProp,
+                innerReceiver,
+              );
 
               if (innerProp === 'startTransaction') {
+                const startTransaction = innerValue as AsyncFunction<object>;
                 return async (...txArgs: unknown[]) =>
                   serializeTransactionQueryable(
-                    await (innerValue as (...a: unknown[]) => Promise<object>).apply(
-                      inner,
-                      txArgs,
-                    ),
+                    await Reflect.apply(startTransaction, inner, txArgs),
                   );
               }
 
               if (typeof innerValue === 'function') {
-                return (innerValue as (...a: unknown[]) => unknown).bind(inner);
+                return (innerValue as AnyFunction).bind(inner) as AnyFunction;
               }
 
               return innerValue;
@@ -83,7 +88,7 @@ export function createPrismaPgAdapter(pool: Pool): PrismaPg {
       }
 
       if (typeof value === 'function') {
-        return (value as (...a: unknown[]) => unknown).bind(factory);
+        return (value as AnyFunction).bind(factory) as AnyFunction;
       }
 
       return value;

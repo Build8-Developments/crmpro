@@ -91,37 +91,43 @@ export class ContractsService {
     await this.assertPlanActive(dto.planId);
     this.assertDateRange(dto.contractStartAt, dto.contractEndAt);
 
-    const contract = await this.prisma.tenantContract.create({
-      data: {
-        contractName: dto.contractName ?? null,
-        planId: dto.planId,
-        agreedPrice: dto.agreedPrice,
-        currency: dto.currency,
-        paymentMethod: dto.paymentMethod,
-        paymentFrequency: dto.paymentFrequency,
-        contractStartAt: new Date(dto.contractStartAt),
-        contractEndAt: dto.contractEndAt ? new Date(dto.contractEndAt) : null,
-        discountPercent: dto.discountPercent ?? null,
-        gracePeriodDays: dto.gracePeriodDays ?? null,
-        autoRenew: dto.autoRenew ?? false,
-        notes: dto.notes ?? null,
-        status: ContractStatus.DRAFT,
-        createdByAdminId: actorAdminId,
-      },
-      include: contractInclude,
-    });
+    // Audit is written in the same transaction: no audit row, no contract.
+    const contract = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.tenantContract.create({
+        data: {
+          contractName: dto.contractName ?? null,
+          planId: dto.planId,
+          agreedPrice: dto.agreedPrice,
+          currency: dto.currency,
+          paymentMethod: dto.paymentMethod,
+          paymentFrequency: dto.paymentFrequency,
+          contractStartAt: new Date(dto.contractStartAt),
+          contractEndAt: dto.contractEndAt ? new Date(dto.contractEndAt) : null,
+          discountPercent: dto.discountPercent ?? null,
+          gracePeriodDays: dto.gracePeriodDays ?? null,
+          autoRenew: dto.autoRenew ?? false,
+          notes: dto.notes ?? null,
+          status: ContractStatus.DRAFT,
+          createdByAdminId: actorAdminId,
+        },
+        include: contractInclude,
+      });
 
-    await this.auditService.logContractCreated(
-      actorAdminId,
-      contract.id,
-      metadata,
-      {
-        contractName: contract.contractName,
-        planId: contract.planId,
-        agreedPrice: dto.agreedPrice,
-        currency: dto.currency,
-      },
-    );
+      await this.auditService.logContractCreated(
+        actorAdminId,
+        created.id,
+        metadata,
+        {
+          contractName: created.contractName,
+          planId: created.planId,
+          agreedPrice: dto.agreedPrice,
+          currency: dto.currency,
+        },
+        tx,
+      );
+
+      return created;
+    });
 
     return toContractDetail(contract);
   }
@@ -203,18 +209,19 @@ export class ContractsService {
         );
       }
 
+      const changes = this.collectChanges(existing, dto);
+      if (Object.keys(changes).length > 0) {
+        await this.auditService.logContractUpdated(
+          actorAdminId,
+          id,
+          metadata,
+          changes,
+          tx,
+        );
+      }
+
       return updated;
     });
-
-    const changes = this.collectChanges(existing, dto);
-    if (Object.keys(changes).length > 0) {
-      await this.auditService.logContractUpdated(
-        actorAdminId,
-        id,
-        metadata,
-        changes,
-      );
-    }
 
     return toContractDetail(contract);
   }
@@ -255,10 +262,15 @@ export class ContractsService {
         );
       }
 
+      await this.auditService.logContractActivated(
+        actorAdminId,
+        id,
+        metadata,
+        tx,
+      );
+
       return updated;
     });
-
-    await this.auditService.logContractActivated(actorAdminId, id, metadata);
 
     return toContractDetail(contract);
   }
@@ -285,12 +297,6 @@ export class ContractsService {
 
     const terminatedAt = new Date();
 
-    const contract = await this.prisma.tenantContract.update({
-      where: { id },
-      data: { status: ContractStatus.TERMINATED },
-      include: contractInclude,
-    });
-
     const accessUntil = computeContractAccessEndAt(
       {
         contractEndAt: existing.contractEndAt,
@@ -299,10 +305,26 @@ export class ContractsService {
       existing.contractEndAt ? undefined : terminatedAt,
     );
 
-    await this.auditService.logContractTerminated(actorAdminId, id, metadata, {
-      tenantId: existing.tenantId,
-      accessUntil: accessUntil?.toISOString() ?? null,
-      gracePeriodDays: existing.gracePeriodDays,
+    const contract = await this.prisma.$transaction(async (tx) => {
+      const terminated = await tx.tenantContract.update({
+        where: { id },
+        data: { status: ContractStatus.TERMINATED },
+        include: contractInclude,
+      });
+
+      await this.auditService.logContractTerminated(
+        actorAdminId,
+        id,
+        metadata,
+        {
+          tenantId: existing.tenantId,
+          accessUntil: accessUntil?.toISOString() ?? null,
+          gracePeriodDays: existing.gracePeriodDays,
+        },
+        tx,
+      );
+
+      return terminated;
     });
 
     return toContractDetail(contract);
@@ -329,12 +351,18 @@ export class ContractsService {
       );
     }
 
-    await this.prisma.tenantContract.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenantContract.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      await this.auditService.logContractArchived(
+        actorAdminId,
+        id,
+        metadata,
+        tx,
+      );
     });
-
-    await this.auditService.logContractArchived(actorAdminId, id, metadata);
 
     return { success: true };
   }
@@ -358,9 +386,7 @@ export class ContractsService {
     });
 
     if (existing) {
-      throw new BadRequestException(
-        'Tenant already has an active contract',
-      );
+      throw new BadRequestException('Tenant already has an active contract');
     }
   }
 

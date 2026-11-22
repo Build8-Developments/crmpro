@@ -37,10 +37,9 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const kind = this.reflector.getAllAndOverride<AuthRateLimitKind | undefined>(
-      AUTH_RATE_LIMIT_METADATA_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const kind = this.reflector.getAllAndOverride<
+      AuthRateLimitKind | undefined
+    >(AUTH_RATE_LIMIT_METADATA_KEY, [context.getHandler(), context.getClass()]);
 
     if (!kind) {
       return true;

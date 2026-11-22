@@ -32,9 +32,11 @@ describe('RateLimitGuard', () => {
 
   beforeEach(async () => {
     rateLimitService = {
-      consume: jest
-        .fn()
-        .mockResolvedValue({ allowed: true, remaining: 10, retryAfterSeconds: 0 }),
+      consume: jest.fn().mockResolvedValue({
+        allowed: true,
+        remaining: 10,
+        retryAfterSeconds: 0,
+      }),
     };
     reflector = { getAllAndOverride: jest.fn() };
 

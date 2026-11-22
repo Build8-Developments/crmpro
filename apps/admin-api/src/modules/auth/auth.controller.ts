@@ -7,9 +7,12 @@ import {
   ParseUUIDPipe,
   Post,
   Req,
+  Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
 import { AdminPermissionsService } from '../../common/auth/services/admin-permissions.service';
 import { toListResponseData } from '../../common/http/list-response';
 import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
@@ -17,31 +20,54 @@ import { AuthRateLimit } from '../../common/rate-limit/rate-limit.decorator';
 import { AuthService } from './auth.service';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedAdmin } from './auth.types';
 import { extractRequestSecurityMetadata } from './utils/request-metadata.util';
+import {
+  type AdminRefreshCookieConfig,
+  clearAdminRefreshCookie,
+  readAdminRefreshCookie,
+  setAdminRefreshCookie,
+} from './utils/auth-cookie.util';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly adminPermissionsService: AdminPermissionsService,
+    private readonly configService: ConfigService,
   ) {}
+
+  private cookieConfig(): AdminRefreshCookieConfig {
+    return {
+      nodeEnv: this.configService.get<string>('app.nodeEnv') ?? 'development',
+      refreshExpiration:
+        this.configService.get<string>('auth.refreshExpiration') ?? '30d',
+      refreshCookieCrossOrigin:
+        this.configService.get<boolean>('auth.refreshCookieCrossOrigin') ??
+        false,
+    };
+  }
 
   @Post('login')
   @UseGuards(RateLimitGuard)
   @AuthRateLimit('login')
-  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(
       loginDto,
       extractRequestSecurityMetadata(req, loginDto.deviceName),
     );
 
+    // The refresh token never reaches JavaScript: httpOnly cookie only.
+    setAdminRefreshCookie(res, result.refreshToken, this.cookieConfig());
+
     return {
       success: true,
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
       admin: result.admin,
     };
   }
@@ -49,26 +75,40 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(RateLimitGuard)
   @AuthRateLimit('refresh')
-  async refresh(@Body() refreshDto: RefreshDto, @Req() req: Request) {
-    const result = await this.authService.refresh(
-      refreshDto.refreshToken,
-      extractRequestSecurityMetadata(req),
-    );
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = readAdminRefreshCookie(req);
+    if (!refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
-    return {
-      success: true,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
+    try {
+      const result = await this.authService.refresh(
+        refreshToken,
+        extractRequestSecurityMetadata(req),
+      );
+      setAdminRefreshCookie(res, result.refreshToken, this.cookieConfig());
+      return { success: true, accessToken: result.accessToken };
+    } catch (error) {
+      // A dead token should not keep being replayed by the browser.
+      if (error instanceof UnauthorizedException) {
+        clearAdminRefreshCookie(res, this.cookieConfig());
+      }
+      throw error;
+    }
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@CurrentAdmin() admin: AuthenticatedAdmin, @Req() req: Request) {
-    await this.authService.logout(
-      admin,
-      extractRequestSecurityMetadata(req),
-    );
+  async logout(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(admin, extractRequestSecurityMetadata(req));
+    clearAdminRefreshCookie(res, this.cookieConfig());
 
     return {
       success: true,
@@ -81,11 +121,13 @@ export class AuthController {
   async logoutAll(
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const revokedSessions = await this.authService.logoutAll(
       admin,
       extractRequestSecurityMetadata(req),
     );
+    clearAdminRefreshCookie(res, this.cookieConfig());
 
     return {
       success: true,

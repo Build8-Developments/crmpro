@@ -1,31 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useDocumentTheme } from "@/hooks/use-document-theme";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-function useDocumentTheme(): ToasterProps["theme"] {
-  const [theme, setTheme] = useState<ToasterProps["theme"]>("light");
-
-  useEffect(() => {
-    const resolveTheme = () =>
-      document.documentElement.classList.contains("dark") ? "dark" : "light";
-
-    setTheme(resolveTheme());
-
-    const observer = new MutationObserver(() => {
-      setTheme(resolveTheme());
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  return theme;
-}
 
 export function Toaster({ ...props }: ToasterProps) {
   const theme = useDocumentTheme();

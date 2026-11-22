@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { queryKeys } from "@/lib/query/query-keys";
 import { useRealtimeStore } from "@/stores/realtime-store";
+import { resolveSocketOrigin } from "@/lib/realtime/resolve-socket-origin";
 
 const playNotificationSound = () => {
   const audio = new Audio("/sounds/notification.mp3");
@@ -21,7 +22,9 @@ export function useRealtimeStream() {
 
   // Use refs to avoid recreating the socket when QC changes
   const queryClientRef = useRef(queryClient);
-  queryClientRef.current = queryClient;
+  useEffect(() => {
+    queryClientRef.current = queryClient;
+  }, [queryClient]);
 
   const socketRef = useRef<Socket | null>(null);
 
@@ -35,8 +38,13 @@ export function useRealtimeStream() {
       return;
     }
 
-    const socketBase = process.env.NEXT_PUBLIC_SSE_URL?.replace('/api/v1', '') || process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '');
-    const socketUrl = socketBase || "http://localhost:3100";
+    const socketUrl = resolveSocketOrigin();
+    if (!socketUrl) {
+      console.error(
+        "[realtime] No socket origin: set NEXT_PUBLIC_SSE_URL. Realtime is disabled.",
+      );
+      return;
+    }
     
     const socket = io(socketUrl, {
       auth: {
@@ -51,8 +59,15 @@ export function useRealtimeStream() {
     socketRef.current = socket;
     setSocket(socket);
 
+    // The first `connect` is the handshake; any later one is a reconnect after a
+    // drop, so refetch what is on screen to backfill events we missed.
+    let hasConnected = false;
     socket.on("connect", () => {
-      console.log("WebSocket connected to Admin API");
+      if (!hasConnected) {
+        hasConnected = true;
+        return;
+      }
+      void queryClientRef.current.invalidateQueries({ refetchType: "active" });
     });
 
     socket.on("invalidate", (payload) => {
@@ -78,9 +93,6 @@ export function useRealtimeStream() {
       console.error("WebSocket connection error:", err.message);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.log("WebSocket disconnected:", reason);
-    });
 
     return () => {
       socket.disconnect();

@@ -22,6 +22,7 @@ describe('ContractsService terminateContract', () => {
       findFirst: jest.Mock;
       update: jest.Mock;
     };
+    $transaction: jest.Mock;
   };
 
   let auditService: { logContractTerminated: jest.Mock };
@@ -63,7 +64,12 @@ describe('ContractsService terminateContract', () => {
           status: ContractStatus.TERMINATED,
         }),
       },
+      $transaction: jest.fn(),
     };
+    // Interactive transaction: run the callback against the same mock client.
+    prisma.$transaction.mockImplementation(
+      (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -101,6 +107,8 @@ describe('ContractsService terminateContract', () => {
         gracePeriodDays: 14,
         accessUntil: '2027-01-14T23:59:59.999Z',
       }),
+      // Written inside the termination transaction.
+      prisma,
     );
   });
 });

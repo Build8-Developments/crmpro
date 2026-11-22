@@ -23,6 +23,9 @@ describe('TenantProvisioningService contract concurrency', () => {
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
     fingerprint: 'fp',
+    deviceName: null,
+    country: null,
+    city: null,
   };
 
   const lockedContractRow = {
@@ -50,8 +53,10 @@ describe('TenantProvisioningService contract concurrency', () => {
     permission: { findMany: jest.Mock };
     rolePermission: { createMany: jest.Mock };
     leadSource: { createMany: jest.Mock };
+    lostReason: { createMany: jest.Mock };
     pipeline: { create: jest.Mock };
     pipelineStage: { createMany: jest.Mock };
+    user: { create: jest.Mock };
   };
 
   const allPermissions = Object.values(PERMISSIONS).map((key, index) => ({
@@ -79,6 +84,7 @@ describe('TenantProvisioningService contract concurrency', () => {
       },
       rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
       leadSource: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      lostReason: { createMany: jest.fn().mockResolvedValue({ count: 8 }) },
       pipeline: {
         create: jest.fn().mockResolvedValue({ id: 'pipeline-1' }),
       },
@@ -116,7 +122,9 @@ describe('TenantProvisioningService contract concurrency', () => {
         },
         {
           provide: TenantsAuditService,
-          useValue: { logTenantCreated: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            logTenantCreated: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

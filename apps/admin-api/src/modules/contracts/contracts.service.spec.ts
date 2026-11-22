@@ -12,6 +12,7 @@ describe('ContractsService entitlement sync', () => {
       findFirst: jest.Mock;
       update: jest.Mock;
     };
+    subscriptionPlan: { findUnique: jest.Mock };
     $transaction: jest.Mock;
   };
   let entitlementSyncService: {
@@ -23,6 +24,9 @@ describe('ContractsService entitlement sync', () => {
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
     fingerprint: 'fp',
+    deviceName: null,
+    country: null,
+    city: null,
   };
 
   beforeEach(async () => {
@@ -39,7 +43,9 @@ describe('ContractsService entitlement sync', () => {
         update: jest.fn(),
       },
       subscriptionPlan: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'plan-enterprise', isActive: true }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'plan-enterprise', isActive: true }),
       },
       $transaction: jest.fn(),
     };
@@ -126,11 +132,9 @@ describe('ContractsService entitlement sync', () => {
 
     await service.activateContract('contract-1', 'admin-1', metadata);
 
-    expect(entitlementSyncService.syncTenantPlanFromContract).toHaveBeenCalledWith(
-      expect.anything(),
-      'tenant-1',
-      'plan-enterprise',
-    );
+    expect(
+      entitlementSyncService.syncTenantPlanFromContract,
+    ).toHaveBeenCalledWith(expect.anything(), 'tenant-1', 'plan-enterprise');
     expect(
       entitlementSyncService.assertTenantContractPlanConsistency,
     ).toHaveBeenCalledWith('tenant-1', expect.anything());

@@ -1,9 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  AdminSecurityEventType,
-  SecuritySeverity,
-} from '@crmpro/database';
+import { AdminSecurityEventType, SecuritySeverity } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SecurityEventsService } from './security-events.service';
 

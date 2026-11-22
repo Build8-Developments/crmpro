@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ADMIN_PERMISSIONS } from "@crmpro/shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -139,26 +139,28 @@ function ContractForm({
   const [notes, setNotes] = useState("");
   const [hydrated, setHydrated] = useState(!isEdit);
 
-  useEffect(() => {
-    if (!contract) return;
-    setContractName(contract.contractName ?? "");
-    setPlanId(contract.plan.id);
-    setAgreedPrice(String(contract.agreedPrice));
-    setCurrency(contract.currency);
-    setPaymentMethod(contract.paymentMethod);
-    setPaymentFrequency(contract.paymentFrequency);
-    setContractStartAt(toDateInputValue(contract.contractStartAt));
-    setContractEndAt(toDateInputValue(contract.contractEndAt));
-    setDiscountPercent(
-      contract.discountPercent != null ? String(contract.discountPercent) : "",
-    );
-    setGracePeriodDays(
-      contract.gracePeriodDays != null ? String(contract.gracePeriodDays) : "",
-    );
-    setAutoRenew(contract.autoRenew);
-    setNotes(contract.notes ?? "");
-    setHydrated(true);
-  }, [contract]);
+  // Load the contract once per id (during render, not in an effect).
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  if (contract && contract.id !== loadedId) {
+    setLoadedId(contract.id);
+      setContractName(contract.contractName ?? "");
+      setPlanId(contract.plan.id);
+      setAgreedPrice(String(contract.agreedPrice));
+      setCurrency(contract.currency);
+      setPaymentMethod(contract.paymentMethod);
+      setPaymentFrequency(contract.paymentFrequency);
+      setContractStartAt(toDateInputValue(contract.contractStartAt));
+      setContractEndAt(toDateInputValue(contract.contractEndAt));
+      setDiscountPercent(
+        contract.discountPercent != null ? String(contract.discountPercent) : "",
+      );
+      setGracePeriodDays(
+        contract.gracePeriodDays != null ? String(contract.gracePeriodDays) : "",
+      );
+      setAutoRenew(contract.autoRenew);
+      setNotes(contract.notes ?? "");
+      setHydrated(true);
+  }
 
   const planOptions = plansData?.items ?? [];
   const selectedPlanMissing =

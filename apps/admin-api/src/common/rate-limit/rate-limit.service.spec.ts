@@ -49,7 +49,7 @@ describe('RateLimitService', () => {
   });
 
   it('connects with the resolved host, port and password', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
 
     expect(mockConnections[0]).toMatchObject({
       host: 'redis.prod',
@@ -67,7 +67,7 @@ describe('RateLimitService', () => {
   // indefinitely and then retried 20 times, so the fail-open catch is either
   // unreachable or reaches the caller seconds late. Pin the fail-fast options.
   it('rejects commands immediately while disconnected so fail-open can fire', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
 
     expect(mockConnections[0]).toMatchObject({
       enableOfflineQueue: false,
@@ -77,9 +77,11 @@ describe('RateLimitService', () => {
   });
 
   it('fails open when a disconnected client rejects the command', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     mockConsumeRateLimit.mockRejectedValue(
-      new Error("Stream isn't writeable and enableOfflineQueue options is false"),
+      new Error(
+        "Stream isn't writeable and enableOfflineQueue options is false",
+      ),
     );
 
     await expect(service.consume('k', 5, 900)).resolves.toEqual({
@@ -90,7 +92,7 @@ describe('RateLimitService', () => {
   });
 
   it('allows requests up to the limit and reports the remaining budget', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     mockConsumeRateLimit.mockResolvedValue([3, 890000]);
 
     await expect(service.consume('k', 5, 900)).resolves.toEqual({
@@ -102,7 +104,7 @@ describe('RateLimitService', () => {
   });
 
   it('treats reaching the limit as still allowed', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     mockConsumeRateLimit.mockResolvedValue([5, 1000]);
 
     await expect(service.consume('k', 5, 900)).resolves.toMatchObject({
@@ -112,7 +114,7 @@ describe('RateLimitService', () => {
   });
 
   it('blocks past the limit and derives Retry-After from the key ttl', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     mockConsumeRateLimit.mockResolvedValue([6, 421000]);
 
     await expect(service.consume('k', 5, 900)).resolves.toEqual({
@@ -123,7 +125,7 @@ describe('RateLimitService', () => {
   });
 
   it('never reports a retry delay below one second', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     mockConsumeRateLimit.mockResolvedValue([9, 120]);
 
     await expect(service.consume('k', 5, 900)).resolves.toMatchObject({
@@ -133,7 +135,7 @@ describe('RateLimitService', () => {
   });
 
   it('fails open when Redis errors so an outage cannot lock everyone out', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     mockConsumeRateLimit.mockRejectedValue(new Error('NOAUTH'));
 
     await expect(service.consume('k', 5, 900)).resolves.toEqual({
@@ -153,7 +155,7 @@ describe('RateLimitService', () => {
   });
 
   it('quits the client on shutdown', async () => {
-    await service.onModuleInit();
+    service.onModuleInit();
     await service.onModuleDestroy();
 
     expect(mockQuit).toHaveBeenCalled();
