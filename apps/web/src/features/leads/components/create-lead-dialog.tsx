@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,6 +32,13 @@ import {
   type ProjectInterestDraft,
 } from "@/features/leads/components/project-interests-field";
 import { usePermissions } from "@/hooks/use-permissions";
+import {
+  EMPTY_PROFILE_DRAFT,
+  LeadProfileFields,
+  profileBudgetError,
+  profileDraftToInput,
+  type LeadProfileDraft,
+} from "./lead-profile-fields";
 
 export function CreateLeadDialog() {
   const open = useLeadUiStore((s) => s.createDialogOpen);
@@ -43,7 +50,9 @@ export function CreateLeadDialog() {
 
   const [fullName, setFullName] = useState("");
   const [primaryPhone, setPrimaryPhone] = useState("");
+  const [secondaryPhone, setSecondaryPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [profile, setProfile] = useState<LeadProfileDraft>(EMPTY_PROFILE_DRAFT);
   const [sourceId, setSourceId] = useState<string>();
   const [assignedUserId, setAssignedUserId] = useState<string>();
   const [projectInterests, setProjectInterests] = useState<
@@ -59,25 +68,33 @@ export function CreateLeadDialog() {
     return (
       pipelineOptions
         .find((pipeline) => pipeline.id === pipelineId)
-        ?.stages.map((stage) => ({ id: stage.id, name: stage.name })) ?? []
+        // New leads start in an open stage (Won needs a deal, Lost a reason).
+        ?.stages.filter((stage) => !stage.isClosed)
+        .map((stage) => ({ id: stage.id, name: stage.name })) ?? []
     );
   }, [pipelineId, pipelineOptions]);
 
-  useEffect(() => {
-    if (!open || pipelineOptions.length === 0) return;
-
+  // Default placement once per opening, as soon as pipelines are loaded
+  // (during render, not in an effect).
+  const placementReady = open && pipelineOptions.length > 0;
+  const [placedForOpen, setPlacedForOpen] = useState(false);
+  if (placementReady && !placedForOpen) {
+    setPlacedForOpen(true);
     const placement = getDefaultPipelinePlacement(pipelineOptions);
-
     if (placement) {
       setPipelineId(placement.pipelineId);
       setPipelineStageId(placement.pipelineStageId);
     }
-  }, [open, pipelineOptions]);
+  } else if (!open && placedForOpen) {
+    setPlacedForOpen(false);
+  }
 
   const resetForm = () => {
     setFullName("");
     setPrimaryPhone("");
+    setSecondaryPhone("");
     setEmail("");
+    setProfile(EMPTY_PROFILE_DRAFT);
     setSourceId(undefined);
     setAssignedUserId(undefined);
     setProjectInterests([]);
@@ -95,7 +112,9 @@ export function CreateLeadDialog() {
     const result = await createLeadMutation.mutateAsync({
       fullName: fullName.trim(),
       primaryPhone: primaryPhone.trim(),
+      secondaryPhone: secondaryPhone.trim() || null,
       email: email.trim() || null,
+      ...profileDraftToInput(profile),
       pipelineId,
       pipelineStageId,
       ...(sourceId ? { sourceId } : {}),
@@ -113,11 +132,11 @@ export function CreateLeadDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add lead</DialogTitle>
           <DialogDescription>
-            Create a new lead in your default pipeline.
+            Name and phone are enough to start — the rest helps your team sell.
           </DialogDescription>
         </DialogHeader>
 
@@ -134,14 +153,28 @@ export function CreateLeadDialog() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lead-phone">Primary phone</Label>
-            <Input
-              id="lead-phone"
-              value={primaryPhone}
-              onChange={(event) => setPrimaryPhone(event.target.value)}
-              required
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="lead-phone">Phone</Label>
+              <Input
+                id="lead-phone"
+                inputMode="tel"
+                value={primaryPhone}
+                onChange={(event) => setPrimaryPhone(event.target.value)}
+                placeholder="01xxxxxxxxx"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lead-phone-2">Second phone</Label>
+              <Input
+                id="lead-phone-2"
+                inputMode="tel"
+                value={secondaryPhone}
+                onChange={(event) => setSecondaryPhone(event.target.value)}
+                placeholder="Optional"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -202,6 +235,18 @@ export function CreateLeadDialog() {
             onChange={setProjectInterests}
           />
 
+          <details className="group rounded-lg border bg-muted/20 [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium">
+              Client profile
+              <span className="text-xs font-normal text-muted-foreground group-open:hidden">
+                Job, area, budget, payment, best way to reach
+              </span>
+            </summary>
+            <div className="border-t px-3 py-3">
+              <LeadProfileFields value={profile} onChange={setProfile} />
+            </div>
+          </details>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
@@ -212,6 +257,7 @@ export function CreateLeadDialog() {
                 createLeadMutation.isPending ||
                 !fullName.trim() ||
                 !primaryPhone.trim() ||
+                Boolean(profileBudgetError(profile)) ||
                 !pipelineId ||
                 !pipelineStageId
               }

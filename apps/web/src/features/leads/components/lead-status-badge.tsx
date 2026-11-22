@@ -1,35 +1,20 @@
 import type { LeadStageSummary } from "@/features/leads/types";
-import { Badge } from "@/components/ui/badge";
-import { getStageColorStyles } from "@/features/leads/utils/stage-color";
-import { cn } from "@/lib/utils";
+import { StageBadge } from "@/components/crm/stage-visuals";
 
 interface LeadStageBadgeProps {
   stage: LeadStageSummary;
   archived?: boolean;
+  size?: "xs" | "sm";
 }
 
-export function LeadStageBadge({ stage, archived }: LeadStageBadgeProps) {
-  const styles = getStageColorStyles(stage.color);
-
+/** A lead's stage as a small pill (icon + name); archived leads fade. */
+export function LeadStageBadge({ stage, archived, size = "sm" }: LeadStageBadgeProps) {
   return (
-    <div className="flex max-w-[11rem] items-center gap-1">
-      <span
-        className={cn(
-          "inline-flex h-5 max-w-full items-center truncate rounded px-1.5 text-[11px] font-medium",
-        )}
-        style={{
-          backgroundColor: styles.backgroundColor,
-          color: styles.color,
-          border: `1px solid ${styles.borderColor}`,
-        }}
-      >
-        {stage.name}
-      </span>
+    <span className="inline-flex items-center gap-1">
+      <StageBadge stage={stage} archived={archived} size={size} />
       {archived ? (
-        <Badge variant="secondary" className="h-4 px-1 text-[9px]">
-          Archived
-        </Badge>
+        <span className="text-[10px] font-medium text-muted-foreground">Archived</span>
       ) : null}
-    </div>
+    </span>
   );
 }

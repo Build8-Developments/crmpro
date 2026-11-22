@@ -13,9 +13,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { normalizeWhitespace } from '../../../common/utils/name-normalization.util';
+import { LeadProfileFieldsDto } from './lead-profile-fields.dto';
 import { ProjectInterestDto } from './project-interest.dto';
 
-export class UpdateLeadDto {
+export class UpdateLeadDto extends LeadProfileFieldsDto {
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
   @IsUUID()
@@ -33,14 +34,16 @@ export class UpdateLeadDto {
   fullName?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   primaryPhone?: string;
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === null) {
       return null;
     }
@@ -52,7 +55,7 @@ export class UpdateLeadDto {
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === null) {
       return null;
     }

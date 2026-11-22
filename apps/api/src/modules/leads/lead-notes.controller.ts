@@ -8,7 +8,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
-import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import {
+  CurrentLeadScope,
+  type LeadScope,
+  PermissionsGuard,
+  RequirePermission,
+} from '../../common/auth';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
@@ -24,6 +29,7 @@ export class LeadNotesController {
   @RequirePermission(PERMISSIONS.LEAD_NOTE_UPDATE)
   async updateNote(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Param('noteId', ParseUUIDPipe) noteId: string,
     @Body() dto: UpdateLeadNoteDto,
   ) {
@@ -32,6 +38,7 @@ export class LeadNotesController {
       user.tenantId,
       user.id,
       dto,
+      scope,
     );
 
     return { success: true, data };
@@ -41,12 +48,14 @@ export class LeadNotesController {
   @RequirePermission(PERMISSIONS.LEAD_NOTE_DELETE)
   async deleteNote(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Param('noteId', ParseUUIDPipe) noteId: string,
   ) {
     const data = await this.leadNotesService.deleteNote(
       noteId,
       user.tenantId,
       user.id,
+      scope,
     );
 
     return { success: true, data };

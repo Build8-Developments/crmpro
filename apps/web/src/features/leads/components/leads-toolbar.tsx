@@ -20,6 +20,7 @@ import {
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
 import { usePermissions } from "@/hooks/use-permissions";
+import { LEAD_SCOPE_LABELS, useLeadScope } from "@/hooks/use-lead-scope";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
 import { ActiveFilterBadges } from "./active-filter-badges";
 
@@ -33,14 +34,67 @@ interface LeadsToolbarProps {
   onFiltersChange: (filters: Partial<LeadsTableFilters>) => void;
   onClearFilters: () => void;
   isFetching?: boolean;
+  /** Column / density menu for the table below. */
+  viewMenu?: React.ReactNode;
 }
 
+/** One-tap views a sales manager uses all day (workflow spec §3.5). */
 const QUICK_CHIPS: Array<{
-  key: "unassignedOnly" | "staleOnly";
+  id: string;
   label: string;
+  isActive: (filters: LeadsTableFilters) => boolean;
+  on: Partial<LeadsTableFilters>;
+  off: Partial<LeadsTableFilters>;
 }> = [
-  { key: "unassignedOnly", label: "Unassigned" },
-  { key: "staleOnly", label: "Stale" },
+  {
+    id: "unassigned",
+    label: "Unassigned",
+    isActive: (f) => Boolean(f.unassignedOnly),
+    on: { unassignedOnly: true, assignees: undefined },
+    off: { unassignedOnly: undefined },
+  },
+  {
+    id: "no-next-step",
+    label: "No next step",
+    isActive: (f) => f.nextStep === "none",
+    on: { nextStep: "none" },
+    off: { nextStep: undefined },
+  },
+  {
+    id: "overdue",
+    label: "Overdue",
+    isActive: (f) => f.nextStep === "overdue",
+    on: { nextStep: "overdue" },
+    off: { nextStep: undefined },
+  },
+  {
+    id: "never",
+    label: "Never contacted",
+    isActive: (f) => f.lastContact === "never",
+    on: { lastContact: "never", openOnly: true },
+    off: { lastContact: undefined, openOnly: undefined },
+  },
+  {
+    id: "hot",
+    label: "Hot",
+    isActive: (f) => f.heat?.length === 1 && f.heat[0] === "HOT",
+    on: { heat: ["HOT"] },
+    off: { heat: undefined },
+  },
+  {
+    id: "stale",
+    label: "Stale",
+    isActive: (f) => Boolean(f.staleOnly),
+    on: { staleOnly: true },
+    off: { staleOnly: undefined },
+  },
+  {
+    id: "stuck",
+    label: "Stuck",
+    isActive: (f) => Boolean(f.stuck),
+    on: { stuck: true },
+    off: { stuck: undefined },
+  },
 ];
 
 export function LeadsToolbar({
@@ -53,14 +107,14 @@ export function LeadsToolbar({
   onFiltersChange,
   onClearFilters,
   isFetching,
+  viewMenu,
 }: LeadsToolbarProps) {
   const openCreateDialog = useLeadUiStore((s) => s.openCreateDialog);
+  const openTransferDialog = useLeadUiStore((s) => s.openTransferDialog);
   const { can } = usePermissions();
+  const leadScope = useLeadScope();
   const activeFilterCount = countActiveLeadFilters(filters);
-  const sheetFilterCount =
-    activeFilterCount -
-    (filters.unassignedOnly ? 1 : 0) -
-    (filters.staleOnly ? 1 : 0);
+  const sheetFilterCount = activeFilterCount;
 
   return (
     <div className="space-y-3 border-b border-border/50 px-4 py-3">
@@ -79,6 +133,7 @@ export function LeadsToolbar({
         <LeadsFiltersSheet
           filters={filters}
           onFiltersChange={onFiltersChange}
+          onClearFilters={onClearFilters}
           activeCount={sheetFilterCount}
         />
 
@@ -122,14 +177,32 @@ export function LeadsToolbar({
         >
           {formatNumber(totalItems)} leads
         </span>
+        {leadScope !== "all" ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+            title="Leads assigned to other people are not visible to you."
+          >
+            <AppIcons.eye className="size-3" />
+            {LEAD_SCOPE_LABELS[leadScope]}
+          </span>
+        ) : null}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8" asChild>
-            <Link href="/imports">
-              <AppIcons.upload className="size-3.5" />
-              Import CSV
-            </Link>
-          </Button>
+          {viewMenu}
+          {can("lead.assign") ? (
+            <Button variant="outline" size="sm" className="h-8" onClick={openTransferDialog}>
+              <AppIcons.stageChange className="size-3.5" />
+              Transfer
+            </Button>
+          ) : null}
+          {can("import-job.create") ? (
+            <Button variant="outline" size="sm" className="h-8" asChild>
+              <Link href="/imports">
+                <AppIcons.upload className="size-3.5" />
+                Import CSV
+              </Link>
+            </Button>
+          ) : null}
           {can("lead.create") ? (
             <Button size="sm" className="h-8" onClick={openCreateDialog}>
               <AppIcons.create className="size-3.5" />
@@ -141,16 +214,13 @@ export function LeadsToolbar({
 
       <div className="flex flex-wrap gap-1">
         {QUICK_CHIPS.map((chip) => {
-          const active = Boolean(filters[chip.key]);
+          const active = chip.isActive(filters);
           return (
             <button
-              key={chip.key}
+              key={chip.id}
               type="button"
-              onClick={() =>
-                onFiltersChange({
-                  [chip.key]: active ? undefined : true,
-                })
-              }
+              aria-pressed={active}
+              onClick={() => onFiltersChange(active ? chip.off : chip.on)}
               className={cn(
                 "h-7 rounded-md px-2.5 text-[11px] font-medium transition-colors",
                 active

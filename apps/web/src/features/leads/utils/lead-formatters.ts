@@ -22,15 +22,15 @@ export function formatLastContacted(lastContactedAt: string | null): string {
   return formatRelativeTime(lastContactedAt);
 }
 
+const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 
-export function paginationRangeLabel(
-  page: number,
-  limit: number,
-  totalItems: number,
-): string {
-  if (totalItems === 0) return "Showing 0 leads";
-
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalItems);
-  return `Showing ${start}–${end} of ${totalItems.toLocaleString()} leads`;
+/** "2M – 3.5M EGP", "From 2M EGP", "Up to 3M EGP", or null when unknown. */
+export function formatBudget(min: number | null, max: number | null): string | null {
+  if (min === null && max === null) return null;
+  if (min !== null && max !== null) {
+    return `${compactNumber.format(min)} – ${compactNumber.format(max)} EGP`;
+  }
+  return min !== null
+    ? `From ${compactNumber.format(min)} EGP`
+    : `Up to ${compactNumber.format(max!)} EGP`;
 }

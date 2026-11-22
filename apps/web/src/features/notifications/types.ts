@@ -15,7 +15,9 @@ export type NotificationType =
   | "TASK_DUE"
   | "TASK_OVERDUE"
   | "TASK_COMPLETED"
-  | "SUPPORT_REPLY";
+  | "SUPPORT_REPLY"
+  | "ESCALATION"
+  | "ACHIEVEMENT";
 
 export type NotificationPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
 

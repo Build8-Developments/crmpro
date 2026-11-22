@@ -22,12 +22,14 @@ export function LeadsEmptyState() {
         Import leads or create your first lead to start tracking your pipeline.
       </p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/imports">
-            <AppIcons.upload className="size-3.5" />
-            Import CSV
-          </Link>
-        </Button>
+        {can("import-job.create") ? (
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/imports">
+              <AppIcons.upload className="size-3.5" />
+              Import CSV
+            </Link>
+          </Button>
+        ) : null}
         {can("lead.create") ? (
           <Button size="sm" onClick={openCreateDialog}>
             <AppIcons.create className="size-3.5" />

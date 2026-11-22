@@ -27,8 +27,7 @@ describe('InAppNotificationChannel', () => {
         createMany: jest.fn(),
         findFirst: jest.fn(),
       },
-      auditLog: { create: jest.fn().mockResolvedValue(undefined),
-      },
+      auditLog: { create: jest.fn().mockResolvedValue(undefined) },
     };
     prisma = {
       $transaction: jest.fn(async (callback) => callback(tx)),

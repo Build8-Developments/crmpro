@@ -13,7 +13,10 @@ import { NotificationDeliveryContext } from '../entities/notification.types';
 export class InAppNotificationChannel implements NotificationDeliveryChannel {
   readonly channelId = IN_APP_NOTIFICATION_CHANNEL;
 
-  constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: DomainEventBus,
+  ) {}
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
     // No audit row per notification: notifications are a side effect of an

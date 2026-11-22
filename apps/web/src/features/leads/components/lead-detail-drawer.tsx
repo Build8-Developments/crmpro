@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useLead,
   useLeadActivities,
+  useLeadDuplicates,
   useLeadNotes,
 } from "@/features/leads/hooks";
 import {
@@ -30,10 +31,28 @@ import {
   formatLastContacted,
   getPrimaryProjectInterest,
 } from "@/features/leads/utils/lead-formatters";
-import { getActivityMeta } from "@/features/dashboard/activity-icons";
+import { describeLeadActivity, type TimelineTone } from "@/features/leads/utils/lead-timeline";
 import { formatRelativeTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { LeadFiles } from "./lead-files";
+import { LeadProfileSummary } from "./lead-profile-summary";
+import { MaskedContact } from "./masked-contact";
+import { LeadNextSteps } from "./lead-next-steps";
+import { CHANNEL_ICONS, HeatBadge } from "./workflow-visuals";
 import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/use-permissions";
+import { ApiError } from "@/lib/api/client";
+import type { LeadDuplicate } from "@/features/leads/types";
+import { formatMergeCounts } from "@/features/leads/utils/lead-merge";
+import { MergeLeadsDialog } from "./merge-leads-dialog";
+import { LeadDealSection } from "@/features/deals/components/lead-deal-section";
+
+/** The surviving lead's id when a lead 404s because it was merged away. */
+function mergedIntoIdOf(error: unknown): string | null {
+  if (!(error instanceof ApiError) || error.status !== 404) return null;
+  const details = error.details as { mergedIntoId?: unknown } | null;
+  return typeof details?.mergedIntoId === "string" ? details.mergedIntoId : null;
+}
 
 export function LeadDetailDrawer() {
   const drawerOpen = useLeadUiStore((s) => s.drawerOpen);
@@ -42,15 +61,24 @@ export function LeadDetailDrawer() {
   const openAssignDialog = useLeadUiStore((s) => s.openAssignDialog);
   const openMoveStageDialog = useLeadUiStore((s) => s.openMoveStageDialog);
   const openEditDialog = useLeadUiStore((s) => s.openEditDialog);
+  const openLogDialog = useLeadUiStore((s) => s.openLogDialog);
   const { can } = usePermissions();
+  const canMerge = can("lead.merge");
 
-  const { data: lead, isLoading, isError } = useLead(selectedLeadId ?? undefined);
-  const { data: notes } = useLeadNotes(selectedLeadId ?? undefined);
-  const { data: activities } = useLeadActivities(selectedLeadId ?? undefined);
+  // A lead merged away 404s with the survivor's id: show the survivor instead.
+  const requestedLead = useLead(selectedLeadId ?? undefined);
+  const mergedIntoId = mergedIntoIdOf(requestedLead.error);
+  const leadId = mergedIntoId ?? selectedLeadId ?? undefined;
+  const { data: lead, isLoading, isError } = useLead(leadId);
+  const { data: notes } = useLeadNotes(leadId);
+  const { data: activities } = useLeadActivities(leadId);
+  const { data: duplicates } = useLeadDuplicates(leadId, canMerge && Boolean(lead));
   const archiveLead = useArchiveLead();
   const restoreLead = useRestoreLead();
-  const createNote = useCreateLeadNote(selectedLeadId ?? "");
+  const createNote = useCreateLeadNote(leadId ?? "");
   const [noteDraft, setNoteDraft] = useState("");
+  const [mergeWith, setMergeWith] = useState<LeadDuplicate | null>(null);
+  const openDrawer = useLeadUiStore((s) => s.openDrawer);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -70,20 +98,26 @@ export function LeadDetailDrawer() {
     }
   };
 
-  const handleAddNote = async () => {
-    const content = noteDraft.trim();
-    if (!content || !selectedLeadId) return;
-    await createNote.mutateAsync(content);
-    setNoteDraft("");
+  /** Switch the drawer (and a shared ?id= link) to another lead. */
+  const showLead = (id: string) => {
+    openDrawer(id);
+    if (searchParams.get("id")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("id", id);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
   };
 
-  const copyPhone = async (phone: string) => {
-    try {
-      await navigator.clipboard.writeText(phone);
-      toast.success("Copied");
-    } catch {
-      toast.error("Copy failed");
-    }
+  const handleMerged = (survivorId: string) => {
+    setMergeWith(null);
+    if (survivorId !== leadId) showLead(survivorId);
+  };
+
+  const handleAddNote = async () => {
+    const content = noteDraft.trim();
+    if (!content || !leadId) return;
+    await createNote.mutateAsync(content);
+    setNoteDraft("");
   };
 
   const interest = lead ? getPrimaryProjectInterest(lead) : null;
@@ -114,15 +148,37 @@ export function LeadDetailDrawer() {
                   {lead.fullName}
                 </SheetTitle>
                 <SheetDescription>{lead.pipeline.name}</SheetDescription>
-                <div>
+                <div className="flex flex-wrap items-center gap-1.5">
                   <LeadStageBadge
                     stage={lead.stage}
                     archived={lead.status === "ARCHIVED"}
                   />
+                  {!lead.stage.isClosed && lead.status === "OPEN" ? (
+                    <HeatBadge heat={lead.heat} />
+                  ) : null}
+                  {lead.lostReason ? (
+                    <span className="text-xs text-muted-foreground">
+                      {lead.lostReason.name}
+                      {lead.lostNote ? ` — ${lead.lostNote}` : ""}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
+                {can("lead.update") && lead.status === "OPEN" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openLogDialog({ leadId: lead.id, leadName: lead.fullName });
+                    }}
+                  >
+                    <AppIcons.phone className="size-3.5" />
+                    Log activity
+                  </Button>
+                ) : null}
                 {can("lead.update") ? (
                   <Button
                     type="button"
@@ -191,40 +247,56 @@ export function LeadDetailDrawer() {
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="space-y-6 px-6 py-4 pb-8">
+                {mergedIntoId ? (
+                  <p className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                    <AppIcons.merge className="size-3.5 shrink-0 text-primary" />
+                    The lead you opened was merged into this one.
+                  </p>
+                ) : null}
+
+                {canMerge && duplicates && duplicates.items.length > 0 ? (
+                  <PossibleDuplicates
+                    items={duplicates.items}
+                    onMerge={(duplicate) => setMergeWith(duplicate)}
+                  />
+                ) : null}
+
+                <LeadDealSection lead={lead} />
+
+                <LeadNextSteps lead={lead} />
+
                 <section className="space-y-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Contact
                   </h3>
                   <div className="rounded-lg border bg-muted/15 p-3 text-sm">
-                    <div className="flex items-center gap-1">
-                      <a
-                        href={`tel:${lead.primaryPhone}`}
-                        className="tabular-nums hover:underline"
-                      >
-                        {lead.primaryPhone}
-                      </a>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-5"
-                        onClick={() => void copyPhone(lead.primaryPhone)}
-                        aria-label="Copy phone"
-                      >
-                        <AppIcons.copy className="size-2.5" />
-                      </Button>
+                    <dl className="space-y-1.5">
+                      <ContactRow label="Phone">
+                        <MaskedContact leadId={lead.id} field="primaryPhone" masked={lead.primaryPhone} />
+                      </ContactRow>
+                      {lead.secondaryPhone ? (
+                        <ContactRow label="Second">
+                          <MaskedContact leadId={lead.id} field="secondaryPhone" masked={lead.secondaryPhone} />
+                        </ContactRow>
+                      ) : null}
+                      <ContactRow label="Email">
+                        {lead.email ? (
+                          <MaskedContact leadId={lead.id} field="email" masked={lead.email} />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </ContactRow>
+                    </dl>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span>Last contact {formatLastContacted(lead.lastContactedAt)}</span>
+                      <span>
+                        {lead.contactAttempts} attempt{lead.contactAttempts === 1 ? "" : "s"}
+                        {lead.unansweredStreak > 0
+                          ? ` · ${lead.unansweredStreak} unanswered in a row`
+                          : ""}
+                      </span>
+                      <span>In stage {formatRelativeTime(lead.stageEnteredAt).replace(/ ago$/, "")}</span>
                     </div>
-                    {lead.secondaryPhone ? (
-                      <p className="mt-1 tabular-nums text-muted-foreground">
-                        {lead.secondaryPhone}
-                      </p>
-                    ) : null}
-                    <p className="text-muted-foreground">
-                      {lead.email ?? "No email"}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Last contacted {formatLastContacted(lead.lastContactedAt)}
-                    </p>
                   </div>
                 </section>
 
@@ -236,7 +308,7 @@ export function LeadDetailDrawer() {
                       lead.assignee ? (
                         <LeadAssigneeCell assignee={lead.assignee} />
                       ) : (
-                        <span className="text-amber-600 dark:text-amber-400">
+                        <span className="text-amber-700 dark:text-amber-400">
                           Unassigned
                         </span>
                       )
@@ -259,6 +331,10 @@ export function LeadDetailDrawer() {
                     value={formatRelativeTime(lead.createdAt)}
                   />
                 </section>
+
+                <LeadProfileSummary lead={lead} />
+
+                <LeadFiles leadId={lead.id} />
 
                 {can("lead-note.read") ? (
                   <section className="space-y-2">
@@ -320,23 +396,31 @@ export function LeadDetailDrawer() {
                       </p>
                     ) : null}
                     {activityItems.map((activity) => {
-                      const meta = getActivityMeta(activity.eventType);
-                      const Icon = meta.icon;
+                      const entry = describeLeadActivity(activity);
+                      const Icon = entry.channel
+                        ? CHANNEL_ICONS[entry.channel]
+                        : TIMELINE_ICONS[entry.kind];
                       return (
                         <div
                           key={activity.id}
                           className="flex items-start gap-2.5 rounded-lg border bg-card p-3"
                         >
                           <div
-                            className={`flex size-7 shrink-0 items-center justify-center rounded-md ${meta.iconClassName}`}
+                            className={cn(
+                              "flex size-7 shrink-0 items-center justify-center rounded-md",
+                              TONE_CLASSES[entry.tone],
+                            )}
                           >
                             <Icon className="size-3.5" stroke={2} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-medium">
-                              {meta.label}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-xs font-medium">{entry.title}</p>
+                            {entry.detail ? (
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {entry.detail}
+                              </p>
+                            ) : null}
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
                               {activity.actor?.email ?? "System"} ·{" "}
                               {formatRelativeTime(activity.createdAt)}
                             </p>
@@ -348,10 +432,97 @@ export function LeadDetailDrawer() {
                 </section>
               </div>
             </div>
+
+            {canMerge && duplicates ? (
+              <MergeLeadsDialog
+                lead={lead}
+                leadCounts={duplicates.counts}
+                duplicate={mergeWith}
+                onClose={() => setMergeWith(null)}
+                onMerged={handleMerged}
+              />
+            ) : null}
           </>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+const TONE_CLASSES: Record<TimelineTone, string> = {
+  default: "bg-sky-500/12 text-sky-700 dark:text-sky-400",
+  positive: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
+  negative: "bg-destructive/10 text-destructive",
+  muted: "bg-muted text-muted-foreground",
+  accent: "bg-primary/12 text-primary",
+};
+
+const TIMELINE_ICONS = {
+  created: AppIcons.userPlus,
+  assignment: AppIcons.userPlus,
+  stage: AppIcons.stageChange,
+  note: AppIcons.edit,
+  project: AppIcons.projects,
+  interaction: AppIcons.phone,
+  task: AppIcons.clock,
+  status: AppIcons.archive,
+  file: AppIcons.files,
+  contact: AppIcons.eye,
+  merge: AppIcons.merge,
+  deal: AppIcons.deals,
+  other: AppIcons.activity,
+} as const;
+
+/** Compact "same person?" notice; each match can be merged from here. */
+function PossibleDuplicates({
+  items,
+  onMerge,
+}: {
+  items: LeadDuplicate[];
+  onMerge: (duplicate: LeadDuplicate) => void;
+}) {
+  return (
+    <section className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+      <h3 className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+        <AppIcons.alertTriangle className="size-3.5" />
+        Possible duplicates ({items.length})
+      </h3>
+      <ul className="space-y-1.5">
+        {items.map((item) => {
+          const counts = formatMergeCounts(item.counts);
+          return (
+            <li key={item.id} className="flex items-center gap-2 text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{item.fullName}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  Same {item.matchedOn.join(" & ")} · {item.stage.name} ·{" "}
+                  {item.assignee?.name ?? "Unassigned"}
+                  {counts ? ` · ${counts}` : ""}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={() => onMerge(item)}
+              >
+                <AppIcons.merge />
+                Merge
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function ContactRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-7 items-center gap-3">
+      <dt className="w-14 shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 flex-1">{children}</dd>
+    </div>
   );
 }
 

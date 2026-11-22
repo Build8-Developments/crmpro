@@ -6,6 +6,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsOptional,
   ValidateNested,
 } from 'class-validator';
 
@@ -17,6 +18,12 @@ export class UpdateNotificationPreferenceItemDto {
   @ApiProperty()
   @IsBoolean()
   enabled!: boolean;
+
+  /** Also email this category (in-app must be on for email to go out). */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  emailEnabled?: boolean;
 }
 
 export class UpdateNotificationPreferencesDto {

@@ -20,6 +20,8 @@ export const NOTIFICATION_ICONS: Record<NotificationType, AppIcon> = {
   TASK_OVERDUE: AppIcons.users,
   TASK_COMPLETED: AppIcons.users,
   SUPPORT_REPLY: AppIcons.lifeBuoy,
+  ESCALATION: AppIcons.alertCircle,
+  ACHIEVEMENT: AppIcons.performance,
 };
 
 function metaString(
@@ -64,6 +66,16 @@ export function getNotificationHref(notification: Notification): string | null {
           ? `/support?id=${encodeURIComponent(conversationId)}`
           : "/support")
       );
+    case "ESCALATION": {
+      // SLA misses, overdue contracts, nudges, leads waiting for an owner.
+      if (href) return href;
+      if (leadId) return `/leads?id=${encodeURIComponent(leadId)}`;
+      return metaString(notification.metadata, "kind") === "leads_unassigned"
+        ? "/leads?unassigned=true"
+        : "/today";
+    }
+    case "ACHIEVEMENT":
+      return "/performance";
     case "SYSTEM":
     default:
       return href;

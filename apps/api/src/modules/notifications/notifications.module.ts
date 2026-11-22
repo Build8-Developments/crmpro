@@ -11,11 +11,13 @@ import { NotificationTemplateService } from './notification-template.service';
 import { NotificationTriggerService } from './notification-trigger.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { EmailNotificationChannel } from './channels/email-notification.channel';
 
 @Module({
   imports: [AuthRbacModule, TenantAccessModule],
   controllers: [NotificationsController, NotificationPreferencesController],
   providers: [
+    EmailNotificationChannel,
     NotificationsService,
     NotificationPreferencesService,
     NotificationTemplateService,

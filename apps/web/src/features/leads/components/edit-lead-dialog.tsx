@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +30,16 @@ import {
   type ProjectInterestDraft,
 } from "@/features/leads/components/project-interests-field";
 import { usePermissions } from "@/hooks/use-permissions";
+import { accessLeadContact } from "@/features/leads/api";
+import { toast } from "@/lib/toast";
+import {
+  EMPTY_PROFILE_DRAFT,
+  LeadProfileFields,
+  profileBudgetError,
+  profileDraftFromLead,
+  profileDraftToInput,
+  type LeadProfileDraft,
+} from "./lead-profile-fields";
 
 export function EditLeadDialog() {
   const editDialog = useLeadUiStore((s) => s.editDialog);
@@ -46,6 +56,10 @@ export function EditLeadDialog() {
   const [primaryPhone, setPrimaryPhone] = useState("");
   const [secondaryPhone, setSecondaryPhone] = useState("");
   const [email, setEmail] = useState("");
+  // Contacts are masked; they become editable only after a logged EDIT access.
+  const [contactUnlocked, setContactUnlocked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [profile, setProfile] = useState<LeadProfileDraft>(EMPTY_PROFILE_DRAFT);
   const [sourceId, setSourceId] = useState<string>();
   const [projectInterests, setProjectInterests] = useState<
     ProjectInterestDraft[]
@@ -64,24 +78,52 @@ export function EditLeadDialog() {
     return options;
   }, [projects.data, lead]);
 
-  useEffect(() => {
-    if (!open || !lead) return;
-
-    setFullName(lead.fullName);
-    setPrimaryPhone(lead.primaryPhone);
-    setSecondaryPhone(lead.secondaryPhone ?? "");
-    setEmail(lead.email ?? "");
-    setSourceId(lead.source?.id);
-    setProjectInterests(
-      lead.projectInterests.map((interest) => ({
-        projectId: interest.projectId,
-        interestLevel: interest.interestLevel,
-      })),
-    );
-  }, [open, lead]);
+  // Load the form once per opened lead (during render, not in an effect), so a
+  // background refetch never wipes what the user is typing.
+  const formKey = open && lead ? lead.id : null;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  if (formKey !== loadedKey) {
+    setLoadedKey(formKey);
+    if (open && lead) {
+      setFullName(lead.fullName);
+      setContactUnlocked(false);
+      setProfile(profileDraftFromLead(lead));
+      setSourceId(lead.source?.id);
+      setProjectInterests(
+        lead.projectInterests.map((interest) => ({
+          projectId: interest.projectId,
+          interestLevel: interest.interestLevel,
+        })),
+      );
+    }
+  }
 
   const handleClose = () => {
     closeEditDialog();
+    setContactUnlocked(false);
+    setPrimaryPhone("");
+    setSecondaryPhone("");
+    setEmail("");
+  };
+
+  const unlockContacts = async () => {
+    if (!leadId || !lead) return;
+    setUnlocking(true);
+    try {
+      const [primary, secondary, mail] = await Promise.all([
+        accessLeadContact(leadId, "primaryPhone", "EDIT"),
+        lead.secondaryPhone ? accessLeadContact(leadId, "secondaryPhone", "EDIT") : null,
+        lead.email ? accessLeadContact(leadId, "email", "EDIT") : null,
+      ]);
+      setPrimaryPhone(primary.value ?? "");
+      setSecondaryPhone(secondary?.value ?? "");
+      setEmail(mail?.value ?? "");
+      setContactUnlocked(true);
+    } catch {
+      toast.error("Couldn't load the contact details");
+    } finally {
+      setUnlocking(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -95,9 +137,14 @@ export function EditLeadDialog() {
       leadId,
       input: {
         fullName: fullName.trim(),
-        primaryPhone: primaryPhone.trim(),
-        secondaryPhone: trimmedSecondary.length > 0 ? trimmedSecondary : null,
-        email: trimmedEmail.length > 0 ? trimmedEmail : null,
+        ...(contactUnlocked
+          ? {
+              primaryPhone: primaryPhone.trim(),
+              secondaryPhone: trimmedSecondary.length > 0 ? trimmedSecondary : null,
+              email: trimmedEmail.length > 0 ? trimmedEmail : null,
+            }
+          : {}),
+        ...profileDraftToInput(profile),
         sourceId: sourceId ?? null,
         projectInterests: toProjectInterestsInput(projectInterests),
       },
@@ -110,11 +157,11 @@ export function EditLeadDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit lead</DialogTitle>
           <DialogDescription>
-            Update contact details and project interests.
+            Update contact details, client profile and project interests.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,6 +188,26 @@ export function EditLeadDialog() {
               />
             </div>
 
+            {!contactUnlocked ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2.5">
+                <div className="min-w-0 text-sm">
+                  <p className="truncate tabular-nums text-muted-foreground">
+                    {[lead.primaryPhone, lead.secondaryPhone, lead.email].filter(Boolean).join(" · ")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Contact details are hidden.</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={unlocking}
+                  onClick={() => void unlockContacts()}
+                >
+                  {unlocking ? "Loading…" : "Change contact details"}
+                </Button>
+              </div>
+            ) : (
+            <>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="edit-lead-primaryPhone">Primary phone</Label>
@@ -170,6 +237,8 @@ export function EditLeadDialog() {
                 onChange={(event) => setEmail(event.target.value)}
               />
             </div>
+            </>
+            )}
 
             <SelectField
               label="Source"
@@ -185,6 +254,11 @@ export function EditLeadDialog() {
               onChange={setProjectInterests}
             />
 
+            <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+              <p className="text-sm font-medium">Client profile</p>
+              <LeadProfileFields value={profile} onChange={setProfile} />
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
@@ -194,7 +268,8 @@ export function EditLeadDialog() {
                 disabled={
                   updateLead.isPending ||
                   !fullName.trim() ||
-                  !primaryPhone.trim()
+                  (contactUnlocked && !primaryPhone.trim()) ||
+                  Boolean(profileBudgetError(profile))
                 }
               >
                 {updateLead.isPending ? "Saving..." : "Save changes"}

@@ -1,6 +1,8 @@
+import { SYSTEM_LEAD_SCOPE } from '../../common/auth';
 import { Test, TestingModule } from '@nestjs/testing';
 import { LeadActivityService } from './services/lead-activity.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
+import { TaskLifecycleService } from '../workflow/common/task-lifecycle.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LeadsService } from './leads.service';
@@ -62,6 +64,10 @@ describe('LeadsService.updateLead project interests', () => {
           useValue: { createActivity: jest.fn() },
         },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
+        {
+          provide: TaskLifecycleService,
+          useValue: { cancelOpenTasks: jest.fn().mockResolvedValue(0) },
+        },
         { provide: QuotaService, useValue: {} },
       ],
     }).compile();
@@ -70,12 +76,18 @@ describe('LeadsService.updateLead project interests', () => {
   });
 
   it('removes only interests that are no longer listed and upserts the rest', async () => {
-    await service.updateLead('lead-1', 'tenant-1', {
-      projectInterests: [
-        { projectId: 'project-a', interestLevel: 'HOT' },
-        { projectId: 'project-b' },
-      ],
-    });
+    await service.updateLead(
+      'lead-1',
+      'tenant-1',
+      {
+        projectInterests: [
+          { projectId: 'project-a', interestLevel: 'HOT' },
+          { projectId: 'project-b' },
+        ],
+      },
+      null,
+      SYSTEM_LEAD_SCOPE,
+    );
 
     expect(tx.leadProjectInterest.deleteMany).toHaveBeenCalledWith({
       where: {
@@ -98,7 +110,13 @@ describe('LeadsService.updateLead project interests', () => {
   });
 
   it('clears all interests when an empty list is sent', async () => {
-    await service.updateLead('lead-1', 'tenant-1', { projectInterests: [] });
+    await service.updateLead(
+      'lead-1',
+      'tenant-1',
+      { projectInterests: [] },
+      null,
+      SYSTEM_LEAD_SCOPE,
+    );
 
     expect(tx.leadProjectInterest.deleteMany).toHaveBeenCalledWith({
       where: { leadId: 'lead-1' },
@@ -107,7 +125,13 @@ describe('LeadsService.updateLead project interests', () => {
   });
 
   it('leaves interests untouched when projectInterests is omitted', async () => {
-    await service.updateLead('lead-1', 'tenant-1', { fullName: 'Jane Smith' });
+    await service.updateLead(
+      'lead-1',
+      'tenant-1',
+      { fullName: 'Jane Smith' },
+      null,
+      SYSTEM_LEAD_SCOPE,
+    );
 
     expect(tx.leadProjectInterest.deleteMany).not.toHaveBeenCalled();
     expect(tx.leadProjectInterest.upsert).not.toHaveBeenCalled();

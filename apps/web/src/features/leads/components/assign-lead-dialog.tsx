@@ -20,47 +20,50 @@ import {
 } from "@/components/ui/select";
 import { useLeadFilterOptions } from "@/features/leads/hooks";
 import { useAssignLead, useBulkAssignLeads } from "@/features/leads/mutations";
+import { useLeadsTableStore } from "@/features/leads/stores/leads-table-store";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
 import { usePermissions } from "@/hooks/use-permissions";
-import { toast } from "@/lib/toast";
+import { formatNumber } from "@/lib/format";
+
+const UNASSIGNED = "__unassigned__";
 
 export function AssignLeadDialog() {
   const assignDialog = useLeadUiStore((s) => s.assignDialog);
   const closeAssignDialog = useLeadUiStore((s) => s.closeAssignDialog);
+  const clearRowSelection = useLeadsTableStore((s) => s.clearRowSelection);
   const { users } = useLeadFilterOptions();
   const assignLead = useAssignLead();
   const bulkAssign = useBulkAssignLeads();
   const { can } = usePermissions();
-  const [userId, setUserId] = useState<string>("__unassigned__");
+  const [userId, setUserId] = useState<string>(UNASSIGNED);
 
   const open = Boolean(assignDialog);
   const leadIds = assignDialog?.leadIds ?? [];
-  const isBulk = leadIds.length > 1;
+  const matching = assignDialog?.matching;
+  const count = matching?.count ?? leadIds.length;
+  const isBulk = Boolean(matching) || leadIds.length > 1;
   const pending = assignLead.isPending || bulkAssign.isPending;
 
   const handleClose = () => {
     closeAssignDialog();
-    setUserId("__unassigned__");
+    setUserId(UNASSIGNED);
   };
 
   const handleSubmit = async () => {
-    const targetUserId = userId === "__unassigned__" ? null : userId;
-
-    if (leadIds.length === 0) {
-      toast.error("No open leads selected for assignment");
-      return;
-    }
-
+    const targetUserId = userId === UNASSIGNED ? null : userId;
     try {
-      if (isBulk) {
-        await bulkAssign.mutateAsync({ leadIds, userId: targetUserId });
-      } else if (leadIds[0]) {
-        await assignLead.mutateAsync({
-          leadId: leadIds[0],
+      if (matching) {
+        await bulkAssign.mutateAsync({
+          selection: { filters: matching.filters },
           userId: targetUserId,
         });
+        clearRowSelection();
+      } else if (isBulk) {
+        await bulkAssign.mutateAsync({ selection: { leadIds }, userId: targetUserId });
+        clearRowSelection();
+      } else if (leadIds[0]) {
+        await assignLead.mutateAsync({ leadId: leadIds[0], userId: targetUserId });
       }
-
       handleClose();
     } catch {
       // Error toast is handled by useApiMutation
@@ -74,21 +77,23 @@ export function AssignLeadDialog() {
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
-            {isBulk ? `Assign ${leadIds.length} leads` : "Assign lead"}
+            {isBulk ? `Assign ${formatNumber(count)} leads` : "Assign lead"}
           </DialogTitle>
           <DialogDescription>
-            Choose an agent to own {isBulk ? "these leads" : "this lead"}.
+            {matching
+              ? "Every lead matching the current filters goes to the person you pick. Their open next steps move with them."
+              : `Choose who owns ${isBulk ? "these leads" : "this lead"}. Open next steps move with the lead.`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label>Agent</Label>
+          <Label>Assign to</Label>
           <Select value={userId} onValueChange={setUserId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select agent" />
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a person" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__unassigned__">Unassigned</SelectItem>
+              <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
               {(users.data ?? []).map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name}
@@ -96,12 +101,9 @@ export function AssignLeadDialog() {
               ))}
             </SelectContent>
           </Select>
-          {users.isLoading ? (
-            <p className="text-xs text-muted-foreground">Loading agents...</p>
-          ) : null}
           {!users.isLoading && (users.data ?? []).length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No active agents found. Add users in Team settings.
+              No active team members. Add users in Settings → Team.
             </p>
           ) : null}
         </div>
@@ -111,7 +113,7 @@ export function AssignLeadDialog() {
             Cancel
           </Button>
           <Button type="button" onClick={() => void handleSubmit()} disabled={pending}>
-            {pending ? "Saving..." : "Assign"}
+            {pending ? "Assigning…" : "Assign"}
           </Button>
         </DialogFooter>
       </DialogContent>

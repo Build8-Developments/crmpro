@@ -9,10 +9,14 @@ import {
 } from './entities/notification.types';
 import { NotificationMetricsStore } from './metrics/notification-metrics.store';
 import { NotificationTemplateService } from './notification-template.service';
-import { normalizeMetadata, resolvePriority } from './mappers/notification.mapper';
+import {
+  normalizeMetadata,
+  resolvePriority,
+} from './mappers/notification.mapper';
 import { CacheService } from '../../common/cache/cache.service';
 import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
 import { TenantInactiveException } from '../../common/tenant-access/tenant-access.exception';
+import { EmailNotificationChannel } from './channels/email-notification.channel';
 
 @Injectable()
 export class NotificationDeliveryService {
@@ -21,12 +25,14 @@ export class NotificationDeliveryService {
   constructor(
     private readonly templateService: NotificationTemplateService,
     private readonly inAppChannel: InAppNotificationChannel,
+    private readonly emailChannel: EmailNotificationChannel,
     private readonly loggingService: LoggingService,
     private readonly metricsStore: NotificationMetricsStore,
     private readonly cacheService: CacheService,
     private readonly tenantAccessService: TenantAccessService,
   ) {
-    this.channels = [this.inAppChannel];
+    // In-app first: it is the source of truth; email is a best-effort copy.
+    this.channels = [this.inAppChannel, this.emailChannel];
   }
 
   async deliver(payload: NotificationJobPayload): Promise<void> {

@@ -2,8 +2,6 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { AppIcons } from "@/components/icons/app-icons";
 import type { Lead } from "@/features/leads/types";
 import {
   formatLastContacted,
@@ -12,18 +10,17 @@ import {
 } from "@/features/leads/utils/lead-formatters";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { LeadRowActions } from "../components/lead-row-actions";
 import { LeadStageBadge } from "../components/lead-status-badge";
 import { LeadAssigneeCell } from "../components/leads-table-cells";
+import { MaskedContact } from "../components/masked-contact";
+import { HeatBadge, NextStepLabel } from "../components/workflow-visuals";
 import { useLeadUiStore } from "../stores/lead-ui-store";
 
-export const LEADS_SORTABLE_COLUMNS = new Set([
-  "fullName",
-  "lastContactedAt",
-  "createdAt",
-  "updatedAt",
-]);
+/** Columns hidden until the user turns them on from the View menu. */
+export const LEADS_DEFAULT_HIDDEN: Record<string, boolean> = {
+  createdAt: false,
+};
 
 export function createLeadColumns(): ColumnDef<Lead>[] {
   return [
@@ -50,6 +47,8 @@ export function createLeadColumns(): ColumnDef<Lead>[] {
         />
       ),
       enableSorting: false,
+      enableHiding: false,
+      size: 40,
     },
     {
       id: "fullName",
@@ -57,69 +56,82 @@ export function createLeadColumns(): ColumnDef<Lead>[] {
       header: "Lead",
       cell: ({ row }) => <LeadPrimaryCell lead={row.original} />,
       enableSorting: true,
-    },
-    {
-      id: "stage",
-      header: "Stage",
-      cell: ({ row }) => (
-        <LeadStageBadge
-          stage={row.original.stage}
-          archived={row.original.status === "ARCHIVED"}
-        />
-      ),
-      enableSorting: false,
+      enableHiding: false,
+      size: 300,
+      meta: { label: "Lead", required: true, sortable: true },
     },
     {
       id: "contact",
       header: "Contact",
       cell: ({ row }) => <LeadContactCell lead={row.original} />,
       enableSorting: false,
+      size: 190,
+      meta: { label: "Contact" },
     },
     {
       id: "source",
       header: "Source",
       cell: ({ row }) => (
-        <span className="block truncate text-[11px]">
-          {row.original.source?.name ?? (
-            <span className="text-muted-foreground">—</span>
-          )}
+        <span className="block truncate">
+          {row.original.source?.name ?? <span className="text-muted-foreground">—</span>}
         </span>
       ),
       enableSorting: false,
+      size: 130,
+      meta: { label: "Source" },
     },
     {
       id: "assignee",
       header: "Agent",
-      cell: ({ row }) => (
-        <LeadAssigneeCell assignee={row.original.assignee} />
-      ),
+      cell: ({ row }) => <LeadAssigneeCell assignee={row.original.assignee} />,
       enableSorting: false,
+      size: 160,
+      meta: { label: "Agent" },
+    },
+    {
+      id: "nextTaskDueAt",
+      accessorKey: "nextTaskDueAt",
+      header: "Next step",
+      cell: ({ row }) => (
+        <NextStepLabel
+          nextTaskDueAt={row.original.nextTaskDueAt}
+          isClosed={row.original.stage.isClosed || row.original.status === "ARCHIVED"}
+        />
+      ),
+      enableSorting: true,
+      size: 140,
+      meta: { label: "Next step", sortable: true },
     },
     {
       id: "lastContactedAt",
       accessorKey: "lastContactedAt",
-      header: "Contacted",
-      cell: ({ row }) => (
-        <LeadLastContactCell lastContactedAt={row.original.lastContactedAt} />
-      ),
+      header: "Last contact",
+      cell: ({ row }) => <LeadLastContactCell lastContactedAt={row.original.lastContactedAt} />,
       enableSorting: true,
+      size: 120,
+      meta: { label: "Last contact", sortable: true },
     },
     {
       id: "createdAt",
       accessorKey: "createdAt",
       header: "Created",
       cell: ({ row }) => (
-        <span className="tabular-nums text-muted-foreground">
+        <span className="text-muted-foreground tabular-nums">
           {formatRelativeTime(row.original.createdAt)}
         </span>
       ),
       enableSorting: true,
+      size: 110,
+      meta: { label: "Created", sortable: true },
     },
     {
       id: "actions",
       header: "",
       cell: ({ row }) => <LeadRowActions lead={row.original} />,
       enableSorting: false,
+      enableHiding: false,
+      size: 48,
+      meta: { align: "right" },
     },
   ];
 }
@@ -127,77 +139,62 @@ export function createLeadColumns(): ColumnDef<Lead>[] {
 function LeadPrimaryCell({ lead }: { lead: Lead }) {
   const openDrawer = useLeadUiStore((s) => s.openDrawer);
   const interest = getPrimaryProjectInterest(lead);
+  const archived = lead.status === "ARCHIVED";
 
   return (
     <button
       type="button"
-      className="min-w-0 text-left hover:underline"
+      className="group/name block w-full min-w-0 text-left"
       onClick={(event) => {
         event.stopPropagation();
         openDrawer(lead.id);
       }}
     >
-      <p className="truncate font-medium text-foreground">{lead.fullName}</p>
-      {interest ? (
-        <p className="truncate text-[10px] text-muted-foreground">
-          {interest.project.name}
-          {lead.projectInterests.length > 1
-            ? ` +${lead.projectInterests.length - 1}`
-            : ""}
-        </p>
-      ) : null}
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate text-[13px] font-medium text-foreground group-hover/name:underline">
+          {lead.fullName}
+        </span>
+        {lead.stage.isClosed || archived ? null : <HeatBadge heat={lead.heat} compact />}
+      </span>
+      <span className="mt-1 flex min-w-0 items-center gap-1.5">
+        <LeadStageBadge stage={lead.stage} archived={archived} size="xs" />
+        {interest ? (
+          <span className="truncate text-[11px] text-muted-foreground">
+            {interest.project.name}
+            {lead.projectInterests.length > 1 ? ` +${lead.projectInterests.length - 1}` : ""}
+          </span>
+        ) : null}
+      </span>
     </button>
   );
 }
 
 function LeadContactCell({ lead }: { lead: Lead }) {
-  const copyPhone = async () => {
-    try {
-      await navigator.clipboard.writeText(lead.primaryPhone);
-      toast.success("Copied");
-    } catch {
-      toast.error("Copy failed");
-    }
-  };
-
   return (
-    <div className="group/contact min-w-0">
-      <div className="flex items-center gap-0.5">
-        <span className="truncate tabular-nums">{lead.primaryPhone}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          className="size-5 shrink-0 opacity-0 group-hover/contact:opacity-100"
-          onClick={(event) => {
-            event.stopPropagation();
-            void copyPhone();
-          }}
-          aria-label="Copy phone"
-        >
-          <AppIcons.copy className="size-2.5" />
-        </Button>
-      </div>
-      <p className="truncate text-[10px] text-muted-foreground">
-        {lead.email ?? "—"}
-      </p>
+    <div className="flex min-w-0 flex-col items-start gap-0.5">
+      <MaskedContact leadId={lead.id} field="primaryPhone" masked={lead.primaryPhone} variant="compact" />
+      {lead.email ? (
+        <MaskedContact
+          leadId={lead.id}
+          field="email"
+          masked={lead.email}
+          variant="compact"
+          className="text-[11px]"
+        />
+      ) : (
+        <span className="text-[11px] text-muted-foreground">No email</span>
+      )}
     </div>
   );
 }
 
-function LeadLastContactCell({
-  lastContactedAt,
-}: {
-  lastContactedAt: string | null;
-}) {
+function LeadLastContactCell({ lastContactedAt }: { lastContactedAt: string | null }) {
   const stale = isStaleContact(lastContactedAt);
   return (
     <span
       className={cn(
         "tabular-nums",
-        stale
-          ? "font-medium text-amber-600 dark:text-amber-400"
-          : "text-muted-foreground",
+        stale ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground",
       )}
     >
       {formatLastContacted(lastContactedAt)}

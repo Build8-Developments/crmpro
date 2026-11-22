@@ -21,7 +21,8 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   NotificationType,
   NotificationPreferenceCategory
 > = {
-  [NotificationType.LEAD_ASSIGNED]: NotificationPreferenceCategory.LEAD_ASSIGNED,
+  [NotificationType.LEAD_ASSIGNED]:
+    NotificationPreferenceCategory.LEAD_ASSIGNED,
   [NotificationType.IMPORT_COMPLETED]:
     NotificationPreferenceCategory.IMPORT_COMPLETED,
   [NotificationType.EXPORT_COMPLETED]:
@@ -33,12 +34,18 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.FILE_DELETED]: NotificationPreferenceCategory.SYSTEM,
   [NotificationType.SYSTEM]: NotificationPreferenceCategory.SYSTEM,
   [NotificationType.SECURITY]: NotificationPreferenceCategory.SECURITY,
-  [NotificationType.REMINDER]: NotificationPreferenceCategory.MARKETING,
+  // Reminders are follow-up nudges, so they obey the "Follow-ups" (task) toggle.
+  [NotificationType.REMINDER]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_ASSIGNED]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_DUE]: NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.TASK_OVERDUE]: NotificationPreferenceCategory.TASK_UPDATES,
-  [NotificationType.TASK_COMPLETED]: NotificationPreferenceCategory.TASK_UPDATES,
+  [NotificationType.TASK_COMPLETED]:
+    NotificationPreferenceCategory.TASK_UPDATES,
   [NotificationType.SUPPORT_REPLY]: NotificationPreferenceCategory.SYSTEM,
+  // SLA misses and unassigned leads reach managers through the task channel.
+  [NotificationType.ESCALATION]: NotificationPreferenceCategory.TASK_UPDATES,
+  // Badges unlocked on My performance.
+  [NotificationType.ACHIEVEMENT]: NotificationPreferenceCategory.SYSTEM,
 };
 
 export const DEFAULT_NOTIFICATION_PRIORITY = NotificationPriority.NORMAL;
