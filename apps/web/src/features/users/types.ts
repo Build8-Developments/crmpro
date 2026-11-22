@@ -12,6 +12,9 @@ export interface UserListItem {
   phone: string | null;
   isActive: boolean;
   role: UserRole;
+  team: { id: string; name: string } | null;
+  /** Invited by email and hasn't chosen a password yet. */
+  invitationPending: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +30,7 @@ export interface CreateUserInput {
   email: string;
   password: string;
   roleId: string;
+  teamId?: string;
 }
 
 export interface UpdateUserInput {
@@ -43,6 +47,7 @@ export interface ResetUserPasswordInput {
 
 export type UsersListParams = ListQueryParams & {
   roleId?: string;
+  teamId?: string;
   isActive?: boolean;
   sortBy?: "name" | "email" | "createdAt" | "updatedAt";
 };
@@ -62,4 +67,11 @@ export interface RoleOption {
   userCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface InviteUserInput {
+  fullName: string;
+  email: string;
+  roleId: string;
+  teamId?: string;
 }

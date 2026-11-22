@@ -5,6 +5,11 @@ export type UserRoleSummary = {
   name: string;
 };
 
+export type UserTeamSummary = {
+  id: string;
+  name: string;
+};
+
 export type UserListItem = {
   id: string;
   fullName: string;
@@ -12,6 +17,9 @@ export type UserListItem = {
   phone: string | null;
   isActive: boolean;
   role: UserRoleSummary;
+  team: UserTeamSummary | null;
+  /** Invited by email and hasn't chosen a password yet. */
+  invitationPending: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

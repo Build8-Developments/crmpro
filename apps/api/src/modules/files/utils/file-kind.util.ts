@@ -28,7 +28,11 @@ export function fileKindOf(mimeType: string): FileKind {
     mime.startsWith('text/')
   )
     return 'document';
-  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('rar'))
+  if (
+    mime.includes('zip') ||
+    mime.includes('compressed') ||
+    mime.includes('rar')
+  )
     return 'archive';
   return 'other';
 }

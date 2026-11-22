@@ -88,13 +88,13 @@ export function getFileKind(mimeType: string): FileKind {
 export function getFileKindTone(kind: FileKind): string {
   switch (kind) {
     case "pdf":
-      return "bg-rose-500/10 text-rose-600 dark:text-rose-300";
+      return "bg-rose-500/10 text-rose-700 dark:text-rose-300";
     case "csv":
-      return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300";
+      return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
     case "image":
-      return "bg-sky-500/10 text-sky-600 dark:text-sky-300";
+      return "bg-sky-500/10 text-sky-700 dark:text-sky-300";
     case "doc":
-      return "bg-blue-500/10 text-blue-600 dark:text-blue-300";
+      return "bg-blue-500/10 text-blue-700 dark:text-blue-300";
     case "archive":
       return "bg-amber-500/10 text-amber-700 dark:text-amber-300";
     default:

@@ -65,14 +65,15 @@ describe('FolderAccessService', () => {
     prisma = {
       fileFolder: {
         findMany: jest.fn().mockResolvedValue(folders),
-        findFirst: jest.fn(async ({ where }) =>
-          folders.find((f) => f.id === where.id) ?? null,
+        findFirst: jest.fn(
+          async ({ where }) => folders.find((f) => f.id === where.id) ?? null,
         ),
       },
     };
     passwords = {
-      verify: jest.fn(async (hash: string, plain: string) =>
-        hash === 'h1' && plain === 'right',
+      verify: jest.fn(
+        async (hash: string, plain: string) =>
+          hash === 'h1' && plain === 'right',
       ),
     };
     audit = { createAuditLog: jest.fn() };
@@ -93,7 +94,11 @@ describe('FolderAccessService', () => {
   it('locks a private folder and every descendant, not its siblings', async () => {
     const snapshot = await service.snapshot(user);
 
-    expect([...snapshot.lockedIds].sort()).toEqual(['deeper', 'inner', 'vault']);
+    expect([...snapshot.lockedIds].sort()).toEqual([
+      'deeper',
+      'inner',
+      'vault',
+    ]);
     expect(snapshot.lockRootOf.get('deeper')).toBe('vault');
   });
 

@@ -12,7 +12,13 @@ import { FoldersService } from './folders/folders.service';
 import { FileThumbnailService } from './thumbnails/file-thumbnail.service';
 
 @Module({
-  imports: [AuthRbacModule, QuotaModule, AuditModule, NotificationsModule, LeadAttachmentModule],
+  imports: [
+    AuthRbacModule,
+    QuotaModule,
+    AuditModule,
+    NotificationsModule,
+    LeadAttachmentModule,
+  ],
   // FoldersController first so /files/folders and /files/move are matched
   // before FilesController's /files/:id routes.
   controllers: [FoldersController, FilesController],

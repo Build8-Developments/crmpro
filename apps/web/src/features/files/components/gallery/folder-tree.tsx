@@ -127,7 +127,7 @@ export function FolderTree({
               {folder.isPrivate ? (
                 folder.isLocked ? (
                   <IconLock
-                    className="ml-auto size-3.5 shrink-0 text-amber-500"
+                    className="ml-auto size-3.5 shrink-0 text-amber-600"
                     aria-label="Private, locked"
                   />
                 ) : (

@@ -47,6 +47,7 @@ export function UsersToolbar({
   isFetching,
 }: UsersToolbarProps) {
   const openCreateDialog = useUserUiStore((s) => s.openCreateDialog);
+  const openInviteDialog = useUserUiStore((s) => s.openInviteDialog);
   const { can } = usePermissions();
   const { data: quota } = useUserQuota();
   
@@ -124,7 +125,7 @@ export function UsersToolbar({
       </span>
 
       {can("user.create") ? (
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:ml-auto sm:w-auto sm:gap-3">
           {quota && quota.maxUsers !== null ? (
             <span className={cn("text-xs", isAtQuotaLimit ? "text-destructive font-medium" : "text-muted-foreground")}>
               Quota: {quota.currentUsers} / {quota.maxUsers}
@@ -132,13 +133,27 @@ export function UsersToolbar({
           ) : null}
           <Button
             size="sm"
+            variant="outline"
             className="h-8"
             onClick={openCreateDialog}
             disabled={isAtQuotaLimit ?? false}
+            title={
+              isAtQuotaLimit
+                ? "User quota exceeded for current subscription plan"
+                : "Create the account and set its password yourself"
+            }
+          >
+            Create with password
+          </Button>
+          <Button
+            size="sm"
+            className="h-8"
+            onClick={openInviteDialog}
+            disabled={isAtQuotaLimit ?? false}
             title={isAtQuotaLimit ? "User quota exceeded for current subscription plan" : undefined}
           >
-            <AppIcons.create className="size-3.5" />
-            New user
+            <AppIcons.mail className="size-3.5" />
+            Invite by email
           </Button>
         </div>
       ) : null}

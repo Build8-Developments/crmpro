@@ -46,8 +46,14 @@ describe('UsersService audit integration', () => {
       providers: [
         UsersService,
         { provide: PrismaService, useValue: prisma },
-        { provide: PasswordService, useValue: { hash: jest.fn().mockResolvedValue('hash') } },
-        { provide: QuotaService, useValue: { assertCanCreateUserInTransaction: jest.fn() } },
+        {
+          provide: PasswordService,
+          useValue: { hash: jest.fn().mockResolvedValue('hash') },
+        },
+        {
+          provide: QuotaService,
+          useValue: { assertCanCreateUserInTransaction: jest.fn() },
+        },
         { provide: PermissionsService, useValue: {} },
         {
           provide: UserGuardService,

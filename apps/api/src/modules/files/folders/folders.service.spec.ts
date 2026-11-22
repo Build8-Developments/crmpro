@@ -113,7 +113,10 @@ describe('FoldersService', () => {
             getPermissionKeysForUser: jest.fn(async () => permissionKeys),
           },
         },
-        { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
+        {
+          provide: AuditWriterService,
+          useValue: { createAuditLog: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -261,7 +264,12 @@ describe('FoldersService', () => {
 
     it('moves own files between open folders', async () => {
       prisma.fileAsset.findMany.mockResolvedValue([
-        { id: 'f1', category: 'OTHER', folderId: 'a', uploadedByUserId: 'user-1' },
+        {
+          id: 'f1',
+          category: 'OTHER',
+          folderId: 'a',
+          uploadedByUserId: 'user-1',
+        },
       ]);
 
       await expect(

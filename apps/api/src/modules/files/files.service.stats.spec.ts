@@ -1,3 +1,4 @@
+import { SYSTEM_LEAD_SCOPE } from '../../common/auth';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { QuotaService } from '../../common/quota/quota.service';
@@ -24,14 +25,34 @@ describe('FilesService.getStats', () => {
           .fn()
           // by mime type
           .mockResolvedValueOnce([
-            { mimeType: 'image/png', _count: { _all: 3 }, _sum: { sizeBytes: 300n } },
-            { mimeType: 'image/jpeg', _count: { _all: 1 }, _sum: { sizeBytes: 100n } },
-            { mimeType: 'application/pdf', _count: { _all: 2 }, _sum: { sizeBytes: 900n } },
+            {
+              mimeType: 'image/png',
+              _count: { _all: 3 },
+              _sum: { sizeBytes: 300n },
+            },
+            {
+              mimeType: 'image/jpeg',
+              _count: { _all: 1 },
+              _sum: { sizeBytes: 100n },
+            },
+            {
+              mimeType: 'application/pdf',
+              _count: { _all: 2 },
+              _sum: { sizeBytes: 900n },
+            },
           ])
           // by uploader
           .mockResolvedValueOnce([
-            { uploadedByUserId: 'u1', _count: { _all: 4 }, _sum: { sizeBytes: 1000n } },
-            { uploadedByUserId: 'gone', _count: { _all: 2 }, _sum: { sizeBytes: 300n } },
+            {
+              uploadedByUserId: 'u1',
+              _count: { _all: 4 },
+              _sum: { sizeBytes: 1000n },
+            },
+            {
+              uploadedByUserId: 'gone',
+              _count: { _all: 2 },
+              _sum: { sizeBytes: 300n },
+            },
           ]),
       },
       tenant: {
@@ -40,7 +61,9 @@ describe('FilesService.getStats', () => {
           subscriptionPlan: { maxStorageBytes: 10000n },
         }),
       },
-      user: { findMany: jest.fn().mockResolvedValue([{ id: 'u1', name: 'Sara' }]) },
+      user: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'u1', name: 'Sara' }]),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -64,7 +87,7 @@ describe('FilesService.getStats', () => {
     const stats = await service.getStats(
       'tenant-1',
       {},
-      { lockedFolderIds: ['locked'] },
+      { lockedFolderIds: ['locked'], leadScope: SYSTEM_LEAD_SCOPE },
     );
 
     expect(stats).toEqual({
@@ -83,7 +106,11 @@ describe('FilesService.getStats', () => {
   });
 
   it('applies the same lock rules as listing', async () => {
-    await service.getStats('tenant-1', { folderId: 'root' }, { lockedFolderIds: ['locked'] });
+    await service.getStats(
+      'tenant-1',
+      { folderId: 'root' },
+      { lockedFolderIds: ['locked'], leadScope: SYSTEM_LEAD_SCOPE },
+    );
 
     const where = prisma.fileAsset.groupBy.mock.calls[0][0].where;
     expect(where.AND).toEqual(

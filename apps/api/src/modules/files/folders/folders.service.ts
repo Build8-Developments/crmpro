@@ -320,7 +320,9 @@ export class FoldersService {
     }
 
     const passwordHash =
-      dto.newPassword === null ? null : await this.passwords.hash(dto.newPassword);
+      dto.newPassword === null
+        ? null
+        : await this.passwords.hash(dto.newPassword);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.fileFolder.update({
@@ -469,7 +471,9 @@ export class FoldersService {
       (folder) => folder.parentId === folderId,
     );
     if (children.length === 0) return 0;
-    return 1 + Math.max(...children.map((c) => this.subtreeHeight(snapshot, c.id)));
+    return (
+      1 + Math.max(...children.map((c) => this.subtreeHeight(snapshot, c.id)))
+    );
   }
 
   private isSelfOrDescendant(

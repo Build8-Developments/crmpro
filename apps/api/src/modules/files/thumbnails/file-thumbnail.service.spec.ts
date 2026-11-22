@@ -40,7 +40,11 @@ function samplePdf(): Buffer {
 
 describe('FileThumbnailService', () => {
   let service: FileThumbnailService;
-  let storage: { getObject: jest.Mock; uploadFile: jest.Mock; deleteFile: jest.Mock };
+  let storage: {
+    getObject: jest.Mock;
+    uploadFile: jest.Mock;
+    deleteFile: jest.Mock;
+  };
   let prisma: { fileAsset: { updateMany: jest.Mock } };
   let attempts: Map<string, number>;
 
@@ -51,7 +55,9 @@ describe('FileThumbnailService', () => {
       uploadFile: jest.fn().mockResolvedValue(undefined),
       deleteFile: jest.fn().mockResolvedValue(undefined),
     };
-    prisma = { fileAsset: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) } };
+    prisma = {
+      fileAsset: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

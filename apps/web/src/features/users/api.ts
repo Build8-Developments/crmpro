@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { serializeQueryParams } from "@/lib/query/query-params";
 import type {
   CreateUserInput,
+  InviteUserInput,
   ResetUserPasswordInput,
   RoleOption,
   UpdateUserInput,
@@ -67,4 +68,12 @@ export function checkEmail(email: string) {
 
 export function getUserQuota() {
   return apiClient.get<{ maxUsers: number | null; currentUsers: number }>("/users/quota");
+}
+
+export function inviteUser(input: InviteUserInput) {
+  return apiClient.post<UserListItem>("/users/invite", input);
+}
+
+export function resendInvite(userId: string) {
+  return apiClient.post<{ id: string }>(`/users/${userId}/resend-invite`);
 }

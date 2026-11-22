@@ -120,7 +120,10 @@ export class FolderAccessService {
   }
 
   /** Throws NOT_FOUND for unknown folders and FOLDER_LOCKED for locked ones. */
-  assertAccessible(snapshot: FolderAccessSnapshot, folderId: string): FolderNode {
+  assertAccessible(
+    snapshot: FolderAccessSnapshot,
+    folderId: string,
+  ): FolderNode {
     const folder = snapshot.folders.get(folderId);
     if (!folder) {
       throw new NotFoundException('Folder not found');

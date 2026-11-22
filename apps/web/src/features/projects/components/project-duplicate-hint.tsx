@@ -13,7 +13,7 @@ export function ProjectDuplicateHint({ duplicate }: ProjectDuplicateHintProps) {
   }
 
   return (
-    <p className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+    <p className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-500">
       <AppIcons.alertCircle className="mt-0.5 size-3.5 shrink-0" />
       <span>
         A project named &quot;{duplicate.name}&quot; already exists.

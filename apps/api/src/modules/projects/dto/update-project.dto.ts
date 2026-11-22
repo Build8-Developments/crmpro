@@ -24,7 +24,7 @@ export class UpdateProjectDto {
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === null) {
       return null;
     }

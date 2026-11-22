@@ -6,7 +6,7 @@ import { FOLDER_NAME_MAX_LENGTH } from '../folders.constants';
 /** Trimmed, single-spaced folder name without path separators. */
 export function FolderName() {
   return applyDecorators(
-    Transform(({ value }) =>
+    Transform(({ value }: { value: unknown }) =>
       typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value,
     ),
     IsString(),

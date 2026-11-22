@@ -13,8 +13,10 @@ function standardFontDir(): string {
   if (!fontDir) {
     const require = createRequire(__filename);
     fontDir =
-      join(dirname(require.resolve('pdfjs-dist/package.json')), 'standard_fonts') +
-      sep;
+      join(
+        dirname(require.resolve('pdfjs-dist/package.json')),
+        'standard_fonts',
+      ) + sep;
   }
   return fontDir;
 }

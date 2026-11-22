@@ -354,7 +354,7 @@ function FolderInfo({
         icon={
           folder.isPrivate ? (
             folder.isLocked ? (
-              <IconLock className="size-5 text-amber-500" stroke={1.5} />
+              <IconLock className="size-5 text-amber-600" stroke={1.5} />
             ) : (
               <IconLockOpen className="size-5" stroke={1.5} />
             )

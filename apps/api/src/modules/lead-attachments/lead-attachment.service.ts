@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LeadActivityService } from '../leads/services/lead-activity.service';
 import { LeadAttachmentSummary } from './lead-attachment.types';
+import { type LeadScope, leadScopeWhere } from '../../common/auth';
 
 const attachmentSelect = {
   id: true,
@@ -15,6 +16,10 @@ const attachmentSelect = {
   mimeType: true,
   sizeBytes: true,
   createdAt: true,
+  uploadedBy: { select: { id: true, name: true } },
+  interaction: {
+    select: { id: true, channel: true, outcome: true, occurredAt: true },
+  },
 } satisfies Prisma.FileAssetSelect;
 
 type AttachmentRecord = Prisma.FileAssetGetPayload<{
@@ -31,9 +36,15 @@ export class LeadAttachmentService {
   async validateAttachmentTarget(
     leadId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<void> {
     const lead = await this.prisma.lead.findFirst({
-      where: { id: leadId, tenantId, deletedAt: null },
+      where: {
+        id: leadId,
+        tenantId,
+        deletedAt: null,
+        ...leadScopeWhere(scope),
+      },
       select: { id: true },
     });
 
@@ -45,8 +56,9 @@ export class LeadAttachmentService {
   async listAttachments(
     leadId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<{ items: LeadAttachmentSummary[] }> {
-    await this.validateAttachmentTarget(leadId, tenantId);
+    await this.validateAttachmentTarget(leadId, tenantId, scope);
 
     const files = await this.prisma.fileAsset.findMany({
       where: {
@@ -130,6 +142,8 @@ export class LeadAttachmentService {
       mimeType: file.mimeType,
       sizeBytes: file.sizeBytes.toString(),
       createdAt: file.createdAt,
+      uploadedBy: file.uploadedBy,
+      interaction: file.interaction,
     };
   }
 }

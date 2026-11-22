@@ -28,6 +28,14 @@ const ACTION_LABELS: Record<string, string> = {
   EXPORT_COMPLETED: "Export completed",
   BULK_LEAD_ASSIGNED: "Bulk assigned",
   BULK_LEAD_STAGE_CHANGED: "Bulk stage change",
+  LEAD_MERGED: "Leads merged",
+  DEAL_RESERVED: "Deal reserved",
+  DEAL_CONTRACTED: "Deal contracted",
+  DEAL_UPDATED: "Deal updated",
+  DEAL_CANCELLED: "Deal cancelled",
+  TARGETS_UPDATED: "Targets updated",
+  SOURCE_SPEND_UPDATED: "Marketing spend updated",
+  AGENT_NUDGED: "Agent nudged",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -39,6 +47,9 @@ const ENTITY_LABELS: Record<string, string> = {
   ImportJob: "Import",
   ExportJob: "Export",
   LeadBulkAction: "Lead bulk",
+  Deal: "Deal",
+  Target: "Target",
+  SourceSpend: "Marketing spend",
 };
 
 const METADATA_LABELS: Record<string, string> = {

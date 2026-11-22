@@ -18,6 +18,9 @@ const ACTION_LABELS: Record<string, string> = {
   update: "Edit",
   delete: "Delete",
   assign: "Assign",
+  merge: "Merge duplicates",
+  "read-team": "See team's leads",
+  "read-all": "See all leads",
   manage: "Manage",
   upload: "Upload",
 };
@@ -54,6 +57,22 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   "lead.update": "Update lead details",
   "lead.delete": "Delete leads",
   "lead.assign": "Assign leads to team members",
+  "lead.merge":
+    "Merge a duplicate lead into another; its history, tasks and files move over",
+  "deal.read": "View deals on won leads they can see",
+  "deal.write":
+    "Record the deal when a lead is won, mark it contracted and fix its details",
+  "deal.cancel": "Cancel a deal; the lead re-opens",
+  "target.read":
+    "See monthly targets (their own; everyone's with 'Set targets')",
+  "target.manage": "Set monthly targets for people and the workspace",
+  "spend.manage":
+    "Enter monthly marketing spend per lead source (cost per lead, visit and deal)",
+  "lead.read-team":
+    "See the leads of their team(s) and unassigned leads. Without this or 'See all leads', people see their own leads and unassigned ones.",
+  "lead.read-all": "See every lead in the organization",
+  "team.read": "View teams",
+  "team.manage": "Create teams, pick leaders and manage members",
   "lead-note.create": "Create lead notes",
   "lead-note.read": "View lead notes",
   "lead-note.update": "Update lead notes",

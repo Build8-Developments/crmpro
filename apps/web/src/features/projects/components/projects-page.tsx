@@ -15,7 +15,7 @@ import { DeleteProjectDialog } from "@/features/projects/components/delete-proje
 import { EditProjectDialog } from "@/features/projects/components/edit-project-dialog";
 import { ProjectsEmptyState } from "@/features/projects/components/projects-empty-state";
 import { ProjectsHeader } from "@/features/projects/components/projects-header";
-import { ProjectsPagination } from "@/features/projects/components/projects-pagination";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { ProjectsSkeleton } from "@/features/projects/components/projects-skeleton";
 import { ProjectsTable } from "@/features/projects/components/projects-table";
 import { ProjectsToolbar } from "@/features/projects/components/projects-toolbar";
@@ -175,9 +175,11 @@ export function ProjectsPage() {
               onHighlightProject={setHighlightedProjectId}
             />
             {pagination ? (
-              <ProjectsPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="projects"
+                hideOnSinglePage
               />
             ) : null}
           </>

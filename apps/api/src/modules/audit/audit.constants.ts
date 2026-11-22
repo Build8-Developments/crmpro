@@ -5,6 +5,15 @@ export const AUDIT_ENTITY_TYPES = {
   IMPORT_JOB: 'ImportJob',
   EXPORT_JOB: 'ExportJob',
   LEAD_BULK_ACTION: 'LeadBulkAction',
+  LEAD: 'Lead',
+  TEAM: 'Team',
+} as const;
+
+export const TEAM_AUDIT_ACTIONS = {
+  CREATED: 'TEAM_CREATED',
+  UPDATED: 'TEAM_UPDATED',
+  MEMBERS_UPDATED: 'TEAM_MEMBERS_UPDATED',
+  DELETED: 'TEAM_DELETED',
 } as const;
 
 export const FILE_AUDIT_ACTIONS = {

@@ -83,6 +83,26 @@ export function putFileWithProgress(
   });
 }
 
+/**
+ * Upload the bytes to storage only (no file record yet). The caller hands
+ * the returned objectKey to an endpoint that registers it — e.g. logging an
+ * interaction with evidence — so a cancelled form leaves nothing attached.
+ */
+export async function stageFileUpload(
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<{ objectKey: string }> {
+  onProgress?.(0);
+  const intent = await requestFileUpload({
+    fileName: file.name,
+    contentType: file.type || "application/octet-stream",
+    sizeBytes: file.size,
+  });
+  await putFileWithProgress(intent.uploadUrl, file, (progress) => onProgress?.(progress));
+  onProgress?.(100);
+  return { objectKey: intent.objectKey };
+}
+
 export async function uploadFileWithProgress(
   file: File,
   onProgress?: (progress: number) => void,

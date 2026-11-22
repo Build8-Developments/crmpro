@@ -3,10 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  FileAssetCategory,
-  Prisma,
-} from '@crmpro/database';
+import { FileAssetCategory, Prisma } from '@crmpro/database';
 import {
   buildPaginatedResponse,
   getPaginationParams,
@@ -45,6 +42,7 @@ import {
   generateUploadObjectKey,
   isObjectKeyForTenant,
 } from './utils/file-key.util';
+import { type LeadScope, leadScopeWhere } from '../../common/auth';
 
 const fileAssetSelect = {
   id: true,
@@ -60,7 +58,11 @@ const fileAssetSelect = {
   createdAt: true,
 } satisfies Prisma.FileAssetSelect;
 
-const FILE_SORT_FIELDS = ['createdAt', 'originalFilename', 'sizeBytes'] as const;
+const FILE_SORT_FIELDS = [
+  'createdAt',
+  'originalFilename',
+  'sizeBytes',
+] as const;
 
 const FILE_SORT_CONFIG = {
   allowedFields: FILE_SORT_FIELDS,
@@ -110,7 +112,6 @@ type FileListRecord = Prisma.FileAssetGetPayload<{
   select: typeof fileListSelect;
 }>;
 
-
 export type CompleteUploadInput = {
   objectKey: string;
   category: FileAssetCategory;
@@ -123,7 +124,15 @@ export type CompleteUploadInput = {
 export type ListFilesAccess = {
   /** Folders this session may not see into; their files are hidden. */
   lockedFolderIds: string[];
+  /** Lead files are only visible when the lead itself is. */
+  leadScope: LeadScope;
 };
+
+/** Files not tied to a lead are unaffected; lead files follow lead visibility. */
+function fileLeadScopeWhere(scope: LeadScope): Prisma.FileAssetWhereInput {
+  if (scope.kind === 'all') return {};
+  return { OR: [{ leadId: null }, { lead: leadScopeWhere(scope) }] };
+}
 
 /** Categories that are never shown in the Files gallery. */
 const HIDDEN_FROM_GALLERY: FileAssetCategory[] = [
@@ -156,7 +165,11 @@ export function previewKindOf(mimeType: string): FilePreviewKind | null {
   if (mime === 'application/pdf') return 'pdf';
   if (mime.startsWith('video/')) return 'video';
   if (mime.startsWith('audio/')) return 'audio';
-  if (mime === 'text/plain' || mime === 'text/csv' || mime === 'application/json') {
+  if (
+    mime === 'text/plain' ||
+    mime === 'text/csv' ||
+    mime === 'application/json'
+  ) {
     return 'text';
   }
   return null;
@@ -191,11 +204,15 @@ export class FilesService {
   async listFiles(
     tenantId: string,
     query: GetFilesQueryDto,
-    access: ListFilesAccess = { lockedFolderIds: [] },
+    access: ListFilesAccess,
   ): Promise<PaginatedResponse<FileAssetListItem>> {
     const { page, limit, skip, take } = getPaginationParams(query);
     const where = this.buildListWhereClause(tenantId, query, access);
-    const orderBy = buildOrderBy(query.sortBy, query.sortOrder, FILE_SORT_CONFIG);
+    const orderBy = buildOrderBy(
+      query.sortBy,
+      query.sortOrder,
+      FILE_SORT_CONFIG,
+    );
 
     const [rows, totalItems] = await this.prisma.$transaction([
       this.prisma.fileAsset.findMany({
@@ -234,12 +251,7 @@ export class FilesService {
       }),
     );
 
-    return buildPaginatedResponse(
-      items,
-      page,
-      limit,
-      totalItems,
-    );
+    return buildPaginatedResponse(items, page, limit, totalItems);
   }
 
   async requestUpload(
@@ -314,6 +326,7 @@ export class FilesService {
     tenantId: string,
     userId: string,
     dto: CompleteUploadInput,
+    scope: LeadScope,
   ): Promise<CompleteUploadResponse> {
     const startedAt = Date.now();
 
@@ -322,108 +335,109 @@ export class FilesService {
         throw new BadRequestException('Invalid object key for tenant');
       }
 
-    const intent = await this.prisma.fileUploadIntent.findFirst({
-      where: {
-        objectKey: dto.objectKey,
-        tenantId,
-        userId,
-      },
-    });
-
-    if (!intent) {
-      throw new BadRequestException('Upload intent not found or expired');
-    }
-
-    if (intent.expiresAt < new Date()) {
-      await this.prisma.fileUploadIntent.delete({ where: { id: intent.id } });
-      throw new BadRequestException('Upload intent expired');
-    }
-
-    const verified = await this.verifyUploadedObject(intent.objectKey, intent);
-
-    if (dto.category === FileAssetCategory.LEAD_ATTACHMENT && dto.leadId) {
-      await this.leadAttachmentService.validateAttachmentTarget(
-        dto.leadId,
-        tenantId,
-      );
-    }
-
-    if (
-      dto.category === FileAssetCategory.LEAD_ATTACHMENT &&
-      !dto.leadId
-    ) {
-      throw new BadRequestException(
-        'leadId is required when category is LEAD_ATTACHMENT',
-      );
-    }
-
-    const leadId =
-      dto.category === FileAssetCategory.LEAD_ATTACHMENT
-        ? (dto.leadId ?? null)
-        : null;
-
-    const file = await this.prisma.$transaction(async (tx) => {
-      await this.quotaService.assertCanUseStorageInTransaction(
-        tx,
-        tenantId,
-        verified.sizeBytes,
-        { excludeUploadIntentId: intent.id },
-      );
-
-      const created = await tx.fileAsset.create({
-        data: {
+      const intent = await this.prisma.fileUploadIntent.findFirst({
+        where: {
+          objectKey: dto.objectKey,
           tenantId,
-          uploadedByUserId: userId,
-          category: dto.category,
-          objectKey: intent.objectKey,
-          originalFilename: intent.originalFilename,
-          mimeType: intent.mimeType,
-          sizeBytes: BigInt(verified.sizeBytes),
-          leadId,
-          folderId:
-            dto.category === FileAssetCategory.OTHER
-              ? (dto.folderId ?? null)
-              : null,
-        },
-        select: fileAssetSelect,
-      });
-
-      await tx.tenant.update({
-        where: { id: tenantId },
-        data: {
-          storageUsedBytes: { increment: BigInt(verified.sizeBytes) },
+          userId,
         },
       });
 
-      await tx.fileUploadIntent.delete({ where: { id: intent.id } });
+      if (!intent) {
+        throw new BadRequestException('Upload intent not found or expired');
+      }
 
-      if (leadId) {
-        await this.leadAttachmentService.recordFileAttached(
-          {
-            tenantId,
-            leadId,
-            actorUserId: userId,
-            fileId: created.id,
-            category: dto.category,
-          },
-          tx,
+      if (intent.expiresAt < new Date()) {
+        await this.prisma.fileUploadIntent.delete({ where: { id: intent.id } });
+        throw new BadRequestException('Upload intent expired');
+      }
+
+      const verified = await this.verifyUploadedObject(
+        intent.objectKey,
+        intent,
+      );
+
+      if (dto.category === FileAssetCategory.LEAD_ATTACHMENT && dto.leadId) {
+        await this.leadAttachmentService.validateAttachmentTarget(
+          dto.leadId,
+          tenantId,
+          scope,
         );
       }
 
-      return created;
-    });
+      if (dto.category === FileAssetCategory.LEAD_ATTACHMENT && !dto.leadId) {
+        throw new BadRequestException(
+          'leadId is required when category is LEAD_ATTACHMENT',
+        );
+      }
 
-    this.thumbnails.ensure([file]);
+      const leadId =
+        dto.category === FileAssetCategory.LEAD_ATTACHMENT
+          ? (dto.leadId ?? null)
+          : null;
 
-    this.storageLoggingService.uploadCompleted({
-      tenantId,
-      userId,
-      fileId: file.id,
-      sizeBytes: Number(file.sizeBytes),
-      durationMs: Date.now() - startedAt,
-    });
+      const file = await this.prisma.$transaction(async (tx) => {
+        await this.quotaService.assertCanUseStorageInTransaction(
+          tx,
+          tenantId,
+          verified.sizeBytes,
+          { excludeUploadIntentId: intent.id },
+        );
 
-    return this.toCompleteUploadResponse(file);
+        const created = await tx.fileAsset.create({
+          data: {
+            tenantId,
+            uploadedByUserId: userId,
+            category: dto.category,
+            objectKey: intent.objectKey,
+            originalFilename: intent.originalFilename,
+            mimeType: intent.mimeType,
+            sizeBytes: BigInt(verified.sizeBytes),
+            leadId,
+            folderId:
+              dto.category === FileAssetCategory.OTHER
+                ? (dto.folderId ?? null)
+                : null,
+          },
+          select: fileAssetSelect,
+        });
+
+        await tx.tenant.update({
+          where: { id: tenantId },
+          data: {
+            storageUsedBytes: { increment: BigInt(verified.sizeBytes) },
+          },
+        });
+
+        await tx.fileUploadIntent.delete({ where: { id: intent.id } });
+
+        if (leadId) {
+          await this.leadAttachmentService.recordFileAttached(
+            {
+              tenantId,
+              leadId,
+              actorUserId: userId,
+              fileId: created.id,
+              category: dto.category,
+            },
+            tx,
+          );
+        }
+
+        return created;
+      });
+
+      this.thumbnails.ensure([file]);
+
+      this.storageLoggingService.uploadCompleted({
+        tenantId,
+        userId,
+        fileId: file.id,
+        sizeBytes: Number(file.sizeBytes),
+        durationMs: Date.now() - startedAt,
+      });
+
+      return this.toCompleteUploadResponse(file);
     } catch (error) {
       this.storageLoggingService.uploadFailed({
         tenantId,
@@ -438,10 +452,11 @@ export class FilesService {
   async getDownloadUrl(
     fileId: string,
     tenantId: string,
+    scope: LeadScope,
     options?: { expiresInSeconds?: number },
   ): Promise<DownloadUrlResponse> {
     const startedAt = Date.now();
-    const file = await this.getFileOrThrow(fileId, tenantId);
+    const file = await this.getFileOrThrow(fileId, tenantId, scope);
 
     const signed = await this.storageService.getSignedDownloadUrl({
       objectKey: file.objectKey,
@@ -472,12 +487,18 @@ export class FilesService {
   async getPreviewUrl(
     fileId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<FilePreviewResponse> {
-    const file = await this.getFileOrThrow(fileId, tenantId);
+    const file = await this.getFileOrThrow(fileId, tenantId, scope);
     const kind = previewKindOf(file.mimeType);
 
     if (!kind) {
-      return { previewUrl: null, kind: null, mimeType: file.mimeType, expiresInSeconds: 0 };
+      return {
+        previewUrl: null,
+        kind: null,
+        mimeType: file.mimeType,
+        expiresInSeconds: 0,
+      };
     }
 
     const signed = await this.storageService.getSignedDownloadUrl({
@@ -562,9 +583,10 @@ export class FilesService {
     fileId: string,
     tenantId: string,
     userId: string,
+    scope: LeadScope,
   ): Promise<{ id: string }> {
     const startedAt = Date.now();
-    const file = await this.getFileOrThrow(fileId, tenantId);
+    const file = await this.getFileOrThrow(fileId, tenantId, scope);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.fileAsset.update({
@@ -678,9 +700,15 @@ export class FilesService {
   private async getFileOrThrow(
     fileId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<FileAssetRecord & { sizeBytes: bigint }> {
     const file = await this.prisma.fileAsset.findFirst({
-      where: { id: fileId, tenantId, deletedAt: null },
+      where: {
+        id: fileId,
+        tenantId,
+        deletedAt: null,
+        ...fileLeadScopeWhere(scope),
+      },
       select: fileAssetSelect,
     });
 
@@ -826,6 +854,8 @@ export class FilesService {
       });
     }
 
+    and.push(fileLeadScopeWhere(access.leadScope));
+
     return { tenantId, deletedAt: null, AND: and };
   }
 
@@ -833,9 +863,15 @@ export class FilesService {
   async getFileFolderId(
     fileId: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<string | null> {
     const file = await this.prisma.fileAsset.findFirst({
-      where: { id: fileId, tenantId, deletedAt: null },
+      where: {
+        id: fileId,
+        tenantId,
+        deletedAt: null,
+        ...fileLeadScopeWhere(scope),
+      },
       select: { folderId: true },
     });
     if (!file) {

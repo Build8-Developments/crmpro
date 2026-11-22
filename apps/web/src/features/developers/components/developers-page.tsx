@@ -14,7 +14,7 @@ import { CreateDeveloperDialog } from "@/features/developers/components/create-d
 import { DeleteDeveloperDialog } from "@/features/developers/components/delete-developer-dialog";
 import { DevelopersEmptyState } from "@/features/developers/components/developers-empty-state";
 import { DevelopersHeader } from "@/features/developers/components/developers-header";
-import { DevelopersPagination } from "@/features/developers/components/developers-pagination";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DevelopersSkeleton } from "@/features/developers/components/developers-skeleton";
 import { DevelopersTable } from "@/features/developers/components/developers-table";
 import { DevelopersToolbar } from "@/features/developers/components/developers-toolbar";
@@ -136,9 +136,11 @@ export function DevelopersPage() {
               onHighlightDeveloper={setHighlightedDeveloperId}
             />
             {pagination ? (
-              <DevelopersPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="developers"
+                hideOnSinglePage
               />
             ) : null}
           </>

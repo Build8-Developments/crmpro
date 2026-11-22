@@ -496,7 +496,7 @@ export function MoveItemsDialog({
               folder.id,
               folder.isLocked ? `${folder.name} (locked)` : folder.name,
               folder.isLocked ? (
-                <IconLock className="size-4 text-amber-500" />
+                <IconLock className="size-4 text-amber-600" />
               ) : (
                 <IconFolder className="size-4 text-muted-foreground" />
               ),
@@ -606,7 +606,7 @@ export function LockedFolderScreen({
           setPassword("");
         }}
       >
-        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400">
           <IconLock className="size-7" stroke={1.5} />
         </div>
         <div>

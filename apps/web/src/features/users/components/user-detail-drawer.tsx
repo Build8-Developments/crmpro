@@ -13,9 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useDeactivateUser,
   useReactivateUser,
-  useRevokeUserSessions,
 } from "@/features/users/mutations";
 import { useUser } from "@/features/users/hooks";
 import { useUserUiStore } from "@/features/users/stores/user-ui-store";
@@ -44,9 +42,8 @@ export function UserDetailDrawer() {
   const { can } = usePermissions();
 
   const { data: user, isLoading, isError } = useUser(drawerUserId ?? undefined);
-  const deactivateUser = useDeactivateUser();
+  const openConfirmAction = useUserUiStore((s) => s.openConfirmAction);
   const reactivateUser = useReactivateUser();
-  const revokeSessions = useRevokeUserSessions();
 
   const isSelf = currentUserId === drawerUserId;
   const open = Boolean(drawerUserId);
@@ -91,12 +88,24 @@ export function UserDetailDrawer() {
               onEditName={() => openEditDialog(user.id)}
               onChangeRole={() => openChangeRoleDialog(user.id)}
               onResetPassword={() => openResetPasswordDialog(user.id)}
-              onDeactivate={() => void deactivateUser.mutateAsync(user.id)}
+              onDeactivate={() =>
+                openConfirmAction({
+                  kind: "deactivate",
+                  userId: user.id,
+                  userName: user.fullName,
+                })
+              }
               onReactivate={() => void reactivateUser.mutateAsync(user.id)}
-              onRevokeSessions={() => void revokeSessions.mutateAsync(user.id)}
-              deactivating={deactivateUser.isPending}
+              onRevokeSessions={() =>
+                openConfirmAction({
+                  kind: "revoke-sessions",
+                  userId: user.id,
+                  userName: user.fullName,
+                })
+              }
+              deactivating={false}
               reactivating={reactivateUser.isPending}
-              revoking={revokeSessions.isPending}
+              revoking={false}
             />
           ) : null}
         </div>

@@ -368,7 +368,7 @@ export function FilesGalleryPage() {
             <h1 className="truncate text-sm font-semibold">{title}</h1>
             {currentFolder?.isPrivate ? (
               currentFolder.isLocked ? (
-                <IconLock className="size-4 shrink-0 text-amber-500" aria-label="Private" />
+                <IconLock className="size-4 shrink-0 text-amber-600" aria-label="Private" />
               ) : (
                 <IconLockOpen
                   className="size-4 shrink-0 text-muted-foreground"
@@ -809,7 +809,7 @@ function FolderTile({
           </span>
           {folder.isPrivate ? (
             folder.isLocked ? (
-              <IconLock className="size-3.5 shrink-0 text-amber-500" aria-label="Locked" />
+              <IconLock className="size-3.5 shrink-0 text-amber-600" aria-label="Locked" />
             ) : (
               <IconLockOpen
                 className="size-3.5 shrink-0 text-muted-foreground"
@@ -952,7 +952,7 @@ function AssetList({
                     <IconFolder className="size-4 text-muted-foreground" />
                     {folder.name}
                     {folder.isPrivate ? (
-                      <IconLock className="size-3.5 text-amber-500" aria-label="Private" />
+                      <IconLock className="size-3.5 text-amber-600" aria-label="Private" />
                     ) : null}
                   </span>
                 </td>

@@ -29,7 +29,7 @@ describe('AuditController RBAC', () => {
       switchToHttp: () => ({
         getRequest: () => ({ user }),
       }),
-    }) as Parameters<PermissionsGuard['canActivate']>[0];
+    }) as unknown as Parameters<PermissionsGuard['canActivate']>[0];
 
   beforeEach(async () => {
     permissionsService = {
