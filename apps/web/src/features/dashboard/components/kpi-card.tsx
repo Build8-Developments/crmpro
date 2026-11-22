@@ -45,7 +45,7 @@ export function KpiCard({
           className={cn(
             "size-3.5 shrink-0",
             tone === "warning"
-              ? "text-amber-600 dark:text-amber-400"
+              ? "text-amber-700 dark:text-amber-400"
               : tone === "success"
                 ? "text-primary"
                 : "text-muted-foreground/55",

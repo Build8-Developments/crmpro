@@ -1,10 +1,13 @@
 import { Prisma } from '@crmpro/database';
+import type { LeadScope } from '../../../common/auth/lead-scope/lead-scope.types';
 import { AnalyticsDateRange } from '../analytics.types';
+import { buildLeadScopeSql } from './analytics-scope.util';
 
-const RESPONSE_EVENTS_IN_SQL = Prisma.sql`
-  'ASSIGNED', 'REASSIGNED', 'STAGE_CHANGED',
-  'NOTE_ADDED', 'CALL_LOGGED', 'EMAIL_LOGGED', 'WHATSAPP_LOGGED'
-`;
+/*
+ * Response time = lead created → first logged interaction (Lead.firstContactedAt,
+ * stamped by the interactions service). Assignments, notes and stage moves are
+ * not contact with the client, so they no longer count.
+ */
 
 export function buildLeadCreatedAtSql(
   range: AnalyticsDateRange,
@@ -26,37 +29,47 @@ export function buildLeadCreatedAtSql(
 }
 
 export async function queryAvgResponseTimeHours(
-  prisma: { $queryRaw: <T>(query: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => Promise<T> },
+  prisma: {
+    $queryRaw: <T>(
+      query: TemplateStringsArray | Prisma.Sql,
+      ...values: unknown[]
+    ) => Promise<T>;
+  },
   tenantId: string,
   range: AnalyticsDateRange,
+  scope: LeadScope,
 ): Promise<number | null> {
   const dateFilter = buildLeadCreatedAtSql(range);
+  const scopeFilter = buildLeadScopeSql(scope);
 
   const rows = await prisma.$queryRaw<Array<{ avg_hours: number | null }>>`
     SELECT AVG(
-      EXTRACT(EPOCH FROM (first_response.first_at - l."createdAt")) / 3600.0
+      EXTRACT(EPOCH FROM (l."firstContactedAt" - l."createdAt")) / 3600.0
     ) AS avg_hours
     FROM "Lead" l
-    INNER JOIN LATERAL (
-      SELECT MIN(la."createdAt") AS first_at
-      FROM "LeadActivity" la
-      WHERE la."leadId" = l."id"
-        AND la."eventType"::text IN (${RESPONSE_EVENTS_IN_SQL})
-    ) first_response ON first_response.first_at IS NOT NULL
     WHERE l."tenantId" = ${tenantId}::uuid
       AND l."deletedAt" IS NULL
+      AND l."firstContactedAt" IS NOT NULL
       AND ${dateFilter}
+      AND ${scopeFilter}
   `;
 
   return rows[0]?.avg_hours ?? null;
 }
 
 export async function queryAvgLeadAgeDays(
-  prisma: { $queryRaw: <T>(query: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => Promise<T> },
+  prisma: {
+    $queryRaw: <T>(
+      query: TemplateStringsArray | Prisma.Sql,
+      ...values: unknown[]
+    ) => Promise<T>;
+  },
   tenantId: string,
   range: AnalyticsDateRange,
+  scope: LeadScope,
 ): Promise<number | null> {
   const dateFilter = buildLeadCreatedAtSql(range);
+  const scopeFilter = buildLeadScopeSql(scope);
 
   const rows = await prisma.$queryRaw<Array<{ avg_days: number | null }>>`
     SELECT AVG(
@@ -69,6 +82,7 @@ export async function queryAvgLeadAgeDays(
       AND l."status" = 'OPEN'
       AND ps."isClosed" = false
       AND ${dateFilter}
+      AND ${scopeFilter}
   `;
 
   return rows[0]?.avg_days ?? null;
@@ -81,17 +95,24 @@ export interface AgentTimingRow {
 }
 
 export async function queryAgentTimingMetrics(
-  prisma: { $queryRaw: <T>(query: TemplateStringsArray | Prisma.Sql, ...values: unknown[]) => Promise<T> },
+  prisma: {
+    $queryRaw: <T>(
+      query: TemplateStringsArray | Prisma.Sql,
+      ...values: unknown[]
+    ) => Promise<T>;
+  },
   tenantId: string,
   range: AnalyticsDateRange,
+  scope: LeadScope,
 ): Promise<AgentTimingRow[]> {
   const dateFilter = buildLeadCreatedAtSql(range);
+  const scopeFilter = buildLeadScopeSql(scope);
 
   return prisma.$queryRaw<AgentTimingRow[]>`
     SELECT
       l."assignedUserId" AS user_id,
       AVG(
-        EXTRACT(EPOCH FROM (first_touch.first_at - l."createdAt")) / 3600.0
+        EXTRACT(EPOCH FROM (l."firstContactedAt" - l."createdAt")) / 3600.0
       ) AS avg_response_hours,
       AVG(
         CASE
@@ -100,13 +121,6 @@ export async function queryAgentTimingMetrics(
         END
       ) AS avg_closing_days
     FROM "Lead" l
-    LEFT JOIN LATERAL (
-      SELECT MIN(la."createdAt") AS first_at
-      FROM "LeadActivity" la
-      WHERE la."leadId" = l."id"
-        AND la."actorUserId" = l."assignedUserId"
-        AND la."eventType"::text IN (${RESPONSE_EVENTS_IN_SQL})
-    ) first_touch ON true
     LEFT JOIN LATERAL (
       SELECT MIN(la."createdAt") AS won_at
       FROM "LeadActivity" la
@@ -118,6 +132,7 @@ export async function queryAgentTimingMetrics(
       AND l."deletedAt" IS NULL
       AND l."assignedUserId" IS NOT NULL
       AND ${dateFilter}
+      AND ${scopeFilter}
     GROUP BY l."assignedUserId"
   `;
 }

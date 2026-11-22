@@ -1,4 +1,11 @@
-import { Controller, ForbiddenException, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -6,7 +13,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { PERMISSIONS, type PermissionKey } from '@crmpro/shared/auth';
-import { PermissionsGuard, RequirePermission } from '../../common/auth';
+import {
+  CurrentLeadScope,
+  type LeadScope,
+  PermissionsGuard,
+  RequirePermission,
+} from '../../common/auth';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { PLAN_FEATURES } from '../../common/entitlements/entitlement.constants';
 import { RequirePlanFeature } from '../../common/entitlements/decorators/require-plan-feature.decorator';
@@ -40,12 +52,14 @@ export class AnalyticsController {
   @ApiResponse({ status: 200, description: 'Dashboard analytics sections' })
   async getDashboard(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsRangeQueryDto,
   ) {
     const data = await this.aggregatorService.getDashboard(
       user.id,
       user.tenantId,
       query.range ?? '30d',
+      scope,
     );
     return { success: true, data };
   }
@@ -56,11 +70,13 @@ export class AnalyticsController {
   @ApiResponse({ status: 200, description: 'Overview analytics snapshot' })
   async getOverview(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsDateQueryDto,
   ) {
     const result = await this.analyticsService.getOverview(
       user.tenantId,
       parseAnalyticsDateRange(query),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -68,9 +84,13 @@ export class AnalyticsController {
   @Get('pipeline')
   @RequirePermission(PERMISSIONS.PIPELINE_READ)
   @ApiOperation({ summary: 'Pipeline funnel analytics' })
-  async getPipeline(@CurrentUser() user: AuthenticatedUser) {
+  async getPipeline(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
+  ) {
     const result = await this.analyticsService.getPipelineAnalytics(
       user.tenantId,
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -80,11 +100,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Daily lead creation and closing trends' })
   async getTrends(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsRangeQueryDto,
   ) {
     const result = await this.analyticsService.getTrendAnalytics(
       user.tenantId,
       parseAnalyticsRange(query.range),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -92,8 +114,14 @@ export class AnalyticsController {
   @Get('team')
   @RequirePermission(PERMISSIONS.USER_READ)
   @ApiOperation({ summary: 'Top performing team members' })
-  async getTeam(@CurrentUser() user: AuthenticatedUser) {
-    const result = await this.analyticsService.getTeamAnalytics(user.tenantId);
+  async getTeam(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
+  ) {
+    const result = await this.analyticsService.getTeamAnalytics(
+      user.tenantId,
+      scope,
+    );
     return { success: true, data: result.data };
   }
 
@@ -101,6 +129,7 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Recent CRM activity feed' })
   async getActivity(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Req() request: { permissionKeys?: Set<PermissionKey> },
   ) {
     const permissionKeys =
@@ -117,6 +146,7 @@ export class AnalyticsController {
     const result = await this.analyticsService.getActivityFeed(
       user.tenantId,
       permissionKeys.has(PERMISSIONS.AUDIT_READ),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -126,11 +156,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Lead source performance' })
   async getSources(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsDateQueryDto,
   ) {
     const result = await this.analyticsService.getLeadSources(
       user.tenantId,
       parseAnalyticsDateRange(query),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -140,11 +172,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Sales agent performance' })
   async getAgents(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsDateQueryDto,
   ) {
     const result = await this.analyticsService.getAgentPerformance(
       user.tenantId,
       parseAnalyticsDateRange(query),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -154,11 +188,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Project interest analytics' })
   async getProjects(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsDateQueryDto,
   ) {
     const result = await this.analyticsService.getProjectPerformance(
       user.tenantId,
       parseAnalyticsDateRange(query),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -168,11 +204,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Developer performance analytics' })
   async getDevelopers(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsDateQueryDto,
   ) {
     const result = await this.analyticsService.getDeveloperPerformance(
       user.tenantId,
       parseAnalyticsDateRange(query),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -182,11 +220,13 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Lead status distribution' })
   async getStatus(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsDateQueryDto,
   ) {
     const result = await this.analyticsService.getStatusDistribution(
       user.tenantId,
       parseAnalyticsDateRange(query),
+      scope,
     );
     return { success: true, data: result.data };
   }
@@ -196,6 +236,7 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Recent CRM activity feed (legacy)' })
   async getRecentActivity(
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentLeadScope() scope: LeadScope,
     @Query() query: AnalyticsRecentActivityQueryDto,
   ) {
     const result = await this.analyticsService.getRecentActivity(
@@ -203,6 +244,7 @@ export class AnalyticsController {
       parseAnalyticsDateRange(query),
       query.page ?? 1,
       query.limit ?? 20,
+      scope,
     );
     return { success: true, data: result.data };
   }

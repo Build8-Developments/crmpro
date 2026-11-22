@@ -1,7 +1,13 @@
 import { CanActivate, ForbiddenException } from '@nestjs/common';
+import { ROUTE_ARGS_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PERMISSIONS } from '@crmpro/shared/auth';
+import {
+  LeadScopeService,
+  ResolveLeadScopePipe,
+  type LeadScope,
+} from '../../common/auth/lead-scope';
 import { PermissionsGuard } from '../../common/auth/guards/permissions.guard';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { PlanEntitlementGuard } from '../../common/entitlements/guards/plan-entitlement.guard';
@@ -31,6 +37,7 @@ describe('AnalyticsController', () => {
     id: 'user-1',
     tenantId: 'tenant-1',
   } as AuthenticatedUser;
+  const scope: LeadScope = { kind: 'own', actorUserId: 'user-1' };
 
   beforeEach(async () => {
     analyticsService = {
@@ -85,6 +92,7 @@ describe('AnalyticsController', () => {
         { provide: AnalyticsService, useValue: analyticsService },
         { provide: AnalyticsAggregatorService, useValue: aggregatorService },
         { provide: PermissionsService, useValue: permissionsService },
+        { provide: LeadScopeService, useValue: { resolve: jest.fn() } },
         {
           provide: PlanEntitlementService,
           useValue: planEntitlementService,
@@ -103,21 +111,25 @@ describe('AnalyticsController', () => {
 
   it('returns overview wrapped in success response', async () => {
     await expect(
-      controller.getOverview(user, { from: '2026-01-01', to: '2026-06-30' }),
+      controller.getOverview(user, scope, {
+        from: '2026-01-01',
+        to: '2026-06-30',
+      }),
     ).resolves.toEqual({
       success: true,
       data: { totalLeads: 5 },
     });
 
-    expect(analyticsService.getOverview).toHaveBeenCalledWith('tenant-1', {
-      from: expect.any(Date),
-      to: expect.any(Date),
-    });
+    expect(analyticsService.getOverview).toHaveBeenCalledWith(
+      'tenant-1',
+      { from: expect.any(Date), to: expect.any(Date) },
+      scope,
+    );
   });
 
   it('returns permission-aware dashboard payload', async () => {
     await expect(
-      controller.getDashboard(user, { range: '30d' }),
+      controller.getDashboard(user, scope, { range: '30d' }),
     ).resolves.toEqual({
       success: true,
       data: {
@@ -130,12 +142,13 @@ describe('AnalyticsController', () => {
       'user-1',
       'tenant-1',
       '30d',
+      scope,
     );
   });
 
   it('passes pagination params for recent activity', async () => {
     await expect(
-      controller.getRecentActivity(user, {
+      controller.getRecentActivity(user, scope, {
         page: 2,
         limit: 10,
       }),
@@ -149,11 +162,12 @@ describe('AnalyticsController', () => {
       { from: undefined, to: undefined },
       2,
       10,
+      scope,
     );
   });
 
   it('validates trends range via analytics service', async () => {
-    await controller.getTrends(user, { range: '7d' });
+    await controller.getTrends(user, scope, { range: '7d' });
 
     expect(analyticsService.getTrendAnalytics).toHaveBeenCalledWith(
       'tenant-1',
@@ -161,16 +175,20 @@ describe('AnalyticsController', () => {
         from: expect.any(Date),
         to: expect.any(Date),
       }),
+      scope,
     );
   });
 
   it('returns team analytics for authorized users', async () => {
-    await expect(controller.getTeam(user)).resolves.toEqual({
+    await expect(controller.getTeam(user, scope)).resolves.toEqual({
       success: true,
       data: { topPerformers: [] },
     });
 
-    expect(analyticsService.getTeamAnalytics).toHaveBeenCalledWith('tenant-1');
+    expect(analyticsService.getTeamAnalytics).toHaveBeenCalledWith(
+      'tenant-1',
+      scope,
+    );
   });
 
   it('blocks activity endpoint without audit.read or lead.read', async () => {
@@ -178,13 +196,13 @@ describe('AnalyticsController', () => {
       new Set([PERMISSIONS.USER_READ]),
     );
 
-    await expect(controller.getActivity(user, {})).rejects.toThrow(
+    await expect(controller.getActivity(user, scope, {})).rejects.toThrow(
       ForbiddenException,
     );
   });
 
   it('returns activity feed when lead.read is granted', async () => {
-    await expect(controller.getActivity(user, {})).resolves.toEqual({
+    await expect(controller.getActivity(user, scope, {})).resolves.toEqual({
       success: true,
       data: [],
     });
@@ -192,7 +210,51 @@ describe('AnalyticsController', () => {
     expect(analyticsService.getActivityFeed).toHaveBeenCalledWith(
       'tenant-1',
       false,
+      scope,
     );
+  });
+});
+
+describe('AnalyticsController lead scope wiring', () => {
+  const handlers = Object.getOwnPropertyNames(
+    AnalyticsController.prototype,
+  ).filter(
+    (name) =>
+      name.startsWith('get') &&
+      Reflect.getMetadata(
+        'path',
+        AnalyticsController.prototype[name as keyof AnalyticsController],
+      ) !== undefined,
+  );
+
+  it('covers every analytics endpoint', () => {
+    expect(handlers.sort()).toEqual(
+      [
+        'getActivity',
+        'getAgents',
+        'getDashboard',
+        'getDevelopers',
+        'getOverview',
+        'getPipeline',
+        'getProjects',
+        'getRecentActivity',
+        'getSources',
+        'getStatus',
+        'getTeam',
+        'getTrends',
+      ].sort(),
+    );
+  });
+
+  it.each(handlers)('%s resolves the caller lead scope', (handler) => {
+    const args = Reflect.getMetadata(
+      ROUTE_ARGS_METADATA,
+      AnalyticsController,
+      handler,
+    ) as Record<string, { pipes?: unknown[] }>;
+
+    const pipes = Object.values(args).flatMap((arg) => arg.pipes ?? []);
+    expect(pipes).toContain(ResolveLeadScopePipe);
   });
 });
 
@@ -221,7 +283,9 @@ describe('AnalyticsController plan entitlements', () => {
 
   it('blocks overview when analytics feature is disabled', async () => {
     planEntitlementService.assertFeatureEnabled.mockRejectedValue(
-      new ForbiddenException('Feature unavailable in current subscription plan.'),
+      new ForbiddenException(
+        'Feature unavailable in current subscription plan.',
+      ),
     );
 
     const context = {
@@ -234,6 +298,8 @@ describe('AnalyticsController plan entitlements', () => {
       }),
     } as never;
 
-    await expect(guard.canActivate(context)).rejects.toThrow(ForbiddenException);
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

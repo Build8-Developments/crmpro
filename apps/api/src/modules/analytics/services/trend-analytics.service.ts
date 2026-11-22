@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import type { LeadScope } from '../../../common/auth/lead-scope/lead-scope.types';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type {
   AnalyticsDateRange,
   TrendAnalyticsData,
   TrendCountPoint,
 } from '../analytics.types';
+import {
+  buildLeadRefScopeSql,
+  buildLeadScopeSql,
+} from '../queries/analytics-scope.util';
 
 @Injectable()
 export class TrendAnalyticsService {
@@ -13,6 +18,7 @@ export class TrendAnalyticsService {
   async getTrends(
     tenantId: string,
     range: AnalyticsDateRange,
+    scope: LeadScope,
   ): Promise<TrendAnalyticsData> {
     const from = range.from!;
     const to = range.to!;
@@ -27,6 +33,7 @@ export class TrendAnalyticsService {
           AND l."deletedAt" IS NULL
           AND l."createdAt" >= ${from}
           AND l."createdAt" <= ${to}
+          AND ${buildLeadScopeSql(scope)}
         GROUP BY 1
         ORDER BY 1 ASC
       `,
@@ -40,6 +47,7 @@ export class TrendAnalyticsService {
           AND la."metadata"->>'closeType' = 'WON'
           AND la."createdAt" >= ${from}
           AND la."createdAt" <= ${to}
+          AND ${buildLeadRefScopeSql(scope)}
         GROUP BY 1
         ORDER BY 1 ASC
       `,
@@ -85,7 +93,9 @@ export class TrendAnalyticsService {
     dateKeys: string[],
     points: TrendCountPoint[],
   ): TrendCountPoint[] {
-    const countByDate = new Map(points.map((point) => [point.date, point.count]));
+    const countByDate = new Map(
+      points.map((point) => [point.date, point.count]),
+    );
 
     return dateKeys.map((date) => ({
       date,

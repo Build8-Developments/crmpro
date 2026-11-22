@@ -16,9 +16,7 @@ describe('OrganizationController permissions', () => {
     'completeLogoUpload',
     'removeLogo',
   ] as const)('%s requires settings.manage', (handler) => {
-    expect(requiredPermissions(handler)).toEqual([
-      PERMISSIONS.SETTINGS_MANAGE,
-    ]);
+    expect(requiredPermissions(handler)).toEqual([PERMISSIONS.SETTINGS_MANAGE]);
   });
 
   it('usage requires settings.read', () => {

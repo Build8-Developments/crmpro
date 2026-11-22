@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,11 +34,16 @@ export function EditPipelineDialog() {
   const [name, setName] = useState("");
   const [isDefault, setIsDefault] = useState(false);
 
-  useEffect(() => {
-    if (!pipeline) return;
-    setName(pipeline.name);
-    setIsDefault(pipeline.isDefault);
-  }, [pipeline]);
+  // Load once per opened pipeline (during render, not in an effect).
+  const formKey = pipeline ? pipeline.id : null;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  if (formKey !== loadedKey) {
+    setLoadedKey(formKey);
+    if (pipeline) {
+      setName(pipeline.name);
+      setIsDefault(pipeline.isDefault);
+    }
+  }
 
   const handleClose = () => {
     closeEditPipeline();

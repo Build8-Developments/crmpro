@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import type { LeadScope } from '../../../common/auth/lead-scope/lead-scope.types';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { PipelineAnalyticsData } from '../analytics.types';
 import { nullableAverage } from '../mappers/analytics.mapper';
+import {
+  buildLeadScopeSql,
+  withLeadScope,
+} from '../queries/analytics-scope.util';
 
 /**
  * Returns funnel metrics for the tenant default pipeline.
@@ -12,7 +17,10 @@ import { nullableAverage } from '../mappers/analytics.mapper';
 export class PipelineAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPipeline(tenantId: string): Promise<PipelineAnalyticsData> {
+  async getPipeline(
+    tenantId: string,
+    scope: LeadScope,
+  ): Promise<PipelineAnalyticsData> {
     const pipeline = await this.prisma.pipeline.findFirst({
       where: { tenantId },
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
@@ -37,14 +45,19 @@ export class PipelineAnalyticsService {
     const [counts, avgDaysRows] = await Promise.all([
       this.prisma.lead.groupBy({
         by: ['pipelineStageId'],
-        where: {
-          tenantId,
-          deletedAt: null,
-          pipelineId: pipeline.id,
-        },
+        where: withLeadScope(
+          {
+            tenantId,
+            deletedAt: null,
+            pipelineId: pipeline.id,
+          },
+          scope,
+        ),
         _count: { _all: true },
       }),
-      this.prisma.$queryRaw<Array<{ stage_id: string; avg_days: number | null }>>`
+      this.prisma.$queryRaw<
+        Array<{ stage_id: string; avg_days: number | null }>
+      >`
         SELECT
           l."pipelineStageId" AS stage_id,
           AVG(
@@ -67,6 +80,7 @@ export class PipelineAnalyticsService {
         WHERE l."tenantId" = ${tenantId}::uuid
           AND l."deletedAt" IS NULL
           AND l."pipelineId" = ${pipeline.id}::uuid
+          AND ${buildLeadScopeSql(scope)}
         GROUP BY l."pipelineStageId"
       `,
     ]);

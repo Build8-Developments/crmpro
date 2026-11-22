@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import type { LeadScope } from '../../common/auth/lead-scope/lead-scope.types';
 import { CacheService } from '../../common/cache/cache.service';
 import { LoggingService } from '../../common/logging/logging.service';
 import { ANALYTICS_ENDPOINTS } from './analytics.constants';
@@ -21,6 +22,8 @@ describe('AnalyticsService', () => {
     getAnalyticsTtlSeconds: jest.Mock;
   };
   let loggingService: { info: jest.Mock };
+
+  const allScope: LeadScope = { kind: 'all', actorUserId: 'owner-1' };
 
   const overview = {
     totalLeads: 10,
@@ -95,7 +98,7 @@ describe('AnalyticsService', () => {
   it('returns cached overview data on cache hit', async () => {
     cacheService.get.mockResolvedValue(overview);
 
-    const result = await service.getOverview('tenant-1', {});
+    const result = await service.getOverview('tenant-1', {}, allScope);
 
     expect(result.cacheHit).toBe(true);
     expect(result.data).toEqual(overview);
@@ -116,11 +119,15 @@ describe('AnalyticsService', () => {
       to: new Date('2026-06-30T23:59:59.999Z'),
     };
 
-    const result = await service.getOverview('tenant-1', range);
+    const result = await service.getOverview('tenant-1', range, allScope);
 
     expect(result.cacheHit).toBe(false);
     expect(result.data).toEqual(overview);
-    expect(overviewService.getOverview).toHaveBeenCalledWith('tenant-1', range);
+    expect(overviewService.getOverview).toHaveBeenCalledWith(
+      'tenant-1',
+      range,
+      allScope,
+    );
     expect(queryService.getOverview).not.toHaveBeenCalled();
     expect(cacheService.set).toHaveBeenCalledWith(
       'analytics:tenant-1:overview:all:all',
@@ -132,5 +139,61 @@ describe('AnalyticsService', () => {
         status: 'cache_miss',
       }),
     );
+  });
+
+  describe('scope-aware cache keys', () => {
+    beforeEach(() => {
+      // Use the real key builder so the assertions cover the final key.
+      cacheService.buildAnalyticsKey.mockImplementation(
+        (...args: Parameters<CacheService['buildAnalyticsKey']>) =>
+          CacheService.prototype.buildAnalyticsKey.apply(cacheService, args),
+      );
+    });
+
+    const keyFor = async (scope: LeadScope): Promise<string> => {
+      cacheService.get.mockClear();
+      await service.getOverview('tenant-1', {}, scope);
+      return cacheService.get.mock.calls[0][0] as string;
+    };
+
+    it('includes the lead scope in the cache key', async () => {
+      await expect(keyFor(allScope)).resolves.toBe(
+        'analytics:tenant-1:overview:all:all:scope:all',
+      );
+      await expect(
+        keyFor({ kind: 'own', actorUserId: 'agent-1' }),
+      ).resolves.toBe('analytics:tenant-1:overview:all:all:scope:own:agent-1');
+    });
+
+    it('never shares an entry between scopes', async () => {
+      const scopes: LeadScope[] = [
+        allScope,
+        { kind: 'own', actorUserId: 'agent-1' },
+        { kind: 'own', actorUserId: 'agent-2' },
+        { kind: 'team', actorUserId: 'lead-1', userIds: ['lead-1', 'a'] },
+        { kind: 'team', actorUserId: 'lead-1', userIds: ['lead-1', 'b'] },
+      ];
+      const keys: string[] = [];
+      for (const scope of scopes) {
+        keys.push(await keyFor(scope));
+      }
+
+      expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it('keeps endpoint-specific extras after the scope fragment', async () => {
+      await service.getActivityFeed('tenant-1', true, {
+        kind: 'own',
+        actorUserId: 'agent-1',
+      });
+
+      expect(cacheService.buildAnalyticsKey).toHaveBeenLastCalledWith(
+        'tenant-1',
+        ANALYTICS_ENDPOINTS.activity,
+        undefined,
+        undefined,
+        'scope:own:agent-1:audit',
+      );
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { SYSTEM_LEAD_SCOPE } from '../../common/auth';
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -37,6 +38,13 @@ describe('OrganizationService', () => {
     timezone: 'Africa/Cairo',
     currency: 'EGP',
     weekStartsOn: 6,
+    workingDays: [0, 1, 2, 3, 4, 6],
+    workdayStartMinute: 600,
+    workdayEndMinute: 1140,
+    firstContactSlaMinutes: 15,
+    escalateAfterMinutes: 30,
+    dailyInteractionGoal: 25,
+    showLeaderboardToAgents: true,
     updatedAt: new Date('2026-11-16T00:00:00Z'),
     updatedByUserId: null,
   };
@@ -160,10 +168,15 @@ describe('OrganizationService', () => {
       objectKey: 'tenants/tenant-1/new.png',
     });
 
-    expect(files.completeUpload).toHaveBeenCalledWith('tenant-1', 'user-1', {
-      objectKey: 'tenants/tenant-1/new.png',
-      category: 'LOGO',
-    });
+    expect(files.completeUpload).toHaveBeenCalledWith(
+      'tenant-1',
+      'user-1',
+      {
+        objectKey: 'tenants/tenant-1/new.png',
+        category: 'LOGO',
+      },
+      SYSTEM_LEAD_SCOPE,
+    );
     expect(tx.tenant.update).toHaveBeenCalledWith({
       where: { id: 'tenant-1' },
       data: { logoFileId: 'new-logo' },
@@ -172,6 +185,7 @@ describe('OrganizationService', () => {
       'old-logo',
       'tenant-1',
       'user-1',
+      SYSTEM_LEAD_SCOPE,
     );
     expect(result.logoUrl).toBe('https://signed/logo');
   });
@@ -204,6 +218,35 @@ describe('OrganizationService', () => {
         projects: { used: 9, limit: 50 },
         storageBytes: { used: 1024, limit: 5_368_709_120 },
       },
+    });
+  });
+
+  describe('updateSettings — workday', () => {
+    it('saves working days sorted and audits the change', async () => {
+      tx.tenantSettings.update.mockResolvedValue({
+        ...settingsRow,
+        workingDays: [0, 1, 2, 3, 4],
+      });
+
+      await service.updateSettings(user, { workingDays: [4, 3, 2, 1, 0] });
+
+      expect(tx.tenantSettings.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ workingDays: [0, 1, 2, 3, 4] }),
+        }),
+      );
+    });
+
+    it('refuses a workday shorter than an hour', async () => {
+      await expect(
+        service.updateSettings(user, { workdayEndMinute: 630 }),
+      ).rejects.toThrow('at least an hour');
+    });
+
+    it('refuses an escalation earlier than the first-call deadline', async () => {
+      await expect(
+        service.updateSettings(user, { firstContactSlaMinutes: 45 }),
+      ).rejects.toThrow('after the first-call deadline');
     });
   });
 });

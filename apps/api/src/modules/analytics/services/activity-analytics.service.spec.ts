@@ -48,13 +48,60 @@ describe('ActivityAnalyticsService', () => {
   });
 
   it('orders activity feed newest first', async () => {
-    const result = await service.getActivity('tenant-1', {
-      includeAudit: false,
-    });
+    const result = await service.getActivity(
+      'tenant-1',
+      { includeAudit: false },
+      { kind: 'all', actorUserId: 'user-1' },
+    );
 
     expect(result).toHaveLength(2);
-    expect(result[0]!.id).toBe('act-2');
-    expect(result[1]!.id).toBe('act-1');
+    expect(result[0].id).toBe('act-2');
+    expect(result[1].id).toBe('act-1');
     expect(prisma.auditLog.findMany).not.toHaveBeenCalled();
+  });
+
+  it('does not filter lead activity for an unrestricted scope', async () => {
+    await service.getActivity(
+      'tenant-1',
+      { includeAudit: false },
+      { kind: 'all', actorUserId: 'user-1' },
+    );
+
+    const { where } = prisma.leadActivity.findMany.mock.calls[0][0];
+    expect(where).not.toHaveProperty('lead');
+    for (const job of [prisma.importJob, prisma.exportJob]) {
+      expect(job.findMany.mock.calls[0][0].where).not.toHaveProperty(
+        'createdByUserId',
+      );
+    }
+  });
+
+  it('limits lead activity to in-scope leads for an own scope', async () => {
+    await service.getActivity(
+      'tenant-1',
+      { includeAudit: false },
+      { kind: 'own', actorUserId: 'agent-1' },
+    );
+
+    for (const job of [prisma.importJob, prisma.exportJob]) {
+      expect(job.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ createdByUserId: 'agent-1' }),
+        }),
+      );
+    }
+    expect(prisma.leadActivity.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          lead: {
+            OR: [
+              { assignedUserId: { in: ['agent-1'] } },
+              { assignedUserId: null },
+            ],
+          },
+        }),
+      }),
+    );
   });
 });

@@ -3,6 +3,14 @@ export interface OrganizationSettingsResponse {
   timezone: string;
   currency: string;
   weekStartsOn: number;
+  workingDays: number[];
+  workdayStartMinute: number;
+  workdayEndMinute: number;
+  firstContactSlaMinutes: number;
+  escalateAfterMinutes: number;
+  dailyInteractionGoal: number;
+  /** Agents see the top 3 and their own rank on My performance. */
+  showLeaderboardToAgents: boolean;
   updatedAt: Date;
 }
 

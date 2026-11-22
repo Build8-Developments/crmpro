@@ -1,19 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import {
-  JobStatus,
-  LeadActivityEventType,
-  Prisma,
-} from '@crmpro/database';
+import { JobStatus, LeadActivityEventType, Prisma } from '@crmpro/database';
+import type { LeadScope } from '../../../common/auth/lead-scope/lead-scope.types';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import {
-  BULK_LEAD_AUDIT_ACTIONS,
-} from '../../leads/constants/leads-bulk.constants';
+import { BULK_LEAD_AUDIT_ACTIONS } from '../../leads/constants/leads-bulk.constants';
 import {
   EXPORT_AUDIT_ACTIONS,
   IMPORT_AUDIT_ACTIONS,
 } from '../../audit/audit.constants';
 import { ACTIVITY_FEED_LIMIT } from '../analytics.constants';
 import type { ActivityFeedItem } from '../analytics.types';
+import {
+  jobScopeWhere,
+  leadRelationScope,
+} from '../queries/analytics-scope.util';
+
+type AuditFeedRow = {
+  id: string;
+  action: string;
+  metadata: Prisma.JsonValue;
+  createdAt: Date;
+};
 
 @Injectable()
 export class ActivityAnalyticsService {
@@ -22,6 +28,7 @@ export class ActivityAnalyticsService {
   async getActivity(
     tenantId: string,
     options: { includeAudit: boolean },
+    scope: LeadScope,
   ): Promise<ActivityFeedItem[]> {
     const [activities, importJobs, exportJobs, auditLogs] = await Promise.all([
       this.prisma.leadActivity.findMany({
@@ -35,6 +42,7 @@ export class ActivityAnalyticsService {
               LeadActivityEventType.STAGE_CHANGED,
             ],
           },
+          ...leadRelationScope(scope),
         },
         select: {
           id: true,
@@ -52,6 +60,7 @@ export class ActivityAnalyticsService {
           tenantId,
           status: JobStatus.COMPLETED,
           completedAt: { not: null },
+          ...jobScopeWhere(scope),
         },
         select: {
           id: true,
@@ -67,6 +76,7 @@ export class ActivityAnalyticsService {
           tenantId,
           status: JobStatus.COMPLETED,
           completedAt: { not: null },
+          ...jobScopeWhere(scope),
         },
         select: {
           id: true,
@@ -99,7 +109,7 @@ export class ActivityAnalyticsService {
             orderBy: { createdAt: 'desc' },
             take: 100,
           })
-        : Promise.resolve([]),
+        : Promise.resolve<AuditFeedRow[]>([]),
     ]);
 
     const merged: ActivityFeedItem[] = [
@@ -179,17 +189,18 @@ export class ActivityAnalyticsService {
     }
   }
 
-  private buildAuditTitle(
-    action: string,
-    metadata: Prisma.JsonValue,
-  ): string {
-    const data = this.asMetadataRecord(metadata);
+  private buildAuditTitle(action: string, metadata: Prisma.JsonValue): string {
+    const { leadCount } = this.asMetadataRecord(metadata);
+    const count =
+      typeof leadCount === 'number' || typeof leadCount === 'string'
+        ? leadCount
+        : 'multiple';
 
     switch (action) {
       case BULK_LEAD_AUDIT_ACTIONS.ASSIGNED:
-        return `Bulk assign: ${data.leadCount ?? 'multiple'} leads`;
+        return `Bulk assign: ${count} leads`;
       case BULK_LEAD_AUDIT_ACTIONS.STAGE_CHANGED:
-        return `Bulk stage change: ${data.leadCount ?? 'multiple'} leads`;
+        return `Bulk stage change: ${count} leads`;
       case IMPORT_AUDIT_ACTIONS.COMPLETED:
         return 'Import completed';
       case EXPORT_AUDIT_ACTIONS.COMPLETED:
@@ -199,11 +210,9 @@ export class ActivityAnalyticsService {
     }
   }
 
-  private asMetadataRecord(
-    value: Prisma.JsonValue,
-  ): Record<string, unknown> {
+  private asMetadataRecord(value: Prisma.JsonValue): Record<string, unknown> {
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      return value as Record<string, unknown>;
+      return value;
     }
 
     return {};

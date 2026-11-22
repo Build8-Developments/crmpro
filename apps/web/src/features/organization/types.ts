@@ -4,6 +4,16 @@ export interface OrganizationSettings {
   currency: string;
   /** 0 = Sunday … 6 = Saturday */
   weekStartsOn: number;
+  /** 0 = Sunday … 6 = Saturday */
+  workingDays: number[];
+  /** Minutes after midnight (600 = 10:00). */
+  workdayStartMinute: number;
+  workdayEndMinute: number;
+  firstContactSlaMinutes: number;
+  escalateAfterMinutes: number;
+  dailyInteractionGoal: number;
+  /** Agents see the top 3 and their own rank on My performance. */
+  showLeaderboardToAgents: boolean;
   updatedAt: string;
 }
 
@@ -17,7 +27,7 @@ export interface Organization {
 }
 
 export type UpdateOrganizationSettingsInput = Partial<
-  Pick<OrganizationSettings, "countryCode" | "timezone" | "currency" | "weekStartsOn">
+  Omit<OrganizationSettings, "updatedAt">
 >;
 
 export interface UsageMetric {

@@ -2,6 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { PipelineAnalyticsService } from './pipeline-analytics.service';
 
+type SqlFragment = { sql: string; values: unknown[] };
+
+const isSqlFragment = (value: unknown): value is SqlFragment =>
+  typeof value === 'object' &&
+  value !== null &&
+  'sql' in value &&
+  'values' in value;
+
+/** Prisma.Sql fragments interpolated into the first $queryRaw call. */
+function sqlFragments(queryRaw: jest.Mock): SqlFragment[] {
+  return (queryRaw.mock.calls[0] as unknown[]).slice(1).filter(isSqlFragment);
+}
+
 describe('PipelineAnalyticsService', () => {
   let service: PipelineAnalyticsService;
   let prisma: {
@@ -45,7 +58,10 @@ describe('PipelineAnalyticsService', () => {
   });
 
   it('returns pipeline funnel stage shape', async () => {
-    const result = await service.getPipeline('tenant-1');
+    const result = await service.getPipeline('tenant-1', {
+      kind: 'all',
+      actorUserId: 'user-1',
+    });
 
     expect(result).toEqual({
       pipelineId: 'pipe-1',
@@ -65,5 +81,49 @@ describe('PipelineAnalyticsService', () => {
         },
       ],
     });
+  });
+
+  it('adds no assignee filter for an unrestricted scope', async () => {
+    await service.getPipeline('tenant-1', { kind: 'all', actorUserId: null });
+
+    expect(prisma.lead.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId: 'tenant-1', deletedAt: null, pipelineId: 'pipe-1' },
+      }),
+    );
+    const fragments = sqlFragments(prisma.$queryRaw).map((f) => f.sql);
+    expect(fragments).toContain('TRUE');
+    expect(fragments.join(' ')).not.toContain('assignedUserId');
+  });
+
+  it('restricts counts and stage ages to the team scope', async () => {
+    await service.getPipeline('tenant-1', {
+      kind: 'team',
+      actorUserId: 'lead-1',
+      userIds: ['lead-1', 'agent-2'],
+    });
+
+    expect(prisma.lead.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId: 'tenant-1',
+          deletedAt: null,
+          pipelineId: 'pipe-1',
+          AND: [
+            {
+              OR: [
+                { assignedUserId: { in: ['lead-1', 'agent-2'] } },
+                { assignedUserId: null },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const fragment = sqlFragments(prisma.$queryRaw).find((f) =>
+      f.sql.includes('assignedUserId'),
+    );
+    expect(fragment?.sql).toContain('l."assignedUserId" IS NULL');
+    expect(fragment?.values).toEqual([['lead-1', 'agent-2']]);
   });
 });

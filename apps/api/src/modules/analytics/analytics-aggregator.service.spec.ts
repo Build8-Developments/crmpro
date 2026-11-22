@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PERMISSIONS } from '@crmpro/shared/auth';
+import type { LeadScope } from '../../common/auth/lead-scope/lead-scope.types';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { AnalyticsAggregatorService } from './analytics-aggregator.service';
 import { OverviewAnalyticsService } from './services/overview-analytics.service';
@@ -23,6 +24,9 @@ describe('AnalyticsAggregatorService', () => {
     getDeveloperPerformance: jest.Mock;
     getStatusDistribution: jest.Mock;
   };
+
+  const allScope: LeadScope = { kind: 'all', actorUserId: 'user-1' };
+  const ownScope: LeadScope = { kind: 'own', actorUserId: 'user-3' };
 
   const overview = { totalLeads: 10, staleLeads: 2, unassignedLeads: 1 };
   const pipeline = {
@@ -127,7 +131,12 @@ describe('AnalyticsAggregatorService', () => {
   });
 
   it('returns all sections for owner permissions', async () => {
-    const result = await service.getDashboard('user-1', 'tenant-1', '30d');
+    const result = await service.getDashboard(
+      'user-1',
+      'tenant-1',
+      '30d',
+      allScope,
+    );
 
     expect(result).toEqual({
       overview,
@@ -144,9 +153,11 @@ describe('AnalyticsAggregatorService', () => {
     expect(pipelineService.getPipeline).toHaveBeenCalled();
     expect(trendService.getTrends).toHaveBeenCalled();
     expect(teamService.getTeam).toHaveBeenCalled();
-    expect(activityService.getActivity).toHaveBeenCalledWith('tenant-1', {
-      includeAudit: true,
-    });
+    expect(activityService.getActivity).toHaveBeenCalledWith(
+      'tenant-1',
+      { includeAudit: true },
+      allScope,
+    );
   });
 
   it('returns only allowed sections for restricted users', async () => {
@@ -154,7 +165,12 @@ describe('AnalyticsAggregatorService', () => {
       new Set([PERMISSIONS.ANALYTICS_READ, PERMISSIONS.PIPELINE_READ]),
     );
 
-    const result = await service.getDashboard('user-2', 'tenant-1', '7d');
+    const result = await service.getDashboard(
+      'user-2',
+      'tenant-1',
+      '7d',
+      allScope,
+    );
 
     expect(result).toEqual({
       overview,
@@ -174,15 +190,55 @@ describe('AnalyticsAggregatorService', () => {
       new Set([PERMISSIONS.LEAD_READ]),
     );
 
-    const result = await service.getDashboard('user-3', 'tenant-1', '30d');
+    const result = await service.getDashboard(
+      'user-3',
+      'tenant-1',
+      '30d',
+      ownScope,
+    );
 
     expect(result).toEqual({ activity });
     expect(overviewService.getOverview).not.toHaveBeenCalled();
     expect(pipelineService.getPipeline).not.toHaveBeenCalled();
     expect(trendService.getTrends).not.toHaveBeenCalled();
     expect(teamService.getTeam).not.toHaveBeenCalled();
-    expect(activityService.getActivity).toHaveBeenCalledWith('tenant-1', {
-      includeAudit: false,
+    expect(activityService.getActivity).toHaveBeenCalledWith(
+      'tenant-1',
+      { includeAudit: false },
+      ownScope,
+    );
+  });
+
+  it('passes the caller scope to every section query', async () => {
+    const teamScope: LeadScope = {
+      kind: 'team',
+      actorUserId: 'user-1',
+      userIds: ['user-1', 'user-4'],
+    };
+
+    await service.getDashboard('user-1', 'tenant-1', '30d', teamScope);
+
+    const dateRange = expect.objectContaining({
+      from: expect.any(Date),
+      to: expect.any(Date),
     });
+    expect(overviewService.getOverview).toHaveBeenCalledWith(
+      'tenant-1',
+      dateRange,
+      teamScope,
+    );
+    expect(pipelineService.getPipeline).toHaveBeenCalledWith(
+      'tenant-1',
+      teamScope,
+    );
+    expect(trendService.getTrends).toHaveBeenCalledWith(
+      'tenant-1',
+      dateRange,
+      teamScope,
+    );
+    expect(teamService.getTeam).toHaveBeenCalledWith('tenant-1', teamScope);
+    for (const method of Object.values(queryService)) {
+      expect(method).toHaveBeenCalledWith('tenant-1', dateRange, teamScope);
+    }
   });
 });

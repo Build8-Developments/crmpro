@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ContractStatus, FileAssetCategory } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
@@ -19,8 +23,24 @@ import type {
   OrganizationUsageResponse,
 } from './organization.types';
 import { TenantSettingsService } from './tenant-settings.service';
+import { SYSTEM_LEAD_SCOPE } from '../../common/auth';
 
 const SUPPORTED_CURRENCIES = new Set(Intl.supportedValuesOf('currency'));
+
+/** Settings fields that PATCH /organization/settings may change. */
+const SETTINGS_KEYS = [
+  'countryCode',
+  'timezone',
+  'currency',
+  'weekStartsOn',
+  'workingDays',
+  'workdayStartMinute',
+  'workdayEndMinute',
+  'firstContactSlaMinutes',
+  'escalateAfterMinutes',
+  'dailyInteractionGoal',
+  'showLeaderboardToAgents',
+] as const;
 
 @Injectable()
 export class OrganizationService {
@@ -87,16 +107,19 @@ export class OrganizationService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const before = await this.tenantSettings.get(user.tenantId, tx);
+      this.assertWorkdayConsistent(before, dto);
 
       const changes: Record<string, { from: unknown; to: unknown }> = {};
-      for (const key of [
-        'countryCode',
-        'timezone',
-        'currency',
-        'weekStartsOn',
-      ] as const) {
-        const next = dto[key];
-        if (next !== undefined && next !== before[key]) {
+      for (const key of SETTINGS_KEYS) {
+        const raw = dto[key];
+        const next =
+          key === 'workingDays' && Array.isArray(raw)
+            ? [...raw].sort((a, b) => a - b)
+            : raw;
+        if (
+          next !== undefined &&
+          JSON.stringify(next) !== JSON.stringify(before[key])
+        ) {
           changes[key] = { from: before[key], to: next };
         }
       }
@@ -145,10 +168,15 @@ export class OrganizationService {
   ): Promise<OrganizationResponse> {
     const before = await this.getTenantOrThrow(user.tenantId);
 
-    const file = await this.files.completeUpload(user.tenantId, user.id, {
-      objectKey: dto.objectKey,
-      category: FileAssetCategory.LOGO,
-    });
+    const file = await this.files.completeUpload(
+      user.tenantId,
+      user.id,
+      {
+        objectKey: dto.objectKey,
+        category: FileAssetCategory.LOGO,
+      },
+      SYSTEM_LEAD_SCOPE,
+    );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.tenant.update({
@@ -167,7 +195,12 @@ export class OrganizationService {
     });
 
     if (before.logoFileId) {
-      await this.files.deleteFile(before.logoFileId, user.tenantId, user.id);
+      await this.files.deleteFile(
+        before.logoFileId,
+        user.tenantId,
+        user.id,
+        SYSTEM_LEAD_SCOPE,
+      );
     }
 
     return this.getOrganization(user.tenantId);
@@ -192,7 +225,12 @@ export class OrganizationService {
           tx,
         });
       });
-      await this.files.deleteFile(before.logoFileId, user.tenantId, user.id);
+      await this.files.deleteFile(
+        before.logoFileId,
+        user.tenantId,
+        user.id,
+        SYSTEM_LEAD_SCOPE,
+      );
     }
 
     return this.getOrganization(user.tenantId);
@@ -279,7 +317,9 @@ export class OrganizationService {
   }
 
   /** Short-lived signed URL for a logo object, or null when there is none. */
-  async signLogoUrl(objectKey: string | null | undefined): Promise<string | null> {
+  async signLogoUrl(
+    objectKey: string | null | undefined,
+  ): Promise<string | null> {
     if (!objectKey) return null;
     const signed = await this.storage.getSignedDownloadUrl({
       objectKey,
@@ -311,18 +351,42 @@ export class OrganizationService {
     };
   }
 
-  private toSettingsResponse(settings: {
-    countryCode: string;
-    timezone: string;
-    currency: string;
-    weekStartsOn: number;
-    updatedAt: Date;
-  }): OrganizationSettingsResponse {
+  /** Validates the workday against the values that are not being changed. */
+  private assertWorkdayConsistent(
+    before: OrganizationSettingsResponse,
+    dto: UpdateOrganizationSettingsDto,
+  ): void {
+    const start = dto.workdayStartMinute ?? before.workdayStartMinute;
+    const end = dto.workdayEndMinute ?? before.workdayEndMinute;
+    if (end - start < 60) {
+      throw new BadRequestException(
+        'The workday must end at least an hour after it starts',
+      );
+    }
+    const sla = dto.firstContactSlaMinutes ?? before.firstContactSlaMinutes;
+    const escalate = dto.escalateAfterMinutes ?? before.escalateAfterMinutes;
+    if (escalate <= sla) {
+      throw new BadRequestException(
+        'Managers must be alerted after the first-call deadline, not before it',
+      );
+    }
+  }
+
+  private toSettingsResponse(
+    settings: OrganizationSettingsResponse,
+  ): OrganizationSettingsResponse {
     return {
       countryCode: settings.countryCode,
       timezone: settings.timezone,
       currency: settings.currency,
       weekStartsOn: settings.weekStartsOn,
+      workingDays: [...settings.workingDays].sort((a, b) => a - b),
+      workdayStartMinute: settings.workdayStartMinute,
+      workdayEndMinute: settings.workdayEndMinute,
+      firstContactSlaMinutes: settings.firstContactSlaMinutes,
+      escalateAfterMinutes: settings.escalateAfterMinutes,
+      dailyInteractionGoal: settings.dailyInteractionGoal,
+      showLeaderboardToAgents: settings.showLeaderboardToAgents,
       updatedAt: settings.updatedAt,
     };
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,6 +18,14 @@ import { usePipelineUiStore } from "@/features/pipelines/stores/pipeline-ui-stor
 import { STAGE_COLOR_PRESETS } from "@/features/pipelines/utils/pipeline-stage";
 import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
+import { StageBadge, StageIconPicker } from "@/components/crm/stage-visuals";
+import {
+  StageRuleFields,
+  stageRuleDraft,
+  stageRuleError,
+  stageRuleInput,
+  type StageRuleDraft,
+} from "@/features/pipelines/components/stage-rule-fields";
 
 export function EditStageDialog() {
   const editStage = usePipelineUiStore((s) => s.editStage);
@@ -35,14 +43,26 @@ export function EditStageDialog() {
 
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(STAGE_COLOR_PRESETS[0]);
+  const [icon, setIcon] = useState<string | null>(null);
+  const [rules, setRules] = useState<StageRuleDraft>(() => stageRuleDraft());
 
-  useEffect(() => {
-    if (!stage) return;
-    setName(stage.name);
-    setColor(stage.color ?? STAGE_COLOR_PRESETS[0]);
-  }, [stage]);
+  // Load once per opened stage (during render, not in an effect).
+  const formKey = stage ? stage.id : null;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  if (formKey !== loadedKey) {
+    setLoadedKey(formKey);
+    if (stage) {
+      setName(stage.name);
+      setColor(stage.color ?? STAGE_COLOR_PRESETS[0]);
+      setIcon(stage.icon);
+      setRules(stageRuleDraft(stage));
+    }
+  }
 
   const isSystem = stage?.isSystem ?? false;
+  // Won/Lost stages never go stale or get stuck.
+  const isOpenStage = stage ? !stage.isClosed : false;
+  const rulesError = isOpenStage ? stageRuleError(rules) : null;
 
   const handleClose = () => {
     closeEditStage();
@@ -53,7 +73,7 @@ export function EditStageDialog() {
     if (!editStage || !stage) return;
 
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || rulesError) return;
 
     await updateStage.mutateAsync({
       pipelineId: editStage.pipelineId,
@@ -61,6 +81,8 @@ export function EditStageDialog() {
       input: {
         name: trimmed,
         color,
+        icon,
+        ...(isOpenStage ? stageRuleInput(rules) : {}),
       },
     });
 
@@ -69,17 +91,16 @@ export function EditStageDialog() {
 
   const description = useMemo(() => {
     if (!stage) return "";
-    if (stage.closeType === "WON") return "Won stage — name and color only.";
-    if (stage.closeType === "LOST") return "Lost stage — name and color only.";
-    if (stage.isSystem) return "System stage — name and color only.";
-    return "Update stage name and color.";
+    if (stage.closeType === "WON") return "Won stage — name, icon and color.";
+    if (stage.closeType === "LOST") return "Lost stage — name, icon and color.";
+    return "How this stage looks everywhere, and when its leads need attention.";
   }, [stage]);
 
   if (!can("pipeline.update")) return null;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit stage</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -94,6 +115,16 @@ export function EditStageDialog() {
               onChange={(event) => setName(event.target.value)}
               required
             />
+          </div>
+
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+            <span className="text-xs text-muted-foreground">Preview</span>
+            <StageBadge stage={{ name: name.trim() || "Stage", color, icon, closeType: stage?.closeType }} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Icon</Label>
+            <StageIconPicker value={icon} color={color} onChange={setIcon} />
           </div>
 
           <div className="space-y-2">
@@ -130,6 +161,8 @@ export function EditStageDialog() {
             </div>
           </div>
 
+          {isOpenStage ? <StageRuleFields value={rules} onChange={setRules} /> : null}
+
           {isSystem ? (
             <p className="text-xs text-muted-foreground">
               System stages cannot be deleted or reordered when they are Won/Lost.
@@ -142,7 +175,7 @@ export function EditStageDialog() {
             </Button>
             <Button
               type="submit"
-              disabled={updateStage.isPending || !name.trim()}
+              disabled={updateStage.isPending || !name.trim() || Boolean(rulesError)}
             >
               {updateStage.isPending ? "Saving..." : "Save changes"}
             </Button>

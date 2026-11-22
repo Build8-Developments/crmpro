@@ -1,5 +1,10 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
   IsISO31661Alpha2,
   IsInt,
   IsOptional,
@@ -36,4 +41,53 @@ export class UpdateOrganizationSettingsDto {
   @Min(0)
   @Max(6)
   weekStartsOn?: number;
+
+  /** Days the team works, 0 = Sunday … 6 = Saturday. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(7)
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  workingDays?: number[];
+
+  /** Minutes after midnight (600 = 10:00). End must be after start. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(24 * 60 - 1)
+  workdayStartMinute?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(24 * 60)
+  workdayEndMinute?: number;
+
+  /** First call to a new lead within this many working minutes. */
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(240)
+  firstContactSlaMinutes?: number;
+
+  /** Alert the manager after this many (must be more than the SLA). */
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(480)
+  escalateAfterMinutes?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  dailyInteractionGoal?: number;
+
+  /** Agents see the top 3 and their own rank on My performance. */
+  @IsOptional()
+  @IsBoolean()
+  showLeaderboardToAgents?: boolean;
 }

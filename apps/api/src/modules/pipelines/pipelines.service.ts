@@ -1,3 +1,4 @@
+import { DEFAULT_PIPELINE_STAGES } from '@crmpro/shared/bootstrap';
 import {
   BadRequestException,
   Injectable,
@@ -12,17 +13,14 @@ import {
   getPaginationParams,
   PaginatedResponse,
 } from '../../common/pagination';
-import {
-  buildOrderBy,
-  normalizeSearch,
-  SortOrder,
-} from '../../common/query';
+import { buildOrderBy, normalizeSearch, SortOrder } from '../../common/query';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
 import { CreateStageDto } from './dto/create-stage.dto';
 import { ListPipelinesQueryDto } from './dto/list-pipelines-query.dto';
 import { UpdatePipelineDto } from './dto/update-pipeline.dto';
 import { UpdateStageDto } from './dto/update-stage.dto';
 import {
+  DEFAULT_STALE_AFTER_DAYS,
   PipelineResponse,
   PipelineStageResponse,
 } from './types/pipeline.types';
@@ -47,9 +45,12 @@ type StageRecord = {
   name: string;
   sortOrder: number;
   color: string | null;
+  icon: string | null;
   isSystem: boolean;
   isClosed: boolean;
   closeType: PipelineCloseType | null;
+  staleAfterDays: number | null;
+  stuckAfterDays: number | null;
   pipelineId: string;
   tenantId: string;
 };
@@ -58,25 +59,12 @@ const STAGE_TRANSACTION_OPTIONS = {
   isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
 } as const;
 
-const DEFAULT_STAGE_DEFS = [
-  { name: 'New Lead', color: '#94a3b8', isClosed: false, closeType: null },
-  { name: 'Contacted', color: '#60a5fa', isClosed: false, closeType: null },
-  { name: 'Qualified', color: '#818cf8', isClosed: false, closeType: null },
-  { name: 'Interested', color: '#a78bfa', isClosed: false, closeType: null },
-  { name: 'Negotiation', color: '#f59e0b', isClosed: false, closeType: null },
-  {
-    name: 'Won',
-    color: '#22c55e',
-    isClosed: true,
-    closeType: PipelineCloseType.WON,
-  },
-  {
-    name: 'Lost',
-    color: '#ef4444',
-    isClosed: true,
-    closeType: PipelineCloseType.LOST,
-  },
-] as const;
+// Same template as a new tenant's default pipeline, so every pipeline starts
+// with the same stages (was "Interested" here vs "Proposal" at provisioning).
+const DEFAULT_STAGE_DEFS = DEFAULT_PIPELINE_STAGES.map((stage) => ({
+  ...stage,
+  closeType: stage.closeType,
+}));
 
 const pipelineInclude = {
   stages: {
@@ -125,10 +113,7 @@ export class PipelinesService {
     );
   }
 
-  async getPipeline(
-    id: string,
-    tenantId: string,
-  ): Promise<PipelineResponse> {
+  async getPipeline(id: string, tenantId: string): Promise<PipelineResponse> {
     const pipeline = await this.getPipelineOrThrow(id, tenantId);
     const stageLeadCounts = await this.loadStageLeadCounts(tenantId, [
       pipeline.id,
@@ -167,10 +152,13 @@ export class PipelinesService {
             pipelineId: created.id,
             name: stage.name,
             color: stage.color,
+            icon: stage.icon,
             sortOrder: index + 1,
             isSystem: true,
             isClosed: stage.isClosed,
             closeType: stage.closeType,
+            staleAfterDays: stage.staleAfterDays,
+            stuckAfterDays: stage.stuckAfterDays,
           })),
         });
 
@@ -213,7 +201,9 @@ export class PipelinesService {
           where: { id: pipeline.id },
           data: {
             ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-            ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
+            ...(dto.isDefault !== undefined
+              ? { isDefault: dto.isDefault }
+              : {}),
           },
           include: pipelineInclude,
         });
@@ -229,10 +219,7 @@ export class PipelinesService {
     }
   }
 
-  async deletePipeline(
-    id: string,
-    tenantId: string,
-  ): Promise<{ id: string }> {
+  async deletePipeline(id: string, tenantId: string): Promise<{ id: string }> {
     const pipeline = await this.getPipelineOrThrow(id, tenantId);
     await this.ensurePipelineCanBeDeleted(pipeline);
 
@@ -256,6 +243,14 @@ export class PipelinesService {
     const closeType = isClosed ? (dto.closeType ?? null) : null;
 
     this.validateClosedStageRules({ isClosed, closeType });
+    this.validateStageRuleDays(isClosed, dto);
+    // Closed stages never go stale or get stuck; open ones default to R8 on.
+    const staleAfterDays = isClosed
+      ? null
+      : dto.staleAfterDays === undefined
+        ? DEFAULT_STALE_AFTER_DAYS
+        : dto.staleAfterDays;
+    const stuckAfterDays = isClosed ? null : (dto.stuckAfterDays ?? null);
 
     const stageCount = pipeline.stages.length;
     this.validateSortOrderForInsert(dto.sortOrder, stageCount);
@@ -263,11 +258,7 @@ export class PipelinesService {
     try {
       const stage = await this.prisma.$transaction(async (tx) => {
         if (closeType) {
-          await this.ensureUniqueClosedStageInTx(
-            tx,
-            pipeline.id,
-            closeType,
-          );
+          await this.ensureUniqueClosedStageInTx(tx, pipeline.id, closeType);
         }
 
         await this.shiftStagesOnInsert(tx, pipeline.id, dto.sortOrder);
@@ -279,8 +270,11 @@ export class PipelinesService {
             name: dto.name.trim(),
             sortOrder: dto.sortOrder,
             color: dto.color ?? null,
+            icon: dto.icon ?? null,
             isClosed,
             closeType,
+            staleAfterDays,
+            stuckAfterDays,
             isSystem: false,
           },
         });
@@ -323,6 +317,18 @@ export class PipelinesService {
       isClosed: nextIsClosed,
       closeType: nextCloseType,
     });
+    this.validateStageRuleDays(nextIsClosed, dto);
+    // Closing a stage turns R8/R9 off for it.
+    const nextStaleAfterDays = nextIsClosed
+      ? null
+      : dto.staleAfterDays !== undefined
+        ? dto.staleAfterDays
+        : stage.staleAfterDays;
+    const nextStuckAfterDays = nextIsClosed
+      ? null
+      : dto.stuckAfterDays !== undefined
+        ? dto.stuckAfterDays
+        : stage.stuckAfterDays;
 
     if (dto.sortOrder !== undefined) {
       const stageCount = await this.prisma.pipelineStage.count({
@@ -342,10 +348,7 @@ export class PipelinesService {
           );
         }
 
-        if (
-          dto.sortOrder !== undefined &&
-          nextSortOrder !== stage.sortOrder
-        ) {
+        if (dto.sortOrder !== undefined && nextSortOrder !== stage.sortOrder) {
           await this.reorderStage(
             tx,
             pipelineId,
@@ -361,8 +364,11 @@ export class PipelinesService {
             name: nextName,
             sortOrder: nextSortOrder,
             color: nextColor,
+            ...(dto.icon !== undefined ? { icon: dto.icon } : {}),
             isClosed: nextIsClosed,
             closeType: nextCloseType,
+            staleAfterDays: nextStaleAfterDays,
+            stuckAfterDays: nextStuckAfterDays,
           },
         });
       }, STAGE_TRANSACTION_OPTIONS);
@@ -393,7 +399,9 @@ export class PipelinesService {
     });
 
     if (stageCount <= 1) {
-      throw new BadRequestException('Cannot delete the last stage of a pipeline');
+      throw new BadRequestException(
+        'Cannot delete the last stage of a pipeline',
+      );
     }
 
     const leadsUsingStage = await this.prisma.lead.count({
@@ -411,11 +419,7 @@ export class PipelinesService {
         where: { id: stage.id },
       });
 
-      await this.compactStagesAfterDelete(
-        tx,
-        pipelineId,
-        stage.sortOrder,
-      );
+      await this.compactStagesAfterDelete(tx, pipelineId, stage.sortOrder);
     }, STAGE_TRANSACTION_OPTIONS);
 
     void this.domainEventBus.publish(
@@ -547,6 +551,24 @@ export class PipelinesService {
     if (input.isClosed && closeType === null) {
       throw new BadRequestException(
         'closeType is required when isClosed is true',
+      );
+    }
+  }
+
+  /** Won/Lost stages have no stale/stuck thresholds. */
+  private validateStageRuleDays(
+    isClosed: boolean,
+    dto: {
+      staleAfterDays?: number | null;
+      stuckAfterDays?: number | null;
+    },
+  ): void {
+    if (!isClosed) return;
+    const hasValue = (value: number | null | undefined) =>
+      value !== undefined && value !== null;
+    if (hasValue(dto.staleAfterDays) || hasValue(dto.stuckAfterDays)) {
+      throw new BadRequestException(
+        'Closed stages cannot have stale or stuck thresholds',
       );
     }
   }
@@ -683,9 +705,7 @@ export class PipelinesService {
     });
 
     if (leadCount > 0) {
-      throw new BadRequestException(
-        'Cannot delete a pipeline that has leads',
-      );
+      throw new BadRequestException('Cannot delete a pipeline that has leads');
     }
   }
 
@@ -717,9 +737,7 @@ export class PipelinesService {
       _count: { _all: true },
     });
 
-    return new Map(
-      counts.map((row) => [row.pipelineStageId, row._count._all]),
-    );
+    return new Map(counts.map((row) => [row.pipelineStageId, row._count._all]));
   }
 
   private toPipelineResponse(
@@ -744,9 +762,12 @@ export class PipelinesService {
       name: string;
       sortOrder: number;
       color: string | null;
+      icon?: string | null;
       isSystem: boolean;
       isClosed: boolean;
       closeType: PipelineCloseType | null;
+      staleAfterDays?: number | null;
+      stuckAfterDays?: number | null;
     },
     leadCount = 0,
   ): PipelineStageResponse {
@@ -755,9 +776,12 @@ export class PipelinesService {
       name: stage.name,
       sortOrder: stage.sortOrder,
       color: stage.color,
+      icon: stage.icon ?? null,
       isSystem: stage.isSystem,
       isClosed: stage.isClosed,
       closeType: stage.closeType,
+      staleAfterDays: stage.staleAfterDays ?? null,
+      stuckAfterDays: stage.stuckAfterDays ?? null,
       leadCount,
     };
   }
