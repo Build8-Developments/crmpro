@@ -24,6 +24,7 @@ import * as argon2 from 'argon2';
 import {
   AGENT_PERMISSION_KEYS,
   DEFAULT_LEAD_SOURCES,
+  DEFAULT_LOST_REASONS,
   DEFAULT_PIPELINE,
   DEFAULT_PIPELINE_STAGES,
   DEFAULT_TENANT_ROLES,
@@ -172,6 +173,17 @@ const PERMISSIONS = [
   { key: 'lead.update', description: 'Update lead details' },
   { key: 'lead.delete', description: 'Delete leads' },
   { key: 'lead.assign', description: 'Assign leads to team members' },
+  { key: 'lead.merge', description: 'Merge duplicate leads into one' },
+  { key: 'lead.read-team', description: "View the team's leads and unassigned leads" },
+  { key: 'lead.read-all', description: 'View every lead in the organization' },
+  { key: 'deal.read', description: 'View deals on won leads' },
+  { key: 'deal.write', description: 'Record and update deals on won leads' },
+  { key: 'deal.cancel', description: 'Cancel a deal (re-opens the lead)' },
+  { key: 'target.read', description: 'View monthly targets' },
+  { key: 'target.manage', description: 'Set monthly targets for people and the workspace' },
+  { key: 'spend.manage', description: 'Enter monthly marketing spend per lead source' },
+  { key: 'team.read', description: 'View teams' },
+  { key: 'team.manage', description: 'Create teams and manage membership' },
   { key: 'lead-note.create', description: 'Create lead notes' },
   { key: 'lead-note.read', description: 'View lead notes' },
   { key: 'lead-note.update', description: 'Update lead notes' },
@@ -1020,11 +1032,18 @@ async function seedUsers(
 }
 
 async function clearTenantSampleData(tenantId: string): Promise<void> {
+  await prisma.userDailyStat.deleteMany({ where: { tenantId } });
+  await prisma.target.deleteMany({ where: { tenantId } });
+  await prisma.sourceSpend.deleteMany({ where: { tenantId } });
+  await prisma.deal.deleteMany({ where: { tenantId } });
   await prisma.exportJob.deleteMany({ where: { tenantId } });
   await prisma.importJob.deleteMany({ where: { tenantId } });
   await prisma.fileAsset.deleteMany({ where: { tenantId } });
   await prisma.auditLog.deleteMany({ where: { tenantId } });
+  await prisma.task.deleteMany({ where: { tenantId } });
+  await prisma.interaction.deleteMany({ where: { tenantId } });
   await prisma.lead.deleteMany({ where: { tenantId } });
+  await prisma.lostReason.deleteMany({ where: { tenantId } });
   await prisma.notification.deleteMany({ where: { tenantId } });
   await prisma.notificationPreference.deleteMany({ where: { tenantId } });
   await prisma.pipeline.deleteMany({ where: { tenantId } });
@@ -1123,6 +1142,23 @@ async function seedLeadSources(tenantId: string): Promise<Map<string, string>> {
   return ids;
 }
 
+async function seedLostReasons(tenantId: string): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
+  for (const [index, reason] of DEFAULT_LOST_REASONS.entries()) {
+    const record = await prisma.lostReason.create({
+      data: {
+        tenantId,
+        name: reason.name,
+        sortOrder: index + 1,
+        recyclable: reason.recyclable,
+        recycleAfterDays: reason.recycleAfterDays,
+      },
+    });
+    ids.set(reason.name, record.id);
+  }
+  return ids;
+}
+
 type StageRecord = {
   id: string;
   name: string;
@@ -1154,10 +1190,13 @@ async function seedPipelines(tenantId: string): Promise<{
         pipelineId: defaultPipeline.id,
         name: def.name,
         color: def.color,
+        icon: def.icon,
         sortOrder: i + 1,
         isSystem: def.isClosed,
         isClosed: def.isClosed,
         closeType: def.closeType as PipelineCloseType | null,
+        staleAfterDays: def.staleAfterDays,
+        stuckAfterDays: def.stuckAfterDays,
       },
     });
     stages.push({
@@ -1202,6 +1241,7 @@ async function seedPipelines(tenantId: string): Promise<{
         pipelineId: commercialPipeline.id,
         name,
         color: ['#60a5fa', '#818cf8', '#f59e0b', '#22c55e', '#ef4444'][i],
+        icon: ['sparkles', 'map-pin', 'file-text', 'key', 'circle-x'][i],
         sortOrder: i + 1,
         isSystem: isClosed,
         isClosed,
@@ -1637,6 +1677,122 @@ async function seedLeadNotifications(params: {
   await prisma.notification.createMany({ data });
 }
 
+/** "YYYY-MM" of the month `offset` months from now, in Cairo time. */
+function cairoPeriod(offset: number): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Cairo',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const year = Number(parts.find((p) => p.type === 'year')!.value);
+  const month = Number(parts.find((p) => p.type === 'month')!.value) - 1 + offset;
+  const d = new Date(Date.UTC(year, month, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Monthly marketing spend per source (EGP) — paid channels only. */
+const DEMO_MONTHLY_SPEND: Readonly<Record<string, number>> = {
+  'Facebook Ads': 180_000,
+  'Instagram Ads': 65_000,
+  'Property Finder': 45_000,
+  Website: 25_000,
+  'Events & Expos': 40_000,
+  'Call Center': 30_000,
+};
+
+/** Targets for the last 3 months and spend for the last 6 (spec §2.6–2.7). */
+async function seedTargetsAndSpend(
+  tenantId: string,
+  ownerId: string,
+  sourceIds: Map<string, string>,
+): Promise<void> {
+  // Targets sit 10–20% above each agent's real pace over the last 90 days,
+  // so the demo shows a mix of on-track and behind (spec §2.6: defaults
+  // come from recent history).
+  const agents = SAMPLE_USERS.filter((u) => u.roleId === ROLE_IDS.agent);
+  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const [dealRows, contractRows, interactionRows, visitRows] = await Promise.all([
+    prisma.deal.groupBy({
+      by: ['agentId'],
+      where: { tenantId, reservedAt: { gte: since } },
+      _count: { _all: true },
+    }),
+    prisma.deal.groupBy({
+      by: ['agentId'],
+      where: { tenantId, contractedAt: { gte: since } },
+      _sum: { price: true },
+    }),
+    prisma.interaction.groupBy({
+      by: ['userId'],
+      where: { tenantId, occurredAt: { gte: since } },
+      _count: { _all: true },
+    }),
+    prisma.interaction.groupBy({
+      by: ['userId'],
+      where: {
+        tenantId,
+        occurredAt: { gte: since },
+        OR: [{ channel: 'SITE_VISIT' }, { outcome: 'VISIT_DONE' }],
+      },
+      _count: { _all: true },
+    }),
+  ]);
+  const perMonth = (rows: Array<{ id: string | null; value: number }>, id: string) =>
+    (rows.find((row) => row.id === id)?.value ?? 0) / 3;
+  const deals90 = dealRows.map((r) => ({ id: r.agentId, value: r._count._all }));
+  const revenue90 = contractRows.map((r) => ({ id: r.agentId, value: Number(r._sum.price ?? 0) }));
+  const touches90 = interactionRows.map((r) => ({ id: r.userId, value: r._count._all }));
+  const visits90 = visitRows.map((r) => ({ id: r.userId, value: r._count._all }));
+
+  const targets: Prisma.TargetCreateManyInput[] = [];
+  for (const offset of [-2, -1, 0]) {
+    const period = cairoPeriod(offset);
+    const sum = { DEALS: 0, REVENUE: 0, COMMISSION: 0, INTERACTIONS: 0, VISITS: 0 };
+    for (const agent of agents) {
+      const stretch = 1.1 + faker.number.float({ min: 0, max: 0.1 });
+      const revenue = Math.max(
+        5_000_000,
+        Math.round((perMonth(revenue90, agent.id) * stretch) / 1_000_000) * 1_000_000,
+      );
+      const values = {
+        DEALS: Math.max(1, Math.round(perMonth(deals90, agent.id) * stretch)),
+        REVENUE: revenue,
+        COMMISSION: Math.round((revenue * 0.022) / 10_000) * 10_000,
+        INTERACTIONS: Math.max(20, Math.round((perMonth(touches90, agent.id) * stretch) / 5) * 5),
+        VISITS: Math.max(1, Math.round(perMonth(visits90, agent.id) * stretch)),
+      };
+      for (const [metric, value] of Object.entries(values) as Array<[keyof typeof sum, number]>) {
+        sum[metric] += value;
+        targets.push({ tenantId, userId: agent.id, period, metric, value, updatedByUserId: ownerId });
+      }
+    }
+    for (const [metric, value] of Object.entries(sum) as Array<[keyof typeof sum, number]>) {
+      targets.push({ tenantId, userId: null, period, metric, value, updatedByUserId: ownerId });
+    }
+  }
+  await prisma.target.createMany({ data: targets });
+
+  const spend: Prisma.SourceSpendCreateManyInput[] = [];
+  for (let offset = -5; offset <= 0; offset++) {
+    for (const [name, base] of Object.entries(DEMO_MONTHLY_SPEND)) {
+      const sourceId = sourceIds.get(name);
+      if (!sourceId) continue;
+      // ±20% month to month; the current month is only partly spent.
+      const swing = 0.8 + faker.number.float({ min: 0, max: 0.4 });
+      const share = offset === 0 ? 0.55 : 1;
+      spend.push({
+        tenantId,
+        sourceId,
+        period: cairoPeriod(offset),
+        amount: Math.round((base * swing * share) / 1_000) * 1_000,
+        updatedByUserId: ownerId,
+      });
+    }
+  }
+  await prisma.sourceSpend.createMany({ data: spend });
+  console.log(`  ${targets.length} targets, ${spend.length} monthly spend rows`);
+}
+
 async function seedTenantCrmData(
   tenantId: string,
   userIds: string[],
@@ -1644,6 +1800,7 @@ async function seedTenantCrmData(
   await seedDevelopers(tenantId);
   const projectIds = await seedProjects(tenantId);
   const sourceIds = await seedLeadSources(tenantId);
+  const lostReasons = await seedLostReasons(tenantId);
   const { defaultPipelineId, commercialPipelineId, stages, commercialStages } =
     await seedPipelines(tenantId);
 
@@ -1669,6 +1826,8 @@ async function seedTenantCrmData(
       name: p.name,
       ...DEMO_PROJECT_PROFILES[p.id],
     })),
+    lostReasons,
+    userNames: new Map(SAMPLE_USERS.map((u) => [u.id as string, u.name as string])),
     pipelines: [
       {
         pipelineId: defaultPipelineId,
@@ -1685,6 +1844,7 @@ async function seedTenantCrmData(
     ],
   });
   const leadIds = leads.map((l) => l.id);
+  await seedTargetsAndSpend(tenantId, ownerId, sourceIds);
 
   const { totalBytes } = await seedFileAssets({
     tenantId,

@@ -19,7 +19,8 @@
     "prisma:migrate:reset": "dotenv -e ../../apps/api/.env -- prisma migrate reset",
     "prisma:db:push": "dotenv -e ../../apps/api/.env -- prisma db push",
     "prisma:studio": "dotenv -e ../../apps/api/.env -- prisma studio",
-    "prisma:seed": "dotenv -e ../../apps/api/.env -- prisma db seed"
+    "prisma:seed": "dotenv -e ../../apps/api/.env -- prisma db seed",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@crmpro/shared": "workspace:*",

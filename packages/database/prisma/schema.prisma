@@ -63,6 +63,119 @@ enum LeadActivityEventType {
   TASK_COMPLETED
   TASK_ASSIGNED
   TASK_CANCELLED
+  INTERACTION_LOGGED
+  TASK_RESCHEDULED
+  TASK_SKIPPED
+  CONTACT_ACCESSED
+  SLA_BREACHED
+  LEAD_RESUBMITTED
+  LEAD_MERGED
+  DEAL_RESERVED
+  DEAL_CONTRACTED
+  DEAL_CANCELLED
+  DEAL_UPDATED
+}
+
+/// How the client prefers to pay.
+enum PaymentPreference {
+  CASH
+  INSTALLMENTS
+  MORTGAGE
+  FLEXIBLE
+}
+
+/// How the client prefers to be reached.
+enum ContactChannelPreference {
+  CALL
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
+enum ContactTimePreference {
+  MORNING
+  AFTERNOON
+  EVENING
+  ANYTIME
+}
+
+enum PurchasePurpose {
+  LIVING
+  INVESTMENT
+  VACATION_HOME
+}
+
+/// How a touch with a client happened. See docs/product/workflow-engine-spec.md §2.1.
+enum InteractionChannel {
+  CALL
+  WHATSAPP
+  MEETING
+  SITE_VISIT
+  VIDEO_CALL
+  EMAIL
+  SMS
+}
+
+enum InteractionDirection {
+  OUTBOUND
+  INBOUND
+}
+
+/// What came out of a touch. Fixed list on purpose: reports and the
+/// playbook rules key off these values.
+enum InteractionOutcome {
+  NO_ANSWER
+  BUSY
+  SWITCHED_OFF
+  WRONG_NUMBER
+  ANSWERED_INTERESTED
+  ANSWERED_NOT_NOW
+  CALLBACK_REQUESTED
+  NOT_INTERESTED
+  MEETING_BOOKED
+  VISIT_BOOKED
+  VISIT_DONE
+  OFFER_SENT
+  NEGOTIATING
+  RESERVED
+}
+
+enum TaskType {
+  CALL
+  WHATSAPP
+  MEETING
+  SITE_VISIT
+  SEND_OFFER
+  PAPERWORK
+  REVIEW
+  OTHER
+}
+
+enum TaskPriority {
+  URGENT
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum TaskOrigin {
+  SYSTEM
+  SELF
+  MANAGER
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  SKIPPED
+  CANCELLED
+}
+
+/// Visible, rule-based temperature of a lead (spec §3.3) — not a score.
+enum LeadHeat {
+  HOT
+  WARM
+  COLD
 }
 
 enum AuditActorType {
@@ -107,6 +220,8 @@ enum NotificationType {
   TASK_OVERDUE
   TASK_COMPLETED
   SUPPORT_REPLY
+  ESCALATION
+  ACHIEVEMENT
 }
 
 enum SupportConversationStatus {
@@ -242,6 +357,17 @@ model Tenant {
   supportNotes          TenantNote[]
   supportConversations  SupportConversation[]
   fileFolders           FileFolder[]
+  lostReasons           LostReason[]
+  interactions          Interaction[]
+  tasks                 Task[]
+  teams                 Team[]
+  savedViews            SavedView[]
+  apiKeys               ApiKey[]
+  deals                 Deal[]
+  targets               Target[]
+  sourceSpends          SourceSpend[]
+  userDailyStats        UserDailyStat[]
+  userAchievements      UserAchievement[]
 
   @@index([subscriptionPlanId])
 }
@@ -260,6 +386,19 @@ model TenantSettings {
   currency        String   @default("EGP")
   /// 0 = Sunday … 6 = Saturday.
   weekStartsOn    Int      @default(6)
+  /// Days the team works (0 = Sunday … 6 = Saturday). SLA clocks only run on them.
+  workingDays            Int[]    @default([0, 1, 2, 3, 4, 6])
+  /// Working hours as minutes after midnight in `timezone` (600 = 10:00).
+  workdayStartMinute     Int      @default(600)
+  workdayEndMinute       Int      @default(1140)
+  /// A newly assigned lead must be called within this many working minutes.
+  firstContactSlaMinutes Int      @default(15)
+  /// …and the manager is alerted after this many.
+  escalateAfterMinutes   Int      @default(30)
+  /// Interactions per agent per day the Today screen aims for.
+  dailyInteractionGoal   Int      @default(25)
+  /// Agents see the top 3 and their own rank on My performance.
+  showLeaderboardToAgents Boolean @default(true)
   updatedAt       DateTime @updatedAt
   updatedByUserId String?  @db.Uuid
 
@@ -316,12 +455,21 @@ model User {
   passwordHash String
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  teamId       String?   @db.Uuid
+  /// Set when the user was invited by email; inviteAcceptedAt once they chose a password.
+  invitedAt        DateTime?
+  inviteAcceptedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
   tenant             Tenant        @relation(fields: [tenantId], references: [id])
   role               Role          @relation(fields: [roleId], references: [id])
+  team               Team?         @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
+  savedViews         SavedView[]
+  tokens             UserToken[]
+  apiKeys            ApiKey[]
+  ledTeams           Team[]        @relation("TeamLeader")
   uploadedFileAssets FileAsset[]   @relation("UploadedFiles")
   avatarFileAssets   FileAsset[]   @relation("UserAvatar")
   sessions           UserSession[]
@@ -337,10 +485,40 @@ model User {
   supportConversations SupportConversation[] @relation("SupportConversationCreator")
   supportMessages      SupportMessage[]      @relation("SupportMessageUserAuthor")
   fileFoldersCreated   FileFolder[]          @relation("FoldersCreated")
+  interactions         Interaction[]
+  assignedTasks        Task[]                @relation("TaskAssignee")
+  createdTasks         Task[]                @relation("TaskCreator")
+  agentDeals           Deal[]                @relation("DealAgent")
+  createdDeals         Deal[]                @relation("DealCreator")
+  targets              Target[]              @relation("TargetUser")
+  dailyStats           UserDailyStat[]
+  achievements         UserAchievement[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([roleId])
+  @@index([tenantId, teamId])
+}
+
+/// A sales team. A user belongs to at most one team. The leader, and members
+/// whose role has lead.read-team, see the team's leads plus unassigned ones.
+model Team {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @db.Uuid
+  name         String
+  leaderUserId String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  leader  User?  @relation("TeamLeader", fields: [leaderUserId], references: [id], onDelete: SetNull)
+  members User[] @relation("TeamMembers")
+
+  // (tenantId, lower(name)) is unique among live rows via a partial unique index
+  // in the migration.
+  @@index([tenantId, deletedAt])
+  @@index([leaderUserId])
 }
 
 model UserSession {
@@ -395,6 +573,8 @@ model Project {
   developer           Developer             @relation(fields: [developerId], references: [id])
   fileAssets          FileAsset[]
   leadProjectInterests LeadProjectInterest[]
+  interactions        Interaction[]
+  deals               Deal[]
 
   // (tenantId, name) is unique among live rows via a partial unique index
   // (WHERE "deletedAt" IS NULL) created in migration
@@ -412,6 +592,7 @@ model LeadSource {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   leads  Lead[]
+  spends SourceSpend[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -444,6 +625,14 @@ model PipelineStage {
   isSystem   Boolean            @default(false)
   isClosed   Boolean            @default(false)
   closeType  PipelineCloseType?
+  /// Icon key from the web's stage icon set (e.g. "phone", "trophy").
+  icon       String?
+  /// R8: a lead here with no interaction for this many days gets a "revive"
+  /// call. Null turns the rule off for the stage.
+  staleAfterDays Int?
+  /// R9: a lead in this stage longer than this gets a manager review task.
+  /// Null turns the rule off for the stage.
+  stuckAfterDays Int?
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
 
@@ -473,13 +662,52 @@ model Lead {
   budgetMin               Decimal?   @db.Decimal(14, 2)
   budgetMax               Decimal?   @db.Decimal(14, 2)
   notesSummary            String?
+  /// Client profile (all optional; filterable, importable, exportable).
+  occupation              String?
+  residenceArea           String?
+  paymentPreference       PaymentPreference?
+  contactChannelPreference ContactChannelPreference?
+  contactTimePreference   ContactTimePreference?
+  purchasePurpose         PurchasePurpose?
   customFields            Json?
+  /// Last real touch (Interaction). Written only by interactions.
   lastContactedAt         DateTime?
+  /// First outbound touch by the assignee — honest speed-to-lead.
+  firstContactedAt        DateTime?
+  /// When the lead entered its current stage (stage velocity, stuck deals).
+  stageEnteredAt          DateTime   @default(now())
+  /// Set on a WON/LOST transition, cleared on reopen.
+  closedAt                DateTime?
+  /// Earliest open task — "no next step" is `nextTaskDueAt IS NULL`.
+  nextTaskDueAt           DateTime?
+  /// When the current assignee got the lead (the SLA clock starts here).
+  assignedAt              DateTime?
+  /// First-contact SLA missed (set once, by the rules engine).
+  slaBreachedAt           DateTime?
+  /// Caller-supplied id from an inbound integration (idempotency). Unique
+  /// per tenant among live leads (partial index in the migration).
+  externalId              String?
+  /// Import job + 1-based data row that created this lead (retry-safe).
+  importJobId             String?    @db.Uuid
+  importRowNumber         Int?
+  contactAttempts         Int        @default(0)
+  unansweredStreak        Int        @default(0)
+  heat                    LeadHeat   @default(WARM)
+  lostReasonId            String?    @db.Uuid
+  lostNote                String?
+  /// Set on a duplicate that was merged away (it is soft-deleted too); points
+  /// at the surviving lead so old links can redirect.
+  mergedIntoId            String?    @db.Uuid
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
   deletedAt               DateTime?
 
   tenant                Tenant                @relation(fields: [tenantId], references: [id])
+  mergedInto            Lead?                 @relation("LeadMerges", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedLeads           Lead[]                @relation("LeadMerges")
+  lostReason            LostReason?           @relation(fields: [lostReasonId], references: [id])
+  interactions          Interaction[]
+  tasks                 Task[]
   source                LeadSource?           @relation(fields: [sourceId], references: [id])
   pipeline              Pipeline              @relation(fields: [pipelineId], references: [id])
   pipelineStage         PipelineStage         @relation(fields: [pipelineStageId], references: [id])
@@ -488,7 +716,10 @@ model Lead {
   activities            LeadActivity[]
   notes                 LeadNote[]
   leadProjectInterests  LeadProjectInterest[]
+  deals                 Deal[]
+  importJob             ImportJob?            @relation(fields: [importJobId], references: [id], onDelete: SetNull)
 
+  @@unique([importJobId, importRowNumber])
   @@index([tenantId, pipelineStageId, assignedUserId])
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, status])
@@ -498,6 +729,99 @@ model Lead {
   @@index([pipelineStageId])
   @@index([sourceId])
   @@index([assignedUserId])
+  @@index([tenantId, assignedUserId, nextTaskDueAt])
+  @@index([lostReasonId])
+  @@index([mergedIntoId])
+}
+
+/// Why a lead was lost. Tenant-editable list; recyclable reasons bring the
+/// lead back as a "re-engage" task after `recycleAfterDays` (spec §2.4).
+model LostReason {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @db.Uuid
+  name             String
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  recyclable       Boolean  @default(false)
+  recycleAfterDays Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  leads  Lead[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, sortOrder])
+}
+
+/// One real touch with a client (spec §2.1).
+model Interaction {
+  id              String               @id @default(uuid()) @db.Uuid
+  tenantId        String               @db.Uuid
+  leadId          String               @db.Uuid
+  userId          String               @db.Uuid
+  channel         InteractionChannel
+  direction       InteractionDirection @default(OUTBOUND)
+  outcome         InteractionOutcome
+  durationSeconds Int?
+  note            String?
+  projectId       String?              @db.Uuid
+  occurredAt      DateTime             @default(now())
+  createdAt       DateTime             @default(now())
+
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id])
+  project        Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  completedTasks Task[]   @relation("TaskCompletedBy")
+  evidence       FileAsset[] @relation("InteractionEvidence")
+
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@index([tenantId, userId, occurredAt(sort: Desc)])
+  @@index([leadId, occurredAt(sort: Desc)])
+}
+
+/// The next thing someone must do (spec §2.2). At most one OPEN task per
+/// (leadId, ruleKey) — enforced by a partial unique index in migration
+/// 20261117100000_workflow_records (not expressible here).
+model Task {
+  id                     String       @id @default(uuid()) @db.Uuid
+  tenantId               String       @db.Uuid
+  leadId                 String?      @db.Uuid
+  assigneeId             String       @db.Uuid
+  createdByUserId        String?      @db.Uuid
+  type                   TaskType
+  title                  String
+  dueAt                  DateTime
+  isAllDay               Boolean      @default(false)
+  priority               TaskPriority @default(NORMAL)
+  origin                 TaskOrigin   @default(SELF)
+  ruleKey                String?
+  status                 TaskStatus   @default(OPEN)
+  completedAt            DateTime?
+  completedInteractionId String?      @db.Uuid
+  skipReason             String?
+  snoozeCount            Int          @default(0)
+  escalatedAt            DateTime?
+  /// When a miss is escalated to the manager (set by SLA rules).
+  escalateAt             DateTime?
+  reminderSentAt         DateTime?
+  overdueNotifiedAt      DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  tenant               Tenant       @relation(fields: [tenantId], references: [id])
+  lead                 Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignee             User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy            User?        @relation("TaskCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  completedInteraction Interaction? @relation("TaskCompletedBy", fields: [completedInteractionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, assigneeId, status, dueAt])
+  @@index([leadId, status])
+  @@index([tenantId, status, dueAt])
+  @@index([status, dueAt])
+  @@index([status, escalateAt])
+  @@index([tenantId, ruleKey, createdAt])
 }
 
 model LeadProjectInterest {
@@ -568,6 +892,9 @@ model FileAsset {
   /// Small WebP preview (first PDF page / downscaled image), generated
   /// server-side in the background. Null until generated or if unsupported.
   thumbnailObjectKey String?         @unique
+  /// Evidence: the logged interaction this lead attachment documents
+  /// (reservation form, signed offer…). The file still belongs to the lead.
+  interactionId    String?           @db.Uuid
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
@@ -583,9 +910,11 @@ model FileAsset {
   // Restrict: removing a private folder must never drop its files to the
   // unprotected root.
   folder        FileFolder? @relation(fields: [folderId], references: [id], onDelete: Restrict)
+  interaction   Interaction? @relation("InteractionEvidence", fields: [interactionId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, folderId])
+  @@index([interactionId])
   @@index([tenantId, category])
   @@index([uploadedByUserId])
   @@index([avatarForUserId])
@@ -664,6 +993,11 @@ model ImportJob {
   processedRows   Int        @default(0)
   successfulRows  Int        @default(0)
   failedRows      Int        @default(0)
+  /// Rows skipped as duplicates of existing leads (not failures).
+  skippedRows     Int        @default(0)
+  duplicatePolicy ImportDuplicatePolicy @default(SKIP)
+  /// Column mapping and defaults chosen in the import wizard.
+  options         Json?
   errorSummary    Json?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -672,6 +1006,7 @@ model ImportJob {
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   createdBy User      @relation(fields: [createdByUserId], references: [id])
   fileAsset FileAsset @relation(fields: [fileAssetId], references: [id])
+  leads     Lead[]
 
   @@index([tenantId])
   @@index([status])
@@ -687,6 +1022,8 @@ model ExportJob {
   exportType      ExportType
   format          ExportFormat @default(CSV)
   filters         Json         @default("{}")
+  /// The requester's lead visibility, frozen when the export was requested.
+  leadScope       Json?
   status          JobStatus    @default(PENDING)
   progress        Int          @default(0)
   rowCount        Int?
@@ -739,6 +1076,8 @@ model NotificationPreference {
   userId    String                         @db.Uuid
   category  NotificationPreferenceCategory
   enabled   Boolean                        @default(true)
+  /// Also email this category (opt-in; in-app stays the source of truth).
+  emailEnabled Boolean                     @default(false)
   createdAt DateTime                       @default(now())
   updatedAt DateTime                       @updatedAt
 
@@ -974,4 +1313,242 @@ model TenantContract {
   @@index([planId])
   @@index([tenantId])
   @@index([deletedAt])
+}
+
+/// A saved way of looking at a table: filters, sort and display (list/board,
+/// columns, density). Views only store settings — results are always computed
+/// under the viewer's own lead visibility, so sharing never shares data.
+model SavedView {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  userId    String   @db.Uuid
+  /// Which table the view belongs to ("leads" for now).
+  tableKey  String   @default("leads")
+  name      String
+  filters   Json     @default("{}")
+  sort      Json     @default("{}")
+  /// { layout: "list" | "board", columns: Record<string, boolean>, density }
+  display   Json     @default("{}")
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, tableKey, userId])
+  @@index([tenantId, tableKey, isShared])
+}
+
+enum UserTokenType {
+  PASSWORD_RESET
+  INVITE
+}
+
+/// Single-use, expiring tokens for password reset and invitations. Only a
+/// SHA-256 hash is stored; the raw token only exists in the emailed link.
+model UserToken {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @db.Uuid
+  userId    String        @db.Uuid
+  type      UserTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([tenantId])
+}
+
+enum ImportDuplicatePolicy {
+  /// Rows whose phone matches an existing lead are skipped (default).
+  SKIP
+  /// Rows are imported even when the phone already exists.
+  CREATE
+}
+
+/// Keys for inbound integrations (website forms, Zapier, ad platforms).
+/// Only a SHA-256 hash is stored; the key is shown once at creation.
+model ApiKey {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @db.Uuid
+  name            String
+  /// First characters of the key, to recognise it in the list.
+  prefix          String
+  keyHash         String    @unique
+  /// Inbound leads get this source (optional).
+  sourceId        String?   @db.Uuid
+  lastUsedAt      DateTime?
+  createdByUserId String    @db.Uuid
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User   @relation(fields: [createdByUserId], references: [id])
+
+  @@index([tenantId, revokedAt])
+}
+
+// ---------------------------------------------------------------------------
+// W3 — money & targets (workflow spec §2.5–2.8)
+// ---------------------------------------------------------------------------
+
+enum DealStatus {
+  RESERVED
+  CONTRACTED
+  CANCELLED
+}
+
+/// A sale on a won lead (spec §2.5). One live (not cancelled) deal per lead;
+/// cancelling it re-opens the lead.
+model Deal {
+  id               String     @id @default(uuid()) @db.Uuid
+  tenantId         String     @db.Uuid
+  leadId           String     @db.Uuid
+  projectId        String?    @db.Uuid
+  /// Who gets the credit; defaults to the lead owner.
+  agentId          String?    @db.Uuid
+  unitType         String
+  unitCode         String?
+  price            Decimal    @db.Decimal(14, 2)
+  /// ISO-4217, copied from the workspace currency when the deal is created.
+  currency         String     @default("EGP")
+  downPaymentPct   Decimal?   @db.Decimal(5, 2)
+  /// Free text for now ("10% down, 8 years quarterly").
+  paymentPlan      String?
+  commissionPct    Decimal?   @db.Decimal(5, 2)
+  /// price × commissionPct, or typed by hand.
+  commissionAmount Decimal?   @db.Decimal(14, 2)
+  status           DealStatus @default(RESERVED)
+  reservedAt       DateTime   @default(now())
+  contractedAt     DateTime?
+  /// When the contract should be signed (set while doing the paperwork, R10).
+  expectedContractAt DateTime?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  notes            String?
+  createdByUserId  String?    @db.Uuid
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  agent     User?    @relation("DealAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  createdBy User?    @relation("DealCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, contractedAt])
+  @@index([tenantId, reservedAt])
+  @@index([tenantId, agentId])
+  @@index([leadId])
+  @@index([projectId])
+}
+
+enum TargetMetric {
+  DEALS
+  REVENUE
+  COMMISSION
+  INTERACTIONS
+  VISITS
+}
+
+/// Monthly goal for one agent, or for the whole workspace when `userId` is
+/// null (spec §2.6). Unique per (user | workspace, period, metric) — partial
+/// indexes in the migration because NULLs are distinct.
+model Target {
+  id              String       @id @default(uuid()) @db.Uuid
+  tenantId        String       @db.Uuid
+  userId          String?      @db.Uuid
+  /// Calendar month in the workspace timezone, "YYYY-MM".
+  period          String
+  metric          TargetMetric
+  value           Decimal      @db.Decimal(16, 2)
+  updatedByUserId String?      @db.Uuid
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation("TargetUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, period])
+}
+
+/// Marketing spend per lead source per month, entered by the owner (spec §2.7).
+model SourceSpend {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @db.Uuid
+  sourceId        String   @db.Uuid
+  /// Calendar month in the workspace timezone, "YYYY-MM".
+  period          String
+  amount          Decimal  @db.Decimal(14, 2)
+  note            String?
+  updatedByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  source LeadSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sourceId, period])
+  @@index([tenantId, period])
+}
+
+/// One row per user per local day, written by the nightly job and refreshed
+/// for "today" on demand (spec §2.8). Additive counters only, so any range is
+/// a SUM; averages are stored as total + count.
+model UserDailyStat {
+  tenantId                 String   @db.Uuid
+  userId                   String   @db.Uuid
+  /// Local calendar day in the workspace timezone.
+  day                      DateTime @db.Date
+  interactions             Int      @default(0)
+  calls                    Int      @default(0)
+  whatsapps                Int      @default(0)
+  meetings                 Int      @default(0)
+  visits                   Int      @default(0)
+  answered                 Int      @default(0)
+  tasksDue                 Int      @default(0)
+  tasksDone                Int      @default(0)
+  tasksOverdue             Int      @default(0)
+  tasksSnoozed             Int      @default(0)
+  slaHits                  Int      @default(0)
+  slaMisses                Int      @default(0)
+  firstResponseCount       Int      @default(0)
+  firstResponseMinutesTotal Int     @default(0)
+  dealsReserved            Int      @default(0)
+  dealsContracted          Int      @default(0)
+  dealsCancelled           Int      @default(0)
+  revenue                  Decimal  @default(0) @db.Decimal(16, 2)
+  commission               Decimal  @default(0) @db.Decimal(16, 2)
+  computedAt               DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId, day])
+  @@index([tenantId, day])
+}
+
+/// A badge level a user earned (spec §2.9). Written once when reached, so we
+/// can show "unlocked on" and notify once.
+model UserAchievement {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid
+  userId     String   @db.Uuid
+  /// Badge key from the shared catalog (e.g. "deals", "revenue").
+  key        String
+  /// 1-based level within the badge.
+  level      Int
+  /// The metric value when it was unlocked.
+  value      Decimal  @db.Decimal(16, 2)
+  unlockedAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key, level])
+  @@index([tenantId, unlockedAt])
 }
