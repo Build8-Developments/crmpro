@@ -72,9 +72,12 @@ describe('AuthController cookie transport', () => {
           },
         },
       ],
-    }).overrideGuard(RateLimitGuard).useValue({
-      canActivate: jest.fn().mockResolvedValue(true),
-    }).compile();
+    })
+      .overrideGuard(RateLimitGuard)
+      .useValue({
+        canActivate: jest.fn().mockResolvedValue(true),
+      })
+      .compile();
 
     controller = module.get(AuthController);
   });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,7 +106,15 @@ export function CredentialsStep({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href={`/forgot-password?workspace=${encodeURIComponent(workspace.slug)}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <AppIcons.lock
               className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"

@@ -68,7 +68,7 @@ export function NotificationPreferencesCard() {
 
   return (
     <NotificationPreferencesEditor
-      key={data.map((p) => `${p.category}:${p.enabled}`).join("|")}
+      key={data.map((p) => `${p.category}:${p.enabled}:${p.emailEnabled}`).join("|")}
       initialPrefs={data}
       canUpdate={canUpdate}
     />
@@ -88,22 +88,18 @@ function NotificationPreferencesEditor({
   const isDirty = useMemo(
     () =>
       localPrefs.some((pref) => {
-        const original = initialPrefs.find(
-          (item) => item.category === pref.category,
-        );
-        return original ? original.enabled !== pref.enabled : false;
+        const original = initialPrefs.find((item) => item.category === pref.category);
+        return original
+          ? original.enabled !== pref.enabled || original.emailEnabled !== pref.emailEnabled
+          : false;
       }),
     [initialPrefs, localPrefs],
   );
 
-  const toggle = (category: NotificationPreference["category"]) => {
+  const toggle = (category: NotificationPreference["category"], field: "enabled" | "emailEnabled") => {
     if (!canUpdate) return;
     setLocalPrefs((current) =>
-      current.map((pref) =>
-        pref.category === category
-          ? { ...pref, enabled: !pref.enabled }
-          : pref,
-      ),
+      current.map((pref) => (pref.category === category ? { ...pref, [field]: !pref[field] } : pref)),
     );
   };
 
@@ -113,6 +109,7 @@ function NotificationPreferencesEditor({
       preferences: localPrefs.map((pref) => ({
         category: pref.category,
         enabled: pref.enabled,
+        emailEnabled: pref.emailEnabled,
       })),
     });
   };
@@ -120,7 +117,7 @@ function NotificationPreferencesEditor({
   return (
     <SettingsSection
       title="Notifications"
-      description="Choose which alerts you receive"
+      description="Choose which alerts you receive in the app, and which also come by email"
       action={
         canUpdate ? (
           <Button
@@ -135,34 +132,43 @@ function NotificationPreferencesEditor({
         ) : null
       }
     >
-      <ul className="overflow-hidden rounded-lg border border-border/60">
-        {localPrefs.map((pref, index) => (
-          <li
-            key={pref.category}
-            className={cn(index > 0 && "border-t border-border/50")}
-          >
-            <label
+      <div className="overflow-hidden rounded-lg border border-border/60">
+        <div className="grid grid-cols-[1fr_4rem_4rem] items-center gap-2 border-b border-border/60 bg-muted/30 px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+          <span>Alert</span>
+          <span className="text-center">In app</span>
+          <span className="text-center">Email</span>
+        </div>
+        <ul>
+          {localPrefs.map((pref, index) => (
+            <li
+              key={pref.category}
               className={cn(
-                "flex items-center justify-between gap-3 px-3 py-2.5",
-                canUpdate && "cursor-pointer hover:bg-muted/25",
+                "grid grid-cols-[1fr_4rem_4rem] items-center gap-2 px-3 py-2.5",
+                index > 0 && "border-t border-border/50",
               )}
             >
-              <div className="min-w-0">
-                <p className="text-sm text-foreground">{pref.label}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {pref.enabled ? "On" : "Off"}
-                </p>
-              </div>
-              <Checkbox
-                checked={pref.enabled}
-                disabled={!canUpdate}
-                onCheckedChange={() => toggle(pref.category)}
-                aria-label={pref.label}
-              />
-            </label>
-          </li>
-        ))}
-      </ul>
+              <span className="min-w-0 text-sm text-foreground">{pref.label}</span>
+              <span className="flex justify-center">
+                <Checkbox
+                  checked={pref.enabled}
+                  disabled={!canUpdate}
+                  onCheckedChange={() => toggle(pref.category, "enabled")}
+                  aria-label={`${pref.label} in the app`}
+                />
+              </span>
+              <span className="flex justify-center">
+                <Checkbox
+                  checked={pref.enabled && pref.emailEnabled}
+                  disabled={!canUpdate || !pref.enabled}
+                  onCheckedChange={() => toggle(pref.category, "emailEnabled")}
+                  aria-label={`${pref.label} by email`}
+                  title={pref.enabled ? undefined : "Turn it on in the app first"}
+                />
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </SettingsSection>
   );
 }

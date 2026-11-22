@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserSession } from '@crmpro/database';
 import { AuthLoggingService } from '../../common/logging/auth-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -39,16 +36,22 @@ export class AuthService {
     const hashedRefreshToken =
       await this.tokenService.hashRefreshToken(rawRefreshSecret);
 
-    const session = await this.prisma.userSession.create({
-      data: {
-        userId: user.id,
-        hashedRefreshToken,
-        expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
-        deviceName: sessionMetadata.deviceName,
-        ipAddress: sessionMetadata.ipAddress,
-        userAgent: sessionMetadata.userAgent,
-      },
-    });
+    const [session] = await this.prisma.$transaction([
+      this.prisma.userSession.create({
+        data: {
+          userId: user.id,
+          hashedRefreshToken,
+          expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
+          deviceName: sessionMetadata.deviceName,
+          ipAddress: sessionMetadata.ipAddress,
+          userAgent: sessionMetadata.userAgent,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
+    ]);
 
     const accessToken = this.tokenService.generateAccessToken(
       {
@@ -282,7 +285,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const user = await this.usersService.findByTenantAndEmail(tenantSlug, email);
+    const user = await this.usersService.findByTenantAndEmail(
+      tenantSlug,
+      email,
+    );
     if (!user || user.deletedAt !== null || !user.isActive) {
       this.authLoggingService.loginFailure({
         email,

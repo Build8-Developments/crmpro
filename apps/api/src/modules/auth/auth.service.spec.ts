@@ -9,6 +9,7 @@ import { TenantAccessService } from '../../common/tenant-access/tenant-access.se
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import type { LoginSessionMetadata } from './types/login-session-metadata.type';
 
 describe('AuthService tenant suspension enforcement', () => {
   let service: AuthService;
@@ -33,6 +34,8 @@ describe('AuthService tenant suspension enforcement', () => {
       findUnique: jest.Mock;
       updateMany: jest.Mock;
     };
+    user: { update: jest.Mock };
+    $transaction: jest.Mock;
   };
   let tenantAccessService: { assertTenantAccessible: jest.Mock };
 
@@ -69,7 +72,9 @@ describe('AuthService tenant suspension enforcement', () => {
     tokenService = {
       generateRawRefreshSecret: jest.fn().mockReturnValue('secret'),
       hashRefreshToken: jest.fn().mockResolvedValue('hashed'),
-      getRefreshTokenExpiresAt: jest.fn().mockReturnValue(new Date('2099-01-01')),
+      getRefreshTokenExpiresAt: jest
+        .fn()
+        .mockReturnValue(new Date('2099-01-01')),
       generateAccessToken: jest.fn().mockReturnValue('access-token'),
       formatRefreshToken: jest.fn().mockReturnValue('refresh-token'),
       parseRefreshToken: jest.fn().mockReturnValue({
@@ -79,6 +84,10 @@ describe('AuthService tenant suspension enforcement', () => {
       verifyRefreshToken: jest.fn().mockResolvedValue(true),
     };
     prisma = {
+      user: { update: jest.fn().mockResolvedValue({ id: 'user-1' }) },
+      $transaction: jest.fn((operations: Promise<unknown>[]) =>
+        Promise.all(operations),
+      ),
       userSession: {
         create: jest.fn().mockResolvedValue({ id: 'session-1' }),
         findUnique: jest.fn().mockResolvedValue({
@@ -131,7 +140,7 @@ describe('AuthService tenant suspension enforcement', () => {
           email: 'owner@example.com',
           password: 'Password1',
         },
-        {},
+        {} as LoginSessionMetadata,
       ),
     ).rejects.toThrow(ForbiddenException);
 
@@ -164,7 +173,7 @@ describe('AuthService tenant suspension enforcement', () => {
           email: 'owner@example.com',
           password: 'Password1',
         },
-        {},
+        {} as LoginSessionMetadata,
       ),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -278,7 +287,9 @@ describe('AuthService refresh token rotation', () => {
         },
         {
           provide: TenantAccessService,
-          useValue: { assertTenantAccessible: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();

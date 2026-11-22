@@ -18,7 +18,7 @@ export class UpdateMeDto {
 
   /** Empty string or null clears the phone. */
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === null) return null;
     if (typeof value !== 'string') return value;
     const trimmed = value.trim();

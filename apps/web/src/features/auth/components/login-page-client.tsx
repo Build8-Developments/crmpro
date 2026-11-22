@@ -1,4 +1,5 @@
 "use client";
+import { getHomeRoute } from "@/lib/home-route";
 
 import { PRODUCT_NAME, ProductMark } from "@/components/brand/product-logo";
 import { useEffect } from "react";
@@ -13,7 +14,7 @@ export function LoginPageClient() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/dashboard");
+      router.replace(getHomeRoute());
     }
   }, [router, status]);
 
@@ -22,7 +23,7 @@ export function LoginPageClient() {
   }
 
   if (status === "authenticated") {
-    return <AuthSplash message="Opening dashboard..." />;
+    return <AuthSplash message="Opening your workspace..." />;
   }
 
   return (
