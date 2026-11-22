@@ -5,7 +5,7 @@ allowBuilds:
   '@prisma/engines': true
   '@scarf/scarf': true
   argon2: true
-  bcrypt: set this to true or false
+  bcrypt: false
   msgpackr-extract: true
   prisma: true
   sharp: true
