@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,6 +92,14 @@ export function CreateExportDialog() {
             time.
           </DialogDescription>
         </DialogHeader>
+
+        <p className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          Need specific leads (a stage, source, owner or date range)? Filter the{" "}
+          <Link href="/leads" className="font-medium text-foreground underline-offset-2 hover:underline">
+            Leads list
+          </Link>{" "}
+          and use its Export button: it exports exactly what you see.
+        </p>
 
         <div className="space-y-3">
           <div className="space-y-1.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useWorkspaceCurrency } from "@/features/organization/hooks";
 import { useMemo, useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export function LeadsFiltersSheet({
 
   const { pipelines, sources, users, projects } = useLeadFilterOptions();
   const lostReasons = useLostReasons();
+  const currency = useWorkspaceCurrency();
 
   const stageOptions = useMemo(() => {
     const list = pipelines.data ?? [];
@@ -326,7 +328,7 @@ export function LeadsFiltersSheet({
             </div>
             <div className="space-y-1.5">
               <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                Budget (EGP)
+                Budget ({currency})
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <Input

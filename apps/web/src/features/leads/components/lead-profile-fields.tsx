@@ -1,5 +1,6 @@
 "use client";
 
+import { useWorkspaceCurrency } from "@/features/organization/hooks";
 import {
   CONTACT_CHANNEL_LABELS,
   CONTACT_CHANNEL_PREFERENCES,
@@ -134,6 +135,7 @@ export function LeadProfileFields({
 }) {
   const set = (key: keyof LeadProfileDraft) => (next: string) => onChange({ ...value, [key]: next });
   const budgetError = profileBudgetError(value);
+  const currency = useWorkspaceCurrency();
 
   return (
     <div className="space-y-3">
@@ -178,7 +180,7 @@ export function LeadProfileFields({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Budget (EGP)</Label>
+        <Label>Budget ({currency})</Label>
         <div className="grid grid-cols-2 gap-3">
           <Input
             inputMode="numeric"

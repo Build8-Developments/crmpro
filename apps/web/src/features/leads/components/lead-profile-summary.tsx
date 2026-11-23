@@ -1,5 +1,6 @@
 "use client";
 
+import { useWorkspaceCurrency } from "@/features/organization/hooks";
 import {
   CONTACT_CHANNEL_LABELS,
   CONTACT_TIME_LABELS,
@@ -11,11 +12,12 @@ import { formatBudget } from "@/features/leads/utils/lead-formatters";
 
 /** What the agent should know before calling: who they are and what they want. */
 export function LeadProfileSummary({ lead }: { lead: Lead }) {
+  const currency = useWorkspaceCurrency();
   const rows: Array<[string, string | null]> = [
     ["Job", lead.occupation],
     ["Lives in", lead.residenceArea],
     ["Buying to", lead.purchasePurpose ? PURCHASE_PURPOSE_LABELS[lead.purchasePurpose] : null],
-    ["Budget", formatBudget(lead.budgetMin, lead.budgetMax)],
+    ["Budget", formatBudget(lead.budgetMin, lead.budgetMax, currency)],
     ["Pays by", lead.paymentPreference ? PAYMENT_PREFERENCE_LABELS[lead.paymentPreference] : null],
     [
       "Reach by",

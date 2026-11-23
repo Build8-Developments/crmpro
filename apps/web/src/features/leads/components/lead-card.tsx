@@ -1,5 +1,6 @@
 "use client";
 
+import { useWorkspaceCurrency } from "@/features/organization/hooks";
 import { useState } from "react";
 import { IconBrandWhatsapp, IconLoader2, IconPhone } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,8 @@ export function LeadCard({ lead }: { lead: Lead }) {
   const archived = lead.status === "ARCHIVED";
   const closed = lead.stage.isClosed || archived;
   const interest = getPrimaryProjectInterest(lead);
-  const budget = formatBudget(lead.budgetMin, lead.budgetMax);
+  const currency = useWorkspaceCurrency();
+  const budget = formatBudget(lead.budgetMin, lead.budgetMax, currency);
   const stale = isStaleContact(lead.lastContactedAt);
 
   return (

@@ -1,6 +1,7 @@
 # Workflow Engine, Agent "Today" & Owner Dashboard (Spec)
 
-Status: approved 2026-11-17 (decisions in §7). W1 in progress. Precedes Phase 1 in
+Status: approved 2026-11-17, **W1–W4 built** (2026-11-23). Decisions in §7,
+including the ones made while building (§7.2). Precedes Phase 1 in
 `tenant-app-review-2026-11.md` and replaces its §6.1 / parts of §6.3.
 
 > **Principle: the system runs the day, people execute it.** Every open lead
@@ -134,9 +135,13 @@ we can show "unlocked on" and notify once.
 
 `workingDays`, `workingHours` (SLA clocks only run inside them),
 `firstContactSlaMinutes` (default 15), `escalateAfterMinutes` (default 30),
-`staleDaysByStage`,
-`stuckDaysByStage`, `dailyInteractionGoal` (default 25),
-`showLeaderboardToAgents`.
+`dailyInteractionGoal` (default 25), `leaderboardMode` (§4.1).
+
+The stale / stuck thresholds live on each pipeline stage, not in a settings
+map: `PipelineStage.staleAfterDays` (R8) and `stuckAfterDays` (R9), edited
+per stage in Settings → Pipelines; blank turns the rule off for that stage.
+Defaults: New Lead 3 / off, Contacted 7 / 14, Qualified 7 / 21,
+Proposal 5 / 14, Negotiation 5 / 21; closed stages off.
 
 ---
 
@@ -237,7 +242,16 @@ visible instead:
   10M/50M/100M EGP sold · Speed demon (50 leads reached < 5 min) · Zero overdue
   week · 10-day streak · Referral magnet (3 deals from client referrals) ·
   Closer (win rate ≥ 25% over 20 leads).
-- **Rank** in team (only if `showLeaderboardToAgents`).
+- **Leaderboard** — top 3 this month + your own rank, without exposing anyone's
+  money (§7.2): ranked by % of each person's own monthly targets (each
+  target counts up to 150%); the owner chooses what agents see
+  (`leaderboardMode`: % of target (default) · positions only · full figures ·
+  off); anyone can appear as "A teammate"; the API only sends the fields
+  the mode allows. "Recent wins" lists badge levels unlocked in the last two
+  weeks, one line per level, without revenue badges unless figures are shown.
+- **Hidden by default** — every number on My performance (and the figures on
+  Today's targets card) starts masked; "Show numbers" reveals them until the
+  tab is left or after a minute without activity.
 
 ---
 
@@ -287,3 +301,29 @@ trend charts are kept but move under sections 2 and 5.
    manager at 30 min; the manager decides whether to reassign.
 4. **Leaderboard** — visible to agents: top 3 + own rank.
 5. **Snoozing** — allowed with a reason; snoozes are counted per agent.
+
+### 7.2 Decisions made while building (2026-11-18 → 2026-11-23)
+
+6. **Rule caps** — R8 revive and R9 stuck reviews: at most 5 new tasks per
+   person per day (R8 also within `dailyInteractionGoal`, only in working
+   hours). R10/R11/R12 look back 14 days only, so switching rules on never
+   floods existing data. Manager REVIEW tasks don't count as the agent's
+   next step (R7).
+7. **R10 contract date** — a reserved deal gets "Collect documents and set the
+   contract date"; managers are alerted once if the deal is still reserved
+   after `Deal.expectedContractAt` (or 14 days after reservation).
+8. **Leaderboard privacy** — replaces `showLeaderboardToAgents` with
+   `leaderboardMode` (default % of target; workspaces that had it off stay
+   off). Managers keep real numbers on the dashboard's team table.
+9. **Contract termination** — the platform admin picks the mode per
+   termination: full access until end + grace, read-only until then (sign
+   in, view, export and support only), or immediate suspension (sessions
+   revoked). A read-only workspace can export even on a plan without
+   import/export.
+10. **Plan snapshots** — a contract keeps its plan as signed (quotas, price,
+    feature flags); a malformed limit counts as 0, never unlimited. Feature
+    flags added to the plan later still reach old contracts.
+11. **Custom fields** — archiving a field hides it but keeps its values;
+    required fields are checked on import only when their column is mapped;
+    the inbound API doesn't take them yet.
+12. **i18n / Arabic** — deferred until Arabic work starts.

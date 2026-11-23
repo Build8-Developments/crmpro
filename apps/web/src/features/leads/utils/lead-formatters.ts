@@ -23,12 +23,16 @@ export function formatLastContacted(lastContactedAt: string | null): string {
 }
 
 /** "2M – 3.5M EGP", "From 2M EGP", "Up to 3M EGP", or null when unknown. */
-export function formatBudget(min: number | null, max: number | null): string | null {
+export function formatBudget(
+  min: number | null,
+  max: number | null,
+  currency = "EGP",
+): string | null {
   if (min === null && max === null) return null;
   if (min !== null && max !== null) {
-    return `${formatCompactNumber(min)} – ${formatCompactNumber(max)} EGP`;
+    return `${formatCompactNumber(min)} – ${formatCompactNumber(max)} ${currency}`;
   }
   return min !== null
-    ? `From ${formatCompactNumber(min)} EGP`
-    : `Up to ${formatCompactNumber(max!)} EGP`;
+    ? `From ${formatCompactNumber(min)} ${currency}`
+    : `Up to ${formatCompactNumber(max!)} ${currency}`;
 }

@@ -17,7 +17,7 @@ const IDLE_HIDE_MS = 60_000;
 const ACTIVITY_EVENTS = ["pointermove", "pointerdown", "keydown", "wheel", "touchstart", "scroll"] as const;
 
 /**
- * Numbers on My performance start hidden, so someone passing by a screen
+ * Performance numbers start hidden (My performance, Today's targets), so someone passing by a screen
  * doesn't see them. "Show numbers" reveals them until the user hides them
  * again, leaves the tab, or stops using the page for a minute (a laptop left
  * open on this page).
@@ -61,10 +61,30 @@ export function usePrivacy(): PrivacyState {
   return useContext(PrivacyContext);
 }
 
-/** The header button: "Show numbers" / "Hide numbers". */
-export function PrivacyToggle({ className }: { className?: string }) {
+/**
+ * The toggle: "Show numbers" / "Hide numbers". `compact` is an icon-only
+ * button for card headers (the label stays for screen readers).
+ */
+export function PrivacyToggle({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { hidden, toggle } = usePrivacy();
   const Icon = hidden ? AppIcons.eye : AppIcons.eyeOff;
+  const label = hidden ? "Show numbers" : "Hide numbers";
+  if (compact) {
+    return (
+      <Button
+        type="button"
+        size="icon-xs"
+        variant="ghost"
+        className={cn("text-muted-foreground", className)}
+        aria-pressed={!hidden}
+        aria-label={label}
+        title={label}
+        onClick={toggle}
+      >
+        <Icon className="size-3.5" />
+      </Button>
+    );
+  }
   return (
     <Button
       type="button"
@@ -75,8 +95,19 @@ export function PrivacyToggle({ className }: { className?: string }) {
       onClick={toggle}
     >
       <Icon className="size-4" />
-      {hidden ? "Show numbers" : "Hide numbers"}
+      {label}
     </Button>
+  );
+}
+
+/** One value inline: "•••" while numbers are hidden. */
+export function PrivateText({ children }: { children: React.ReactNode }) {
+  const { hidden } = usePrivacy();
+  if (!hidden) return <>{children}</>;
+  return (
+    <span aria-label="Hidden" className="tracking-widest select-none">
+      •••
+    </span>
   );
 }
 

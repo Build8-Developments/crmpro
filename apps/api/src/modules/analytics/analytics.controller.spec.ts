@@ -12,6 +12,7 @@ import { PermissionsGuard } from '../../common/auth/guards/permissions.guard';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
 import { PlanEntitlementGuard } from '../../common/entitlements/guards/plan-entitlement.guard';
 import { PlanEntitlementService } from '../../common/entitlements/plan-entitlement.service';
+import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { AnalyticsAggregatorService } from './analytics-aggregator.service';
@@ -98,6 +99,14 @@ describe('AnalyticsController', () => {
           useValue: planEntitlementService,
         },
         PlanEntitlementGuard,
+        {
+          provide: TenantAccessService,
+          useValue: {
+            getCachedTenantAccessState: jest
+              .fn()
+              .mockResolvedValue({ readOnly: false, accessEndsAt: null }),
+          },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -270,6 +279,14 @@ describe('AnalyticsController plan entitlements', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlanEntitlementGuard,
+        {
+          provide: TenantAccessService,
+          useValue: {
+            getCachedTenantAccessState: jest
+              .fn()
+              .mockResolvedValue({ readOnly: false, accessEndsAt: null }),
+          },
+        },
         {
           provide: PlanEntitlementService,
           useValue: planEntitlementService,

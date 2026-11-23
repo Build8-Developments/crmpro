@@ -13,7 +13,7 @@ import {
   PrivacyProvider,
   PrivacyToggle,
   PrivateBlock,
-} from "@/features/performance/components/privacy";
+} from "@/components/crm/privacy";
 import { useMyPerformance } from "@/features/performance/hooks";
 import type { MyPerformance } from "@/features/performance/types";
 import { formatMonthYear } from "@/features/performance/utils/performance-format";

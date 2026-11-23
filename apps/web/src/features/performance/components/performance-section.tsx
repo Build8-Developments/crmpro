@@ -1,4 +1,4 @@
-import { PrivateBlock, usePrivacy } from "@/features/performance/components/privacy";
+import { PrivateBlock, usePrivacy } from "@/components/crm/privacy";
 import { cn } from "@/lib/utils";
 
 /**

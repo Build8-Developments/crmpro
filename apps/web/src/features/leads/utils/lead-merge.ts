@@ -23,7 +23,11 @@ export const MERGE_FIELD_LABELS: Record<LeadMergeField, string> = {
 };
 
 /** How one mergeable field reads on a lead (contacts stay masked). */
-export function formatMergeFieldValue(lead: Lead, field: LeadMergeField): string | null {
+export function formatMergeFieldValue(
+  lead: Lead,
+  field: LeadMergeField,
+  currency = "EGP",
+): string | null {
   switch (field) {
     case "fullName":
       return lead.fullName;
@@ -32,7 +36,7 @@ export function formatMergeFieldValue(lead: Lead, field: LeadMergeField): string
     case "source":
       return lead.source?.name ?? null;
     case "budget":
-      return formatBudget(lead.budgetMin, lead.budgetMax);
+      return formatBudget(lead.budgetMin, lead.budgetMax, currency);
     case "occupation":
       return lead.occupation;
     case "residenceArea":

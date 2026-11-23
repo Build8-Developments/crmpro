@@ -1,5 +1,6 @@
 "use client";
 
+import { useWorkspaceCurrency } from "@/features/organization/hooks";
 import { useState } from "react";
 import type { LeadMergeField, LeadMergeFieldChoice } from "@crmpro/shared";
 import { AppIcons } from "@/components/icons/app-icons";
@@ -74,6 +75,7 @@ function MergeLeadsForm({
 }: MergeLeadsDialogProps & { duplicate: LeadDuplicate }) {
   const { can } = usePermissions();
   const canAssign = can("lead.assign");
+  const currency = useWorkspaceCurrency();
   const mergeLeads = useMergeLeads();
   // A live deal must stay on its (won) lead, so that lead is kept by default.
   const [keep, setKeep] = useState<Side>(() =>
@@ -98,8 +100,8 @@ function MergeLeadsForm({
     if (field === "assignee" && !canAssign) return keep;
     const picked = picks[field];
     if (picked) return picked;
-    const survivorBlank = formatMergeFieldValue(survivor, field) === null;
-    const otherHasValue = formatMergeFieldValue(mergedAway, field) !== null;
+    const survivorBlank = formatMergeFieldValue(survivor, field, currency) === null;
+    const otherHasValue = formatMergeFieldValue(mergedAway, field, currency) !== null;
     return survivorBlank && otherHasValue ? other : keep;
   };
 
@@ -181,7 +183,7 @@ function MergeLeadsForm({
                         onChange={() => setPicks((current) => ({ ...current, [field]: side }))}
                       />
                       <span className="truncate">
-                        {formatMergeFieldValue(leadsBySide[side], field) ?? (
+                        {formatMergeFieldValue(leadsBySide[side], field, currency) ?? (
                           <span className="text-muted-foreground">Empty</span>
                         )}
                       </span>

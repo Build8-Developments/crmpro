@@ -16,7 +16,10 @@ import {
   RequirePermission,
 } from '../../../common/auth';
 import { PLAN_FEATURES } from '../../../common/entitlements/entitlement.constants';
-import { RequirePlanFeature } from '../../../common/entitlements/decorators/require-plan-feature.decorator';
+import {
+  RequirePlanFeature,
+  WaiveFeatureWhenReadOnly,
+} from '../../../common/entitlements/decorators/require-plan-feature.decorator';
 import { PlanEntitlementGuard } from '../../../common/entitlements/guards/plan-entitlement.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -33,6 +36,7 @@ export class ExportJobsController {
   @Post('leads')
   @RequirePermission(PERMISSIONS.EXPORT_JOB_CREATE)
   @RequirePlanFeature(PLAN_FEATURES.IMPORT_EXPORT)
+  @WaiveFeatureWhenReadOnly()
   async createLeadExportJob(
     @CurrentUser() user: AuthenticatedUser,
     @CurrentLeadScope() scope: LeadScope,

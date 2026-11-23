@@ -1,5 +1,6 @@
 "use client";
 
+import { PrivacyProvider, PrivacyToggle, PrivateText } from "@/components/crm/privacy";
 import { TargetProgressBar } from "@/features/targets/components/target-progress-bar";
 import { useMyTargets } from "@/features/targets/hooks";
 import type { MetricProgress } from "@/features/targets/types";
@@ -8,7 +9,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * Today side panel (workflow spec §4.4): this month's targets as progress
- * bars with "on track / behind by N". Hidden until a target is set.
+ * bars with "on track / behind by N". Hidden until a target is set. The
+ * figures start masked (the bars and status stay) so people passing by a
+ * screen don't read them; the eye button shows them.
  */
 export function MonthTargetsCard() {
   const { data } = useMyTargets();
@@ -21,11 +24,13 @@ export function MonthTargetsCard() {
   const daysLeft = Math.max(0, Math.floor(data.pace.workingDays - data.pace.elapsedWorkingDays));
 
   return (
+    <PrivacyProvider>
     <section className="rounded-xl border border-border/60 bg-card p-4 shadow-xs">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">This month&apos;s targets</h2>
-        <span className="text-[11px] text-muted-foreground tabular-nums">
+        <span className="flex items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
           {daysLeft} working {daysLeft === 1 ? "day" : "days"} left
+          <PrivacyToggle compact />
         </span>
       </div>
       {mine.length > 0 ? (
@@ -46,6 +51,7 @@ export function MonthTargetsCard() {
         </div>
       ) : null}
     </section>
+    </PrivacyProvider>
   );
 }
 
@@ -57,7 +63,10 @@ function ProgressLine({ progress, currency }: { progress: MetricProgress; curren
       <div className="flex items-baseline justify-between gap-2 text-xs">
         <span className="font-medium">{METRIC_LABELS[progress.metric]}</span>
         <span className="tabular-nums text-muted-foreground">
-          <span className="text-foreground">{format(progress.actual)}</span> / {format(target)}
+          <span className="text-foreground">
+            <PrivateText>{format(progress.actual)}</PrivateText>
+          </span>{" "}
+          / <PrivateText>{format(target)}</PrivateText>
         </span>
       </div>
       <TargetProgressBar
@@ -76,7 +85,11 @@ function StatusLabel({ progress, format }: { progress: MetricProgress; format: (
     return <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Target hit</p>;
   }
   if (progress.status === "BEHIND") {
-    return <p className="text-[11px] text-amber-700 dark:text-amber-400">Behind by {format(progress.behindBy)}</p>;
+    return (
+      <p className="text-[11px] text-amber-700 dark:text-amber-400">
+        Behind by <PrivateText>{format(progress.behindBy)}</PrivateText>
+      </p>
+    );
   }
   return <p className="text-[11px] text-muted-foreground">On track</p>;
 }

@@ -83,3 +83,8 @@ export function useRemoveLogo() {
     invalidateKeys: organizationKeys,
   });
 }
+
+/** The workspace currency (Settings → General), "EGP" while loading. */
+export function useWorkspaceCurrency(): string {
+  return useOrganization().data?.settings.currency ?? "EGP";
+}
