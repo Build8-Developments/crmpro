@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useClientValue } from "@/hooks/use-client-value";
 import { usePathname, useRouter } from "next/navigation";
-import { PRODUCT_NAME } from "@/components/brand/product-logo";
+import { ProductWordmark } from "@/components/brand/product-logo";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -154,7 +154,7 @@ function Breadcrumbs() {
   const crumbs = [...getRouteBreadcrumbs(pathname), ...trail];
 
   if (crumbs.length === 0) {
-    return <span className="text-[13px] font-semibold">{PRODUCT_NAME}</span>;
+    return <ProductWordmark className="h-3.5" />;
   }
 
   return (
@@ -341,6 +341,8 @@ function UserMenu({
 
 export function Topbar() {
   const openMobileSidebar = useUIStore((s) => s.openMobileSidebar);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);
   const [mobileOverlay, setMobileOverlay] = useState<
     "notifications" | "create" | "user" | null
@@ -354,6 +356,25 @@ export function Topbar() {
     if (commandPaletteOpen) setMobileOverlay(null);
   }
 
+  // ⌘B / Ctrl+B collapses or expands the sidebar, except while typing.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key?.toLowerCase() !== "b" || !(event.metaKey || event.ctrlKey)) return;
+      if (event.altKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      toggleSidebar();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [toggleSidebar]);
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-2 sm:px-3 md:px-4">
       {/* Mobile drawer toggle */}
@@ -365,6 +386,22 @@ export function Topbar() {
         onClick={openMobileSidebar}
       >
         <AppIcons.menu className="size-4" stroke={2} />
+      </Button>
+
+      {/* Desktop sidebar toggle (also ⌘B / Ctrl+B) */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="hidden h-8 w-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground md:inline-flex"
+        aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={`${sidebarCollapsed ? "Expand" : "Collapse"} sidebar (⌘B)`}
+        onClick={toggleSidebar}
+      >
+        {sidebarCollapsed ? (
+          <AppIcons.sidebarExpand className="size-4" stroke={2} />
+        ) : (
+          <AppIcons.sidebarCollapse className="size-4" stroke={2} />
+        )}
       </Button>
 
       {/* Left: where am I */}

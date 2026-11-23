@@ -281,7 +281,7 @@ export function Topbar() {
 
       <div className="flex min-w-0 flex-1 flex-col justify-center xl:flex-none">
         <h1 className="truncate text-[13px] font-semibold leading-tight text-foreground">
-          {route?.label ?? "CRMPro Admin"}
+          {route?.label ?? "Nomow Admin"}
         </h1>
         {route?.subtitle && (
           <p className="hidden truncate text-[11px] leading-tight text-muted-foreground sm:block">

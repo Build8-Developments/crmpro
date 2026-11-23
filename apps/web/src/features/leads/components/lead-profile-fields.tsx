@@ -12,6 +12,7 @@ import {
   PURCHASE_PURPOSES,
 } from "@crmpro/shared";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -120,11 +121,6 @@ function OptionSelect<T extends string>({
   );
 }
 
-function formatAmountInput(value: string): string {
-  const digits = value.replace(/[^\d]/g, "");
-  return digits ? Number(digits).toLocaleString("en-US") : "";
-}
-
 /** The client-profile part of the lead form (create + edit). */
 export function LeadProfileFields({
   value,
@@ -182,18 +178,20 @@ export function LeadProfileFields({
       <div className="space-y-1.5">
         <Label>Budget ({currency})</Label>
         <div className="grid grid-cols-2 gap-3">
-          <Input
-            inputMode="numeric"
+          <AmountInput
+            decimals={0}
             placeholder="From"
-            value={formatAmountInput(value.budgetMin)}
-            onChange={(event) => set("budgetMin")(event.target.value)}
+            className="tabular-nums"
+            value={value.budgetMin}
+            onValueChange={set("budgetMin")}
             aria-invalid={Boolean(budgetError)}
           />
-          <Input
-            inputMode="numeric"
+          <AmountInput
+            decimals={0}
             placeholder="To"
-            value={formatAmountInput(value.budgetMax)}
-            onChange={(event) => set("budgetMax")(event.target.value)}
+            className="tabular-nums"
+            value={value.budgetMax}
+            onValueChange={set("budgetMax")}
             aria-invalid={Boolean(budgetError)}
           />
         </div>

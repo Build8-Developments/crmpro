@@ -58,7 +58,7 @@ export function ContractTermsSection({
   return (
     <SettingsSection
       title="Contract"
-      description="The terms your workspace signed with CRMPro"
+      description="The terms your workspace signed with Nomow"
     >
       {contract ? (
         <div className="space-y-3">

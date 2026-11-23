@@ -56,7 +56,7 @@ export const envValidationSchema = Joi.object({
       is: 'production',
       then: Joi.valid('smtp').required(),
     }),
-  MAIL_FROM: Joi.string().default('CRMPro <no-reply@crmpro.local>'),
+  MAIL_FROM: Joi.string().default('Nomow <no-reply@crmpro.local>'),
   SMTP_HOST: Joi.string().when('MAIL_TRANSPORT', {
     is: 'smtp',
     then: Joi.required(),

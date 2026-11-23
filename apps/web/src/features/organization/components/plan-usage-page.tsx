@@ -42,7 +42,7 @@ export function PlanUsagePage() {
         <>
           <SettingsSection
             title="Plan"
-            description="Set by CRMPro under your contract"
+            description="Set by Nomow under your contract"
             action={
               can("support.create") ? (
                 <Button asChild variant="outline" size="sm">

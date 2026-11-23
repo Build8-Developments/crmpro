@@ -37,7 +37,7 @@ export function IntegrationsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Integrations</h1>
           <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
-            Send leads into CRMPro from your website forms, Zapier, Make or ad platforms with an API
+            Send leads into Nomow from your website forms, Zapier, Make or ad platforms with an API
             key. New leads land unassigned in your default pipeline, so a manager can distribute them.
             If the phone already belongs to an open lead, that lead&apos;s owner is told the client came
             back instead of creating a duplicate.

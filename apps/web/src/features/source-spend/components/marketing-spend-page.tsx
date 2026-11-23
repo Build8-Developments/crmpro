@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSaveSourceSpend, useSourceSpend } from "@/features/source-spend/hooks";
@@ -193,12 +193,12 @@ function SpendForm({
           </p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
                   <th className="sticky left-0 z-10 w-44 bg-card px-4 py-2.5 font-medium">Source</th>
                   {grid.periods.map((period) => (
-                    <th key={period} className="px-2 py-2.5 text-right font-medium">
+                    <th key={period} className="min-w-[7.5rem] px-2 py-2.5 text-right font-medium">
                       {formatPeriodShort(period, true)}
                     </th>
                   ))}
@@ -216,16 +216,15 @@ function SpendForm({
                       const canNote = canEdit && parsed !== null && parsed !== undefined;
                       return (
                         <td key={cell.period} className="px-2 py-2.5 align-top">
-                          <Input
-                            inputMode="decimal"
+                          <AmountInput
                             value={value}
                             placeholder="—"
                             disabled={!canEdit}
                             aria-label={`${row.source.name} spend in ${formatPeriodLabel(cell.period)}`}
                             aria-invalid={parsed === undefined || undefined}
-                            onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value }))}
+                            onValueChange={(next) => setDraft((current) => ({ ...current, [key]: next }))}
                             className={cn(
-                              "h-8 text-right tabular-nums placeholder:text-muted-foreground/60",
+                              "h-8 px-2 text-right tabular-nums placeholder:text-muted-foreground/60",
                               parsed !== undefined && parsed !== cell.amount && "border-primary/60 bg-primary/5",
                             )}
                           />

@@ -1,11 +1,24 @@
 import type { Metadata } from "next";
+import { Alan_Sans, Alexandria } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/providers/app-providers";
 
 export const metadata: Metadata = {
-  title: "CRMPro Admin",
-  description: "CRMPro platform administration",
+  title: "Nomow Admin",
+  description: "Nomow platform administration",
 };
+
+const displayFont = Alexandria({
+  subsets: ["latin", "arabic"],
+  variable: "--font-alexandria",
+  display: "swap",
+});
+
+const textFont = Alan_Sans({
+  subsets: ["latin"],
+  variable: "--font-alan-sans",
+  display: "swap",
+});
 
 const themeInitScript = `
   (() => {
@@ -28,7 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${displayFont.variable} ${textFont.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

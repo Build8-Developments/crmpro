@@ -67,7 +67,7 @@ export function SupportPage() {
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Support</h1>
           <p className="text-xs text-muted-foreground">
-            Message CRMPro platform operators directly
+            Message Nomow platform operators directly
           </p>
         </div>
         {canCreate ? (
@@ -429,7 +429,7 @@ function CreateConversationDialog({
         <DialogHeader>
           <DialogTitle>Contact support</DialogTitle>
           <DialogDescription>
-            Your message goes to CRMPro platform operators — not your agency
+            Your message goes to Nomow platform operators — not your agency
             teammates.
           </DialogDescription>
         </DialogHeader>

@@ -1,5 +1,5 @@
 /**
- * Option lists for Organization → General. Curated for CRMPro's market
+ * Option lists for Organization → General. Curated for Nomow's market
  * (Egypt / MENA first); values are ISO codes the API validates.
  */
 

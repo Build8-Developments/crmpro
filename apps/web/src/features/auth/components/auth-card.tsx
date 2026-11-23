@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { PRODUCT_NAME, ProductMark } from "@/components/brand/product-logo";
+import { ProductLogo } from "@/components/brand/product-logo";
 
 /** The centered card used by the signed-out pages (sign in, reset, invite). */
 export function AuthCard({
@@ -19,9 +19,8 @@ export function AuthCard({
   return (
     <div className="flex min-h-dvh items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-[400px] rounded-xl border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <ProductMark className="size-10" />
-          <span className="text-lg font-semibold tracking-tight">{PRODUCT_NAME}</span>
+        <div className="mb-6">
+          <ProductLogo className="text-2xl" />
         </div>
         <h1 className="text-base font-semibold">{title}</h1>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}

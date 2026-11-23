@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PRODUCT_NAME, ProductMark } from "@/components/brand/product-logo";
+import { PRODUCT_NAME, ProductWordmark } from "@/components/brand/product-logo";
 import { AppIcons, type AppIcon } from "@/components/icons/app-icons";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -63,14 +63,27 @@ function OrganizationBrand({ collapsed }: { collapsed: boolean }) {
           name.charAt(0).toUpperCase()
         )}
       </div>
-      <span
+      <div
         className={cn(
-          "truncate text-[15px] font-semibold tracking-tight text-sidebar-foreground transition-opacity duration-slow ease-smooth",
+          "flex min-w-0 flex-col gap-1 transition-opacity duration-slow ease-smooth",
           collapsed && "opacity-0",
         )}
       >
-        {name}
-      </span>
+        <span className="truncate text-[15px] font-semibold leading-none tracking-tight text-sidebar-foreground">
+          {name}
+        </span>
+        {/* Muted until hovered; then the wordmark shows in its brand colours. */}
+        <span
+          className="group/powered flex w-fit items-center gap-1 text-[10px] leading-none text-sidebar-foreground/40 transition-colors duration-fast ease-enter hover:text-sidebar-foreground"
+          title={`Powered by ${PRODUCT_NAME}`}
+        >
+          <span>powered by</span>
+          <ProductWordmark
+            className="h-2"
+            dotClassName="fill-current transition-colors duration-fast ease-enter group-hover/powered:fill-sidebar-primary"
+          />
+        </span>
+      </div>
     </div>
   );
 }
@@ -198,7 +211,7 @@ function SidebarLink({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-2.5 rounded-md px-2.5 py-[9px] text-[13px] font-medium",
+        "group relative flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium",
         "transition-colors duration-fast ease-enter",
         active
           ? "text-sidebar-foreground"
@@ -216,7 +229,7 @@ function SidebarLink({
       />
       <span
         className={cn(
-          "truncate leading-none transition-opacity duration-slow ease-smooth",
+          "truncate leading-[1.3] transition-opacity duration-slow ease-smooth",
           collapsed && "opacity-0",
         )}
       >
@@ -317,11 +330,9 @@ function SidebarNav({
 function SidebarFooter({
   collapsed,
   onNavigate,
-  showCollapseToggle,
 }: {
   collapsed: boolean;
   onNavigate?: () => void;
-  showCollapseToggle: boolean;
 }) {
   const pathname = usePathname();
   const { can, canAccessRoute } = usePermissions();
@@ -329,7 +340,6 @@ function SidebarFooter({
   const { data: unreadSupport } = useSupportUnreadCount({
     enabled: can("support.read"),
   });
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const container = useRef<HTMLDivElement>(null);
 
   const entries: {
@@ -389,36 +399,6 @@ function SidebarFooter({
         {highlight}
         {items}
       </div>
-
-      <div className="mt-2 flex items-center gap-1.5 pt-1">
-        {showCollapseToggle ? (
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/50 transition-colors duration-fast ease-enter hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-          >
-            <AppIcons.sidebarCollapse
-              className={cn(
-                "size-4 transition-[rotate] duration-slow ease-smooth",
-                collapsed && "rotate-180",
-              )}
-              stroke={2}
-            />
-          </button>
-        ) : null}
-        <span
-          className={cn(
-            "flex min-w-0 flex-1 items-center gap-1.5 px-1 text-[11px] text-sidebar-foreground/45 transition-opacity duration-slow ease-smooth",
-            collapsed && "opacity-0",
-          )}
-          title={`Powered by ${PRODUCT_NAME}`}
-        >
-          <ProductMark className="size-4" />
-          <span className="truncate">Powered by {PRODUCT_NAME}</span>
-        </span>
-      </div>
     </div>
   );
 }
@@ -440,7 +420,7 @@ export function Sidebar() {
       <div className={cn("flex h-full flex-col", EXPANDED_WIDTH)}>
         <OrganizationBrand collapsed={collapsed} />
         <SidebarNav collapsed={collapsed} />
-        <SidebarFooter collapsed={collapsed} showCollapseToggle />
+        <SidebarFooter collapsed={collapsed} />
       </div>
     </aside>
   );
@@ -469,7 +449,6 @@ export function MobileSidebar() {
         <SidebarFooter
           collapsed={false}
           onNavigate={closeMobileSidebar}
-          showCollapseToggle={false}
         />
       </SheetContent>
     </Sheet>
