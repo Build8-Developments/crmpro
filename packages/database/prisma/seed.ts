@@ -875,6 +875,10 @@ async function seedTenantContracts(): Promise<void> {
 }
 
 async function seedTenants(): Promise<void> {
+  // The demo history goes back DEMO_HISTORY_DAYS; the workspace has to be at
+  // least that old, or jobs that never look before a tenant existed (daily
+  // stats backfill, target suggestions) ignore most of it.
+  const demoSince = new Date(Date.now() - (DEMO_HISTORY_DAYS + 1) * 86_400_000);
   await prisma.tenant.upsert({
     where: { slug: 'prime-estates' },
     create: {
@@ -884,11 +888,13 @@ async function seedTenants(): Promise<void> {
       status: TenantStatus.ACTIVE,
       subscriptionPlanId: PLAN_IDS.growth,
       storageUsedBytes: 0n,
+      createdAt: demoSince,
     },
     update: {
       name: 'Prime Estates',
       status: TenantStatus.ACTIVE,
       subscriptionPlanId: PLAN_IDS.growth,
+      createdAt: demoSince,
     },
   });
 
