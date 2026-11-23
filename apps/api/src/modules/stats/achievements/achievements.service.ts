@@ -40,6 +40,8 @@ export interface EvaluationResult {
   badges: BadgeState[];
   /** Level rows written by this evaluation. */
   written: number;
+  /** Stored level dates moved earlier by this evaluation (never announced). */
+  repaired: number;
   /** Notifications sent (at most one per badge). */
   notified: number;
 }
@@ -52,6 +54,11 @@ export interface EvaluationResult {
  * No flood on first run: a level that was already reached 48 hours ago (old
  * history, e.g. an agent who already had 30 deals when badges shipped) is
  * stored silently with the day it was really reached.
+ *
+ * Stored dates are repaired, never deleted: a row written by an earlier pass
+ * over less history (e.g. before a daily-stats backfill added older days) is
+ * moved earlier to the day the level was really reached, and no level is
+ * dated later than a higher one. Dates never move later; repairs are silent.
  */
 @Injectable()
 export class AchievementsService {
@@ -182,9 +189,9 @@ export class AchievementsService {
       evaluateBadge({
         definition,
         timeline: timelines[definition.key],
-        unlockedLevels: new Set(
-          unlockedByKey.get(definition.key)?.keys() ?? [],
-        ),
+        unlocked:
+          unlockedByKey.get(definition.key) ??
+          new Map<number, UnlockedLevelRecord>(),
         now,
         recentWindowMs: ACHIEVEMENT_NOTIFICATION_WINDOW_MS,
       }),
@@ -238,6 +245,13 @@ export class AchievementsService {
       }
     }
 
+    const repaired = await this.repairDates(
+      tenantId,
+      userId,
+      evaluations,
+      unlockedByKey,
+    );
+
     return {
       badges: evaluations.map((evaluation) => ({
         definition: evaluation.definition,
@@ -247,8 +261,50 @@ export class AchievementsService {
           new Map<number, UnlockedLevelRecord>(),
       })),
       written,
+      repaired,
       notified,
     };
+  }
+
+  /**
+   * Move stored dates earlier where the evaluation found them too late. The
+   * `unlockedAt > new date` guard keeps a date from ever moving later (e.g. a
+   * concurrent evaluation already repaired it). Best effort, no notification.
+   */
+  private async repairDates(
+    tenantId: string,
+    userId: string,
+    evaluations: readonly BadgeEvaluation[],
+    unlockedByKey: Map<string, Map<number, UnlockedLevelRecord>>,
+  ): Promise<number> {
+    let repaired = 0;
+    for (const evaluation of evaluations) {
+      const key = evaluation.definition.key;
+      for (const repair of evaluation.repairs) {
+        try {
+          const result = await this.prisma.userAchievement.updateMany({
+            where: {
+              tenantId,
+              userId,
+              key,
+              level: repair.level,
+              unlockedAt: { gt: repair.unlockedAt },
+            },
+            data: { unlockedAt: repair.unlockedAt },
+          });
+          repaired += result.count;
+          const record = unlockedByKey.get(key)?.get(repair.level);
+          if (record && record.unlockedAt > repair.unlockedAt) {
+            record.unlockedAt = repair.unlockedAt;
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Achievement date repair failed for user ${userId}: ${String(error)}`,
+          );
+        }
+      }
+    }
+    return repaired;
   }
 
   /** Load and evaluate one user; never throws. */

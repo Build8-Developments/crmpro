@@ -34,6 +34,7 @@ function build() {
         .mockImplementation(({ data }: { data: unknown[] }) =>
           Promise.resolve({ count: data.length }),
         ),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   };
   const clock = {
@@ -184,6 +185,153 @@ describe('AchievementsService.evaluateUser', () => {
       expect.objectContaining({
         where: { tenantId: TENANT, assignedUserId: USER, deletedAt: null },
       }),
+    );
+  });
+});
+
+describe('AchievementsService.evaluate: stored date repairs', () => {
+  /** A Mon–Fri week (Saturday week start) with tasks due, nothing overdue. */
+  function cleanWeek(saturday: string) {
+    const start = new Date(`${saturday}T00:00:00.000Z`).getTime();
+    return [2, 3, 4].map((offset) => ({
+      day: new Date(start + offset * 86_400_000),
+      tasksDue: 1,
+      tasksDone: 1,
+      tasksOverdue: 0,
+      interactions: 0,
+    }));
+  }
+  const storedRow = (level: number, unlockedAt: Date, value = 1) => ({
+    key: 'zero_overdue_week',
+    level,
+    value: new Prisma.Decimal(value),
+    unlockedAt,
+  });
+  /** End of a Saturday-start week in Cairo (UTC+3 until 2026-10-29). */
+  const weekEnd = (friday: string) =>
+    new Date(`${friday}T${friday < '2026-10-30' ? '21' : '22'}:00:00.000Z`);
+
+  it('backfill: older days after level 1 was stored move level 1 earlier, silently', async () => {
+    const { service, prisma, notifications } = build();
+    // Pass 1 (before the backfill): one clean week, 2026-11-07 → 11-13.
+    prisma.userDailyStat.findMany.mockResolvedValue(cleanWeek('2026-11-07'));
+    await service.evaluateUser(TENANT, USER, NOW);
+    const firstRows = prisma.userAchievement.createMany.mock.calls[0][0].data;
+    expect(
+      firstRows.filter(
+        (row: { key: string }) => row.key === 'zero_overdue_week',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        key: 'zero_overdue_week',
+        level: 1,
+        unlockedAt: weekEnd('2026-11-13'),
+      }),
+    ]);
+
+    // Pass 2 (after the backfill): four older clean weeks appear.
+    prisma.userAchievement.createMany.mockClear();
+    notifications.trigger.mockClear();
+    prisma.userAchievement.findMany.mockResolvedValue([
+      storedRow(1, weekEnd('2026-11-13')),
+    ]);
+    prisma.userDailyStat.findMany.mockResolvedValue([
+      ...cleanWeek('2026-10-10'),
+      ...cleanWeek('2026-10-17'),
+      ...cleanWeek('2026-10-24'),
+      ...cleanWeek('2026-10-31'),
+      ...cleanWeek('2026-11-07'),
+    ]);
+    const result = await service.evaluateUser(TENANT, USER, NOW);
+
+    // Level 1 moves to the first clean week; level 2 (4th week) is new.
+    expect(prisma.userAchievement.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.userAchievement.updateMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: TENANT,
+        userId: USER,
+        key: 'zero_overdue_week',
+        level: 1,
+        unlockedAt: { gt: weekEnd('2026-10-16') },
+      },
+      data: { unlockedAt: weekEnd('2026-10-16') },
+    });
+    const written = prisma.userAchievement.createMany.mock.calls[0][0].data;
+    expect(
+      written.filter((row: { key: string }) => row.key === 'zero_overdue_week'),
+    ).toEqual([
+      expect.objectContaining({
+        key: 'zero_overdue_week',
+        level: 2,
+        unlockedAt: new Date('2026-11-06T22:00:00.000Z'),
+      }),
+    ]);
+    // Old news: nothing announced, for the repair or the new level.
+    expect(notifications.trigger).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ repaired: 1, notified: 0 });
+
+    const badge = result?.badges.find(
+      (entry) => entry.definition.key === 'zero_overdue_week',
+    );
+    expect(badge?.unlocked.get(1)?.unlockedAt).toEqual(weekEnd('2026-10-16'));
+    expect(badge?.unlocked.get(2)?.unlockedAt).toEqual(
+      new Date('2026-11-06T22:00:00.000Z'),
+    );
+  });
+
+  it('a lower level stored after a higher one gets the higher date', async () => {
+    const { service, prisma, notifications } = build();
+    // No daily rows any more (wiped): only the stored dates count.
+    prisma.userAchievement.findMany.mockResolvedValue([
+      storedRow(1, new Date('2026-11-07T22:00:00.000Z')),
+      storedRow(2, new Date('2026-10-24T21:00:00.000Z'), 5),
+    ]);
+
+    const result = await service.evaluateUser(TENANT, USER, NOW);
+
+    expect(prisma.userAchievement.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.userAchievement.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ level: 1 }),
+        data: { unlockedAt: new Date('2026-10-24T21:00:00.000Z') },
+      }),
+    );
+    expect(prisma.userAchievement.createMany).not.toHaveBeenCalled();
+    expect(notifications.trigger).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ written: 0, repaired: 1, notified: 0 });
+  });
+
+  it('leaves dates that are already right, and never deletes', async () => {
+    const { service, prisma } = build();
+    prisma.userDailyStat.findMany.mockResolvedValue(cleanWeek('2026-11-07'));
+    prisma.userAchievement.findMany.mockResolvedValue([
+      // Earlier than the history shows now: kept as is.
+      storedRow(1, new Date('2026-09-01T00:00:00.000Z')),
+    ]);
+
+    const result = await service.evaluateUser(TENANT, USER, NOW);
+
+    expect(prisma.userAchievement.updateMany).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ written: 0, repaired: 0 });
+    expect(prisma.userAchievement).not.toHaveProperty('deleteMany');
+  });
+
+  it('is best effort: a failed repair keeps the stored date and still returns', async () => {
+    const { service, prisma } = build();
+    prisma.userAchievement.findMany.mockResolvedValue([
+      storedRow(1, new Date('2026-11-07T22:00:00.000Z')),
+      storedRow(2, new Date('2026-10-24T21:00:00.000Z'), 5),
+    ]);
+    prisma.userAchievement.updateMany.mockRejectedValue(new Error('db down'));
+
+    const result = await service.evaluateUser(TENANT, USER, NOW);
+
+    expect(result).toMatchObject({ repaired: 0 });
+    const badge = result?.badges.find(
+      (entry) => entry.definition.key === 'zero_overdue_week',
+    );
+    expect(badge?.unlocked.get(1)?.unlockedAt).toEqual(
+      new Date('2026-11-07T22:00:00.000Z'),
     );
   });
 });

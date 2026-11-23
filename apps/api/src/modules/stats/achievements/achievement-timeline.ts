@@ -73,20 +73,71 @@ export function readAt(timeline: MetricTimeline, at: Date): AchievementReading {
 }
 
 /**
- * When a running total first reached `threshold`; null when it has not, or
- * for rates (a rate can go down again, so only "now" is meaningful).
+ * The metric after each instant something changed, oldest first, up to
+ * `until` (events at the same instant are read together, like readAt).
  */
-export function reachedAt(
+function readingsUntil(
   timeline: MetricTimeline,
-  threshold: number,
-): Date | null {
-  if (timeline.kind !== 'cumulative') return null;
-  let value = 0;
-  for (const event of timeline.events) {
-    value += event.amount;
-    if (value >= threshold) return event.at;
+  until: Date,
+): Array<{ at: Date; reading: AchievementReading }> {
+  const limit = until.getTime();
+  const points: Array<{ at: Date; reading: AchievementReading }> = [];
+  if (timeline.kind === 'cumulative') {
+    let value = 0;
+    timeline.events.forEach((event, index) => {
+      if (event.at.getTime() > limit) return;
+      value += event.amount;
+      const next = timeline.events[index + 1];
+      if (next && next.at.getTime() === event.at.getTime()) return;
+      points.push({
+        at: event.at,
+        reading: { value: roundTo(value, 2), sample: null },
+      });
+    });
+    return points;
   }
-  return null;
+  const outcomes = [...timeline.outcomes].sort(
+    (a, b) => a.at.getTime() - b.at.getTime(),
+  );
+  let sample = 0;
+  let successes = 0;
+  outcomes.forEach((outcome, index) => {
+    if (outcome.at.getTime() > limit) return;
+    sample += 1;
+    if (outcome.success) successes += 1;
+    const next = outcomes[index + 1];
+    if (next && next.at.getTime() === outcome.at.getTime()) return;
+    points.push({
+      at: outcome.at,
+      reading: { value: roundTo((successes / sample) * 100, 1), sample },
+    });
+  });
+  return points;
+}
+
+/**
+ * The first instant (up to `until`) the metric met `level` — threshold and
+ * minimum sample. For a metric that can drop again (a rate), this is the
+ * first crossing, even if it is below the level now. Null when never met.
+ */
+export function firstReachedAt(
+  timeline: MetricTimeline,
+  definition: AchievementDefinition,
+  level: AchievementLevel,
+  until: Date,
+): Date | null {
+  const point = readingsUntil(timeline, until).find(({ reading }) =>
+    isLevelReached(definition, level, reading),
+  );
+  return point?.at ?? null;
+}
+
+function earliest(...dates: Array<Date | null | undefined>): Date | null {
+  let result: Date | null = null;
+  for (const date of dates) {
+    if (date && (!result || date < result)) result = date;
+  }
+  return result;
 }
 
 export interface UnlockedLevel {
@@ -95,11 +146,25 @@ export interface UnlockedLevel {
   unlockedAt: Date;
 }
 
+/** A stored level whose date must move earlier. */
+export interface LevelDateRepair {
+  level: number;
+  /** The stored (too late) date. */
+  from: Date;
+  unlockedAt: Date;
+}
+
 export interface BadgeEvaluation {
   definition: AchievementDefinition;
   reading: AchievementReading;
   /** Levels reached now that had no row yet (to write), lowest first. */
   newLevels: UnlockedLevel[];
+  /**
+   * Stored levels dated later than they were really reached (rows written by
+   * an earlier pass over less history, e.g. before a daily-stats backfill),
+   * lowest first. Dates only ever move earlier; never announced.
+   */
+  repairs: LevelDateRepair[];
   /**
    * The level to announce: the highest new level that was not reached
    * `recentWindowMs` ago. Null when every new level is old news (first run
@@ -111,35 +176,62 @@ export interface BadgeEvaluation {
 /**
  * Which levels of one badge become unlocked now, and whether to notify.
  * Never "un-earns": levels already stored stay, whatever the metric does.
+ *
+ * Dates are consistent across levels: a level is unlocked no later than the
+ * first time it was crossed, and no later than any higher level (stored or
+ * new). A level below an unlocked one counts as unlocked even if the metric
+ * has dropped under it since.
  */
 export function evaluateBadge(params: {
   definition: AchievementDefinition;
   timeline: MetricTimeline;
-  unlockedLevels: ReadonlySet<number>;
+  /** Levels already stored, with their dates. */
+  unlocked: ReadonlyMap<number, { unlockedAt: Date }>;
   now: Date;
   recentWindowMs: number;
 }): BadgeEvaluation {
-  const { definition, timeline, unlockedLevels, now } = params;
+  const { definition, timeline, unlocked, now } = params;
   const reading = readAt(timeline, now);
   const before = readAt(
     timeline,
     new Date(now.getTime() - params.recentWindowMs),
   );
+  const highestStored = Math.max(0, ...unlocked.keys());
 
   const newLevels: UnlockedLevel[] = [];
+  const repairs: LevelDateRepair[] = [];
   let notifyLevel: AchievementLevel | null = null;
-  for (const level of definition.levels) {
-    if (unlockedLevels.has(level.level)) continue;
-    if (!isLevelReached(definition, level, reading)) continue;
-    const at = reachedAt(timeline, level.threshold);
-    newLevels.push({
-      level: level.level,
-      value: reading.value,
-      unlockedAt: at && at <= now ? at : now,
-    });
-    if (!isLevelReached(definition, level, before)) notifyLevel = level;
+  // Highest level first, so each date is capped by the levels above it.
+  let earliestAbove: Date | null = null;
+  const descending = [...definition.levels].sort((a, b) => b.level - a.level);
+  for (const level of descending) {
+    const stored = unlocked.get(level.level)?.unlockedAt ?? null;
+    const reachedNow = isLevelReached(definition, level, reading);
+    if (!stored && !reachedNow && !earliestAbove) continue;
+
+    const crossed = firstReachedAt(timeline, definition, level, now);
+    const unlockedAt: Date = earliest(stored, crossed, earliestAbove) ?? now;
+    earliestAbove = unlockedAt;
+
+    if (stored) {
+      if (unlockedAt < stored) {
+        repairs.push({ level: level.level, from: stored, unlockedAt });
+      }
+      continue;
+    }
+    newLevels.push({ level: level.level, value: reading.value, unlockedAt });
+    if (
+      notifyLevel === null &&
+      level.level > highestStored &&
+      reachedNow &&
+      !isLevelReached(definition, level, before)
+    ) {
+      notifyLevel = level;
+    }
   }
-  return { definition, reading, newLevels, notifyLevel };
+  newLevels.reverse();
+  repairs.reverse();
+  return { definition, reading, newLevels, repairs, notifyLevel };
 }
 
 export interface BadgeProgress {
