@@ -36,19 +36,43 @@ export interface UsageMetric {
   limit: number | null;
 }
 
+export type ContractTerminationMode = "FULL_ACCESS" | "READ_ONLY" | "IMMEDIATE";
+
+export interface OrganizationContract {
+  status: string;
+  startsAt: string;
+  endsAt: string | null;
+  gracePeriodDays: number | null;
+  autoRenew: boolean;
+  /** The plan name as signed. */
+  planName: string;
+  /** Price and payment terms; null without billing access. */
+  pricing: {
+    agreedPrice: number;
+    currency: string;
+    paymentMethod: string;
+    paymentFrequency: string;
+  } | null;
+  termination: {
+    mode: ContractTerminationMode | null;
+    terminatedAt: string | null;
+    accessEndsAt: string | null;
+  } | null;
+}
+
 export interface OrganizationUsage {
   plan: {
     name: string;
     features: { analytics: boolean; importExport: boolean };
   };
   status: string;
-  contract: {
-    status: string;
-    startsAt: string;
-    endsAt: string | null;
-    gracePeriodDays: number | null;
-    autoRenew: boolean;
-  } | null;
+  /** Active contract, else the latest terminated/expired one. */
+  contract: OrganizationContract | null;
+  /** snapshot = limits frozen when the contract was signed. */
+  limits: {
+    source: "snapshot" | "live";
+    capturedAt: string | null;
+  };
   usage: {
     users: UsageMetric;
     leads: UsageMetric;

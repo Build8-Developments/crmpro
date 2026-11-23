@@ -3,8 +3,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ContractStatus, Prisma } from '@crmpro/database';
-import { computeContractAccessEndAt } from '@crmpro/shared';
+import {
+  ContractStatus,
+  ContractTerminationMode,
+  Prisma,
+  TenantStatus,
+} from '@crmpro/database';
+import {
+  buildPlanSnapshot,
+  computeTerminationAccessEndsAt,
+} from '@crmpro/shared/billing';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   buildPaginatedResponse,
@@ -14,16 +22,34 @@ import type { PaginatedResponse } from '../../common/pagination/types/paginated-
 import type { RequestSecurityMetadata } from '../auth/auth.types';
 import { CreateContractDto } from './dto/create-contract.dto';
 import { GetContractsQueryDto } from './dto/get-contracts-query.dto';
+import { TerminateContractDto } from './dto/terminate-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
 import { ContractsAuditService } from './services/contracts-audit.service';
 import { ContractEntitlementSyncService } from './services/contract-entitlement-sync.service';
 import type { ContractDetail, ContractListItem } from './types/contract.types';
 import { toContractDetail, toContractListItem } from './utils/contract.mapper';
+import { revokeTenantUserSessionsInTx } from '../tenants/utils/tenant-sessions.util';
+
+type PrismaTx = Prisma.TransactionClient;
 
 const contractInclude = {
-  plan: { select: { id: true, name: true, isActive: true } },
+  plan: {
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      maxUsers: true,
+      maxLeads: true,
+      maxProjects: true,
+      maxStorageBytes: true,
+      featureFlags: true,
+    },
+  },
   createdByAdmin: { select: { id: true, fullName: true, email: true } },
 } satisfies Prisma.TenantContractInclude;
+
+/** Terms frozen in the plan snapshot: changing them means a new contract. */
+const SIGNED_TERM_FIELDS = ['planId', 'agreedPrice', 'currency'] as const;
 
 @Injectable()
 export class ContractsService {
@@ -93,10 +119,17 @@ export class ContractsService {
 
     // Audit is written in the same transaction: no audit row, no contract.
     const contract = await this.prisma.$transaction(async (tx) => {
+      // Drafts carry a preview of the terms; activation captures them again.
+      const planSnapshot = await this.capturePlanSnapshot(tx, dto.planId, {
+        agreedPrice: dto.agreedPrice,
+        currency: dto.currency,
+      });
+
       const created = await tx.tenantContract.create({
         data: {
           contractName: dto.contractName ?? null,
           planId: dto.planId,
+          planSnapshot,
           agreedPrice: dto.agreedPrice,
           currency: dto.currency,
           paymentMethod: dto.paymentMethod,
@@ -140,6 +173,7 @@ export class ContractsService {
   ): Promise<ContractDetail> {
     const existing = await this.findContractOrThrow(id);
     this.assertEditable(existing);
+    this.assertSignedTermsUnchanged(existing, dto);
 
     if (dto.planId) {
       await this.assertPlanActive(dto.planId);
@@ -154,10 +188,22 @@ export class ContractsService {
         : existing.contractEndAt?.toISOString();
     this.assertDateRange(startAt, endAt ?? undefined);
 
+    const recapture =
+      existing.status === ContractStatus.DRAFT &&
+      this.changesSignedTerms(existing, dto);
+
     const contract = await this.prisma.$transaction(async (tx) => {
+      const planSnapshot = recapture
+        ? await this.capturePlanSnapshot(tx, dto.planId ?? existing.planId, {
+            agreedPrice: dto.agreedPrice ?? existing.agreedPrice,
+            currency: dto.currency ?? existing.currency,
+          })
+        : undefined;
+
       const updated = await tx.tenantContract.update({
         where: { id },
         data: {
+          ...(planSnapshot !== undefined ? { planSnapshot } : {}),
           ...(dto.contractName !== undefined
             ? { contractName: dto.contractName }
             : {}),
@@ -244,9 +290,16 @@ export class ContractsService {
     }
 
     const contract = await this.prisma.$transaction(async (tx) => {
+      // Signing: freeze the plan as it is now. Never re-captured afterwards.
+      const planSnapshot = await this.capturePlanSnapshot(
+        tx,
+        existing.planId,
+        existing,
+      );
+
       const updated = await tx.tenantContract.update({
         where: { id },
-        data: { status: ContractStatus.ACTIVE },
+        data: { status: ContractStatus.ACTIVE, planSnapshot },
         include: contractInclude,
       });
 
@@ -277,6 +330,7 @@ export class ContractsService {
 
   async terminateContract(
     id: string,
+    dto: TerminateContractDto,
     actorAdminId: string,
     metadata: RequestSecurityMetadata,
   ): Promise<ContractDetail> {
@@ -295,22 +349,51 @@ export class ContractsService {
       );
     }
 
+    const mode = dto.mode;
     const terminatedAt = new Date();
-
-    const accessUntil = computeContractAccessEndAt(
+    const accessEndsAt = computeTerminationAccessEndsAt(
+      mode,
       {
         contractEndAt: existing.contractEndAt,
         gracePeriodDays: existing.gracePeriodDays,
       },
-      existing.contractEndAt ? undefined : terminatedAt,
+      terminatedAt,
     );
+    const reason = dto.reason?.trim() || null;
 
+    // One transaction: contract, tenant suspension, sessions and audit rows
+    // all land together or not at all.
     const contract = await this.prisma.$transaction(async (tx) => {
       const terminated = await tx.tenantContract.update({
         where: { id },
-        data: { status: ContractStatus.TERMINATED },
+        data: {
+          status: ContractStatus.TERMINATED,
+          terminatedAt,
+          terminationMode: mode,
+          accessEndsAt,
+        },
         include: contractInclude,
       });
+
+      let revokedSessions = 0;
+      const suspendTenant =
+        mode === ContractTerminationMode.IMMEDIATE &&
+        existing.tenantId !== null;
+
+      if (suspendTenant && existing.tenantId) {
+        revokedSessions = await this.suspendTenantNow(
+          tx,
+          existing.tenantId,
+          terminatedAt,
+        );
+        await this.auditService.logTenantSuspendedByTermination(
+          actorAdminId,
+          existing.tenantId,
+          metadata,
+          { contractId: id, revokedSessions },
+          tx,
+        );
+      }
 
       await this.auditService.logContractTerminated(
         actorAdminId,
@@ -318,8 +401,13 @@ export class ContractsService {
         metadata,
         {
           tenantId: existing.tenantId,
-          accessUntil: accessUntil?.toISOString() ?? null,
+          mode,
+          reason,
+          terminatedAt: terminatedAt.toISOString(),
+          accessEndsAt: accessEndsAt.toISOString(),
           gracePeriodDays: existing.gracePeriodDays,
+          tenantSuspended: suspendTenant,
+          revokedSessions,
         },
         tx,
       );
@@ -387,6 +475,77 @@ export class ContractsService {
 
     if (existing) {
       throw new BadRequestException('Tenant already has an active contract');
+    }
+  }
+
+  /** IMMEDIATE termination: suspend the tenant and sign everyone out. */
+  private async suspendTenantNow(
+    tx: PrismaTx,
+    tenantId: string,
+    now: Date,
+  ): Promise<number> {
+    await tx.tenant.update({
+      where: { id: tenantId },
+      data: { status: TenantStatus.SUSPENDED },
+    });
+
+    return revokeTenantUserSessionsInTx(tx, tenantId, now);
+  }
+
+  private async capturePlanSnapshot(
+    tx: PrismaTx,
+    planId: string,
+    terms: {
+      agreedPrice: Prisma.Decimal | number;
+      currency: string;
+    },
+  ): Promise<Prisma.InputJsonValue> {
+    const plan = await tx.subscriptionPlan.findUnique({
+      where: { id: planId },
+      select: {
+        id: true,
+        name: true,
+        maxUsers: true,
+        maxLeads: true,
+        maxProjects: true,
+        maxStorageBytes: true,
+        featureFlags: true,
+      },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Plan not found');
+    }
+
+    return buildPlanSnapshot(plan, terms);
+  }
+
+  private changesSignedTerms(
+    existing: Awaited<ReturnType<typeof this.findContractOrThrow>>,
+    dto: UpdateContractDto,
+  ): boolean {
+    return SIGNED_TERM_FIELDS.some((field) => {
+      if (dto[field] === undefined) return false;
+      if (field === 'agreedPrice') {
+        return dto.agreedPrice !== existing.agreedPrice.toNumber();
+      }
+      return dto[field] !== existing[field];
+    });
+  }
+
+  /** Plan, price and currency are frozen once the contract is signed. */
+  private assertSignedTermsUnchanged(
+    existing: Awaited<ReturnType<typeof this.findContractOrThrow>>,
+    dto: UpdateContractDto,
+  ): void {
+    if (existing.status === ContractStatus.DRAFT) {
+      return;
+    }
+
+    if (this.changesSignedTerms(existing, dto)) {
+      throw new BadRequestException(
+        'Plan, price and currency of a signed contract cannot change. Terminate it and create a new contract.',
+      );
     }
   }
 

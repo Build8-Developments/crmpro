@@ -13,10 +13,11 @@ import {
 import {
   useActivateContract,
   useArchiveContract,
-  useTerminateContract,
 } from "@/features/contracts/mutations";
 import type { ContractListItem } from "@/features/contracts/types";
 import { usePermissions } from "@/hooks/use-permissions";
+
+export { ContractTerminateDialog } from "@/features/contracts/components/contract-terminate-dialog";
 
 function contractLabel(contract: ContractListItem | null) {
   return contract?.contractName?.trim() || "this contract";
@@ -75,61 +76,6 @@ export function ContractActivateDialog({
             onClick={() => void handleConfirm()}
           >
             {activateContract.isPending ? "Activating..." : "Activate"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function ContractTerminateDialog({
-  contract,
-  open,
-  onClose,
-}: ContractActionDialogProps) {
-  const { can } = usePermissions();
-  const terminateContract = useTerminateContract();
-
-  const handleClose = () => {
-    if (terminateContract.isPending) return;
-    onClose();
-  };
-
-  const handleConfirm = async () => {
-    if (!contract) return;
-    await terminateContract.mutateAsync(contract.id);
-    onClose();
-  };
-
-  if (!can(ADMIN_PERMISSIONS.CONTRACT_TERMINATE)) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Terminate contract</DialogTitle>
-          <DialogDescription>
-            Terminate &quot;{contractLabel(contract)}&quot;? This ends the
-            commercial agreement. Linked tenant access follows the configured
-            grace period.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={terminateContract.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={terminateContract.isPending || !contract}
-            onClick={() => void handleConfirm()}
-          >
-            {terminateContract.isPending ? "Terminating..." : "Terminate"}
           </Button>
         </DialogFooter>
       </DialogContent>

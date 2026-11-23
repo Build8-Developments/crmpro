@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatFileSize } from "@/features/files/utils/file-formatters";
+import { ContractTermsSection } from "@/features/organization/components/contract-terms-section";
 import { useOrganizationUsage } from "@/features/organization/hooks";
 import type { UsageMetric } from "@/features/organization/types";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -59,22 +60,11 @@ export function PlanUsagePage() {
                   {data.status.toLowerCase()}
                 </Badge>
               </div>
-              {data.contract ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Contract since{" "}
-                  {dateFormatter.format(new Date(data.contract.startsAt))}
-                  {data.contract.endsAt
-                    ? ` · ${data.contract.autoRenew ? "renews" : "ends"} ${dateFormatter.format(new Date(data.contract.endsAt))}`
-                    : " · no end date"}
-                  {data.contract.gracePeriodDays
-                    ? ` · ${data.contract.gracePeriodDays}-day grace period`
-                    : ""}
-                </p>
-              ) : (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  No active contract on file.
-                </p>
-              )}
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.limits.source === "snapshot" && data.limits.capturedAt
+                  ? `Features and limits as signed on ${dateFormatter.format(new Date(data.limits.capturedAt))}`
+                  : "Features and limits of the current plan"}
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <FeatureChip enabled={data.plan.features.analytics}>
                   Dashboard analytics
@@ -86,9 +76,15 @@ export function PlanUsagePage() {
             </div>
           </SettingsSection>
 
+          <ContractTermsSection contract={data.contract} />
+
           <SettingsSection
             title="Usage"
-            description="How much of your plan's limits you are using"
+            description={
+              data.limits.source === "snapshot" && data.limits.capturedAt
+                ? `How much of your limits you are using · limits as signed on ${dateFormatter.format(new Date(data.limits.capturedAt))}`
+                : "How much of your plan's limits you are using"
+            }
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <UsageCard label="Active users" metric={data.usage.users} />

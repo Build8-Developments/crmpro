@@ -9,6 +9,7 @@ import {
 } from "@/features/contracts/api";
 import type {
   CreateContractInput,
+  TerminateContractInput,
   UpdateContractInput,
 } from "@/features/contracts/types";
 import { queryKeys } from "@/lib/query/query-keys";
@@ -53,7 +54,13 @@ export function useActivateContract() {
 
 export function useTerminateContract() {
   return useApiMutation({
-    mutationFn: (contractId: string) => terminateContract(contractId),
+    mutationFn: ({
+      contractId,
+      input,
+    }: {
+      contractId: string;
+      input: TerminateContractInput;
+    }) => terminateContract(contractId, input),
     successMessage: "Contract terminated",
     invalidateKeys: [...contractInvalidateKeys],
   });

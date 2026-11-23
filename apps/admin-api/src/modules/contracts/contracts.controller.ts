@@ -23,6 +23,7 @@ import { extractRequestSecurityMetadata } from '../auth/utils/request-metadata.u
 import { ContractsService } from './contracts.service';
 import { CreateContractDto } from './dto/create-contract.dto';
 import { GetContractsQueryDto } from './dto/get-contracts-query.dto';
+import { TerminateContractDto } from './dto/terminate-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
 
 @Controller('contracts')
@@ -95,11 +96,13 @@ export class ContractsController {
   @RequireAdminPermission(ADMIN_PERMISSIONS.CONTRACT_TERMINATE)
   async terminateContract(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TerminateContractDto,
     @CurrentAdmin() actor: AuthenticatedAdmin,
     @Req() req: Request,
   ) {
     const contract = await this.contractsService.terminateContract(
       id,
+      dto,
       actor.id,
       extractRequestSecurityMetadata(req),
     );

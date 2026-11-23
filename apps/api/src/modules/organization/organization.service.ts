@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ContractStatus, FileAssetCategory } from '@crmpro/database';
+import { loadTenantPlanTerms } from '../../common/entitlements/tenant-plan-terms';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
@@ -236,41 +237,48 @@ export class OrganizationService {
     return this.getOrganization(user.tenantId);
   }
 
-  /** Plan, contract and quota usage. Read-only: the platform sets these. */
-  async getUsage(tenantId: string): Promise<OrganizationUsageResponse> {
+  /**
+   * Plan, contract terms and quota usage. Read-only: the platform sets these.
+   * Limits and features are the contract's signed snapshot (what is
+   * enforced); price and payment terms only with `includePricing`.
+   */
+  async getUsage(
+    tenantId: string,
+    options: { includePricing?: boolean } = {},
+  ): Promise<OrganizationUsageResponse> {
     const tenant = await this.prisma.tenant.findFirst({
       where: { id: tenantId, deletedAt: null },
       select: {
         status: true,
         storageUsedBytes: true,
-        subscriptionPlan: {
-          select: {
-            name: true,
-            featureFlags: true,
-            maxUsers: true,
-            maxLeads: true,
-            maxProjects: true,
-            maxStorageBytes: true,
-          },
-        },
-        contracts: {
-          where: { deletedAt: null, status: ContractStatus.ACTIVE },
-          orderBy: { contractStartAt: 'desc' },
-          take: 1,
-          select: {
-            status: true,
-            contractStartAt: true,
-            contractEndAt: true,
-            gracePeriodDays: true,
-            autoRenew: true,
-          },
-        },
+        subscriptionPlan: { select: { name: true } },
       },
     });
 
     if (!tenant) {
       throw new NotFoundException('Organization not found');
     }
+
+    const terms = await loadTenantPlanTerms(this.prisma, tenantId);
+    const contract = terms.contractId
+      ? await this.prisma.tenantContract.findFirst({
+          where: { id: terms.contractId, tenantId },
+          select: {
+            status: true,
+            contractStartAt: true,
+            contractEndAt: true,
+            gracePeriodDays: true,
+            autoRenew: true,
+            agreedPrice: true,
+            currency: true,
+            paymentMethod: true,
+            paymentFrequency: true,
+            terminatedAt: true,
+            terminationMode: true,
+            accessEndsAt: true,
+          },
+        })
+      : null;
 
     // Counted the same way QuotaService enforces the limits.
     const [users, leads, projects] = await Promise.all([
@@ -281,16 +289,15 @@ export class OrganizationService {
       this.prisma.project.count({ where: { tenantId, deletedAt: null } }),
     ]);
 
-    const plan = tenant.subscriptionPlan;
-    const flags = (plan.featureFlags ?? {}) as Record<string, unknown>;
-    const contract = tenant.contracts[0] ?? null;
+    const { quotas, featureFlags, snapshot } = terms;
+    const planName = snapshot?.name || tenant.subscriptionPlan.name;
 
     return {
       plan: {
-        name: plan.name,
+        name: planName,
         features: {
-          analytics: flags.analytics === true,
-          importExport: flags.importExport === true,
+          analytics: featureFlags.analytics === true,
+          importExport: featureFlags.importExport === true,
         },
       },
       status: tenant.status,
@@ -301,16 +308,39 @@ export class OrganizationService {
             endsAt: contract.contractEndAt,
             gracePeriodDays: contract.gracePeriodDays,
             autoRenew: contract.autoRenew,
+            planName,
+            pricing: options.includePricing
+              ? {
+                  agreedPrice: contract.agreedPrice.toNumber(),
+                  currency: contract.currency,
+                  paymentMethod: contract.paymentMethod,
+                  paymentFrequency: contract.paymentFrequency,
+                }
+              : null,
+            termination:
+              contract.status === ContractStatus.TERMINATED
+                ? {
+                    mode: contract.terminationMode,
+                    terminatedAt: contract.terminatedAt,
+                    accessEndsAt: contract.accessEndsAt,
+                  }
+                : null,
           }
         : null,
+      limits: {
+        source: terms.source,
+        capturedAt: snapshot?.capturedAt ?? null,
+      },
       usage: {
-        users: { used: users, limit: plan.maxUsers },
-        leads: { used: leads, limit: plan.maxLeads },
-        projects: { used: projects, limit: plan.maxProjects },
+        users: { used: users, limit: quotas.maxUsers },
+        leads: { used: leads, limit: quotas.maxLeads },
+        projects: { used: projects, limit: quotas.maxProjects },
         storageBytes: {
           used: Number(tenant.storageUsedBytes),
           limit:
-            plan.maxStorageBytes === null ? null : Number(plan.maxStorageBytes),
+            quotas.maxStorageBytes === null
+              ? null
+              : Number(quotas.maxStorageBytes),
         },
       },
     };

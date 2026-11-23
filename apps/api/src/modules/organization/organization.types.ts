@@ -29,19 +29,43 @@ export interface UsageMetric {
   limit: number | null;
 }
 
+export interface OrganizationContractTerms {
+  status: string;
+  startsAt: Date;
+  endsAt: Date | null;
+  gracePeriodDays: number | null;
+  autoRenew: boolean;
+  /** The plan name as signed. */
+  planName: string;
+  /** Price and payment terms; null without billing.manage. */
+  pricing: {
+    agreedPrice: number;
+    currency: string;
+    paymentMethod: string;
+    paymentFrequency: string;
+  } | null;
+  /** Set once the contract is terminated. */
+  termination: {
+    mode: string | null;
+    terminatedAt: Date | null;
+    accessEndsAt: Date | null;
+  } | null;
+}
+
 export interface OrganizationUsageResponse {
   plan: {
     name: string;
     features: { analytics: boolean; importExport: boolean };
   };
   status: string;
-  contract: {
-    status: string;
-    startsAt: Date;
-    endsAt: Date | null;
-    gracePeriodDays: number | null;
-    autoRenew: boolean;
-  } | null;
+  /** The contract in force: active, else the latest terminated/expired one. */
+  contract: OrganizationContractTerms | null;
+  /** Where the limits come from: the signed snapshot, or the live plan (legacy). */
+  limits: {
+    source: 'snapshot' | 'live';
+    /** When the snapshot was taken (ISO), i.e. "as signed on". */
+    capturedAt: string | null;
+  };
   usage: {
     users: UsageMetric;
     leads: UsageMetric;

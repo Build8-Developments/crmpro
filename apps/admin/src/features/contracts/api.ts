@@ -5,6 +5,7 @@ import type {
   ContractsListParams,
   ContractsListResponse,
   CreateContractInput,
+  TerminateContractInput,
   UpdateContractInput,
 } from "./types";
 
@@ -33,8 +34,8 @@ export function activateContract(id: string) {
   return apiClient.post<ContractDetail>(`/contracts/${id}/activate`);
 }
 
-export function terminateContract(id: string) {
-  return apiClient.post<ContractDetail>(`/contracts/${id}/terminate`);
+export function terminateContract(id: string, input: TerminateContractInput) {
+  return apiClient.post<ContractDetail>(`/contracts/${id}/terminate`, input);
 }
 
 export function archiveContract(id: string) {

@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { loadTenantPlanTerms } from '../entitlements/tenant-plan-terms';
 import { PrismaService } from '../prisma/prisma.service';
 import { QUOTA_EXCEEDED_MESSAGES } from './quota.constants';
 import type {
@@ -11,18 +12,6 @@ import type {
   TenantPlanLimits,
   TenantQuotaContext,
 } from './quota.types';
-
-const tenantQuotaSelect = {
-  storageUsedBytes: true,
-  subscriptionPlan: {
-    select: {
-      maxUsers: true,
-      maxLeads: true,
-      maxProjects: true,
-      maxStorageBytes: true,
-    },
-  },
-} as const;
 
 @Injectable()
 export class QuotaService {
@@ -194,25 +183,13 @@ export class QuotaService {
     }
   }
 
+  /**
+   * Limits from the contract's plan snapshot (frozen at signing); the live
+   * plan only for legacy contracts without one. null = unlimited.
+   */
   async getTenantPlanLimits(tenantId: string): Promise<TenantPlanLimits> {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { id: tenantId, deletedAt: null },
-      select: {
-        subscriptionPlan: {
-          select: {
-            maxUsers: true,
-            maxLeads: true,
-            maxProjects: true,
-          },
-        },
-      },
-    });
-
-    if (!tenant) {
-      throw new NotFoundException('Tenant not found');
-    }
-
-    return tenant.subscriptionPlan;
+    const { quotas } = await loadTenantPlanTerms(this.prisma, tenantId);
+    return quotas;
   }
 
   private async loadTenantQuotaContextInTransaction(
@@ -223,15 +200,17 @@ export class QuotaService {
 
     const tenant = await tx.tenant.findFirst({
       where: { id: tenantId, deletedAt: null },
-      select: tenantQuotaSelect,
+      select: { storageUsedBytes: true },
     });
 
     if (!tenant) {
       throw new NotFoundException('Tenant not found');
     }
 
+    const { quotas } = await loadTenantPlanTerms(tx, tenantId);
+
     return {
-      ...tenant.subscriptionPlan,
+      ...quotas,
       storageUsedBytes: tenant.storageUsedBytes,
     };
   }

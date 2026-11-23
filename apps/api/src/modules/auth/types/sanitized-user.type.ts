@@ -14,5 +14,14 @@ export interface SanitizedUser {
     name: string;
     slug: string;
     status: string;
+    /** Only on GET /auth/me. */
+    access?: TenantAccessSummary;
   };
+}
+
+/** readOnly while a contract terminated in READ_ONLY mode winds down. */
+export interface TenantAccessSummary {
+  readOnly: boolean;
+  /** ISO; when a terminated contract stops giving access, else null. */
+  accessEndsAt: string | null;
 }

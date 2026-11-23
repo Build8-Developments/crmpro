@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { resolveTenantPlanTerms } from '../../../common/billing/tenant-plan-terms.util';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { TenantUsageResponse } from '../dto/tenant-usage-response.dto';
 
@@ -17,6 +18,7 @@ export class TenantUsageService {
             maxLeads: true,
             maxProjects: true,
             maxStorageBytes: true,
+            featureFlags: true,
           },
         },
       },
@@ -40,7 +42,12 @@ export class TenantUsageService {
       ],
     );
 
-    const plan = tenant.subscriptionPlan;
+    // Limits as enforced: the signed snapshot, not the live plan row.
+    const { quotas: plan } = await resolveTenantPlanTerms(
+      this.prisma,
+      tenantId,
+      tenant.subscriptionPlan,
+    );
 
     return {
       users: {

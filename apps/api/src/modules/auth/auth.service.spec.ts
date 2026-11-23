@@ -37,7 +37,10 @@ describe('AuthService tenant suspension enforcement', () => {
     user: { update: jest.Mock };
     $transaction: jest.Mock;
   };
-  let tenantAccessService: { assertTenantAccessible: jest.Mock };
+  let tenantAccessService: {
+    assertTenantAccessible: jest.Mock;
+    getCachedTenantAccessState: jest.Mock;
+  };
 
   const activeUser = {
     id: 'user-1',
@@ -102,6 +105,9 @@ describe('AuthService tenant suspension enforcement', () => {
     };
     tenantAccessService = {
       assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
+      getCachedTenantAccessState: jest
+        .fn()
+        .mockResolvedValue({ readOnly: false, accessEndsAt: null }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -199,6 +205,28 @@ describe('AuthService tenant suspension enforcement', () => {
     );
 
     expect(tenantAccessService.assertTenantAccessible).not.toHaveBeenCalled();
+  });
+
+  it('includes the read-only access state in /auth/me', async () => {
+    tenantAccessService.getCachedTenantAccessState.mockResolvedValue({
+      readOnly: true,
+      accessEndsAt: new Date('2027-01-12T23:59:59.999Z'),
+    });
+
+    const me = await service.getMe({
+      id: 'user-1',
+      tenantId: 'tenant-1',
+      roleId: 'role-1',
+      sessionId: 'session-1',
+    });
+
+    expect(me.tenant.access).toEqual({
+      readOnly: true,
+      accessEndsAt: '2027-01-12T23:59:59.999Z',
+    });
+    expect(tenantAccessService.getCachedTenantAccessState).toHaveBeenCalledWith(
+      'tenant-1',
+    );
   });
 });
 

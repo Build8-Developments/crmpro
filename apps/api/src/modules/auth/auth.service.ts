@@ -230,13 +230,31 @@ export class AuthService {
     }));
   }
 
+  /**
+   * The signed-in user, plus the workspace's access state so the web can show
+   * the read-only banner from startup.
+   */
   async getMe(authUser: AuthenticatedUser): Promise<SanitizedUser> {
     const user = await this.usersService.findById(authUser.id);
     if (!user) {
       throw new UnauthorizedException('Invalid authentication session');
     }
 
-    return this.sanitizeUser(user);
+    const access = await this.tenantAccessService.getCachedTenantAccessState(
+      user.tenantId,
+    );
+    const sanitized = this.sanitizeUser(user);
+
+    return {
+      ...sanitized,
+      tenant: {
+        ...sanitized.tenant,
+        access: {
+          readOnly: access.readOnly,
+          accessEndsAt: access.accessEndsAt?.toISOString() ?? null,
+        },
+      },
+    };
   }
 
   private assertSessionActive(session: UserSession): void {

@@ -2,6 +2,12 @@ import type { ApiResponse } from "@/types/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { getQueryClient } from "@/lib/query/query-client";
 import { resolveApiBaseUrl } from "@/lib/api/resolve-api-base-url";
+import {
+  TENANT_READ_ONLY_CODE,
+  markWorkspaceReadOnly,
+  readOnlyAccessEndsAt,
+  tenantReadOnlyMessage,
+} from "@/lib/api/tenant-read-only";
 
 /**
  * Normalized API error thrown by the client for any non-success response.
@@ -119,6 +125,11 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok || !payload.success) {
     const error =
       payload && payload.success === false ? payload.error : undefined;
+
+    if (error?.code === TENANT_READ_ONLY_CODE) {
+      throw readOnlyError(response.status, error.details);
+    }
+
     throw new ApiError({
       code: error?.code ?? "UNKNOWN_ERROR",
       message: error?.message ?? "Something went wrong.",
@@ -128,6 +139,23 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 
   return payload.data;
+}
+
+/**
+ * A write refused because the workspace is read-only: always the same clear
+ * message (whatever generic text a screen would show), and the app-wide
+ * banner turns on.
+ */
+function readOnlyError(status: number, details: unknown): ApiError {
+  const accessEndsAt = readOnlyAccessEndsAt(details);
+  markWorkspaceReadOnly(accessEndsAt);
+
+  return new ApiError({
+    code: TENANT_READ_ONLY_CODE,
+    message: tenantReadOnlyMessage(accessEndsAt),
+    status,
+    details,
+  });
 }
 
 async function executeRequest<T>(

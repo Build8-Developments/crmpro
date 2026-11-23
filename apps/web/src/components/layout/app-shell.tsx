@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { CommandPalette } from "@/components/layout/command-palette";
+import { ReadOnlyBanner } from "@/components/layout/read-only-banner";
 import { MobileSidebar, Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { useUIStore } from "@/stores/ui-store";
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <MobileSidebar />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/80 bg-background shadow-sm transition-colors duration-200 dark:rounded-none dark:border-0 dark:shadow-none">
         <Topbar />
+        <ReadOnlyBanner />
         <main
           ref={main}
           className="relative flex flex-1 flex-col overflow-y-auto"

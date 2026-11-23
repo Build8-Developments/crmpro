@@ -20,12 +20,17 @@ import {
   ContractTerminateDialog,
 } from "@/features/contracts/components/contract-action-dialogs";
 import { ContractFormDialog } from "@/features/contracts/components/contract-form-dialog";
+import { ContractPlanTermsCard } from "@/features/contracts/components/contract-plan-terms-card";
 import { ContractStatusBadge } from "@/features/contracts/components/contract-status-badge";
 import { useContract } from "@/features/contracts/hooks";
-import type { ContractListItem } from "@/features/contracts/types";
+import type {
+  ContractListItem,
+  ContractTermination,
+} from "@/features/contracts/types";
 import {
   PAYMENT_FREQUENCY_LABELS,
   PAYMENT_METHOD_LABELS,
+  TERMINATION_MODE_LABELS,
 } from "@/features/contracts/types";
 import { usePermissions } from "@/hooks/use-permissions";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
@@ -88,6 +93,7 @@ export function ContractDetailPage({ contractId }: ContractDetailPageProps) {
     id: contract.id,
     contractName: contract.contractName,
     status: contract.status,
+    tenantId: contract.tenantId,
     planName: contract.plan.name,
     agreedPrice: contract.agreedPrice,
     currency: contract.currency,
@@ -95,6 +101,7 @@ export function ContractDetailPage({ contractId }: ContractDetailPageProps) {
     paymentFrequency: contract.paymentFrequency,
     contractStartAt: contract.contractStartAt,
     contractEndAt: contract.contractEndAt,
+    gracePeriodDays: contract.gracePeriodDays,
     autoRenew: contract.autoRenew,
   };
 
@@ -235,6 +242,15 @@ export function ContractDetailPage({ contractId }: ContractDetailPageProps) {
         </DetailCard>
       </div>
 
+      {contract.termination ? (
+        <TerminationCard
+          termination={contract.termination}
+          tenantLinked={contract.tenantId !== null}
+        />
+      ) : null}
+
+      <ContractPlanTermsCard contract={contract} />
+
       {contract.notes ? (
         <Card className="gap-3 py-4 shadow-sm">
           <CardHeader className="px-5 pb-0">
@@ -270,6 +286,59 @@ export function ContractDetailPage({ contractId }: ContractDetailPageProps) {
         onArchived={() => router.push("/contracts")}
       />
     </div>
+  );
+}
+
+/** Access ends at the end of a UTC day; show that day. */
+const accessDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function TerminationCard({
+  termination,
+  tenantLinked,
+}: {
+  termination: ContractTermination;
+  tenantLinked: boolean;
+}) {
+  const accessEnds = termination.accessEndsAt
+    ? accessDateFormatter.format(new Date(termination.accessEndsAt))
+    : "—";
+
+  const effect =
+    termination.mode === "IMMEDIATE"
+      ? tenantLinked
+        ? "Tenant suspended and all users signed out at termination."
+        : "No tenant was linked."
+      : termination.mode === "READ_ONLY"
+        ? `Users can view and export, not change, until ${accessEnds}; then the workspace is locked.`
+        : termination.mode === "FULL_ACCESS"
+          ? `Full use until ${accessEnds}; then the workspace is locked.`
+          : "Terminated before termination modes existed.";
+
+  return (
+    <Card className="gap-3 border-destructive/30 py-4 shadow-sm">
+      <CardHeader className="px-5 pb-0">
+        <CardTitle className="text-sm">Termination</CardTitle>
+        <CardDescription>{effect}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-2 px-5 sm:grid-cols-3">
+        <DetailRow
+          label="Mode"
+          value={
+            termination.mode ? TERMINATION_MODE_LABELS[termination.mode] : "—"
+          }
+        />
+        <DetailRow
+          label="Terminated"
+          value={formatDate(termination.terminatedAt)}
+        />
+        <DetailRow label="Access ends" value={accessEnds} />
+      </CardContent>
+    </Card>
   );
 }
 

@@ -6,9 +6,11 @@ import {
   HttpCode,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
+import type { Request } from 'express';
 import { PermissionsGuard, RequirePermission } from '../../common/auth';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -92,8 +94,12 @@ export class OrganizationController {
 
   @Get('usage')
   @RequirePermission(PERMISSIONS.SETTINGS_READ)
-  async getUsage(@CurrentUser() user: AuthenticatedUser) {
-    const data = await this.organizationService.getUsage(user.tenantId);
+  async getUsage(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    const data = await this.organizationService.getUsage(user.tenantId, {
+      // Contract price and payment terms are for whoever manages billing.
+      includePricing:
+        req.permissionKeys?.has(PERMISSIONS.BILLING_MANAGE) ?? false,
+    });
     return { success: true, data };
   }
 }

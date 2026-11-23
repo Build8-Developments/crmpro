@@ -84,6 +84,26 @@ export class ContractsAuditService {
     );
   }
 
+  /** IMMEDIATE termination suspends the tenant: same action as a manual suspension. */
+  async logTenantSuspendedByTermination(
+    actorAdminId: string,
+    tenantId: string,
+    metadata: RequestSecurityMetadata,
+    details: { contractId: string; revokedSessions: number },
+    tx?: PrismaTx,
+  ): Promise<void> {
+    await this.write(
+      {
+        actorAdminId,
+        action: 'TENANT_SUSPENDED',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        metadata: { ...metadata, ...details, cause: 'CONTRACT_TERMINATED' },
+      },
+      tx,
+    );
+  }
+
   async logContractArchived(
     actorAdminId: string,
     contractId: string,
