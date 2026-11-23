@@ -524,6 +524,8 @@ export async function seedDemoDataset(
 
         // Contact facts the lead row keeps (spec §2.3).
         let firstContactAt: number | null = null;
+        // When the owner got the lead: the SLA and speed-to-lead clocks start here.
+        let assignedAt: number | null = null;
         let attempts = 0;
         let streak = 0;
         let lastOutcome: InteractionOutcome | null = null;
@@ -594,6 +596,7 @@ export async function seedDemoDataset(
         if (agent) {
           const assigner = faker.helpers.arrayElement(assigners);
           cursor = intoWorkingHours(createdAt + delayAround(0.4, 1.1));
+          assignedAt = cursor;
           push(LeadActivityEventType.ASSIGNED, cursor, assigner, {
             assignedUserId: agent.userId,
             assignedUserName: input.userNames.get(agent.userId) ?? null,
@@ -909,6 +912,7 @@ export async function seedDemoDataset(
             : null,
           lastContactedAt: lastTouch ? new Date(lastTouch) : null,
           firstContactedAt: firstContactAt === null ? null : new Date(firstContactAt),
+          assignedAt: assignedAt === null ? null : new Date(assignedAt),
           stageEnteredAt: new Date(stageEnteredAt),
           closedAt: outcome === 'OPEN' ? null : new Date(journeyEnd),
           nextTaskDueAt: nextTaskDueAt === null ? null : new Date(nextTaskDueAt),
