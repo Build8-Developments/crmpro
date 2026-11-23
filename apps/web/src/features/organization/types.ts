@@ -1,3 +1,6 @@
+/** What agents see about each other on the My performance leaderboard. */
+export type LeaderboardMode = "OFF" | "RANK_ONLY" | "TARGET_PERCENT" | "FULL";
+
 export interface OrganizationSettings {
   countryCode: string;
   timezone: string;
@@ -12,8 +15,8 @@ export interface OrganizationSettings {
   firstContactSlaMinutes: number;
   escalateAfterMinutes: number;
   dailyInteractionGoal: number;
-  /** Agents see the top 3 and their own rank on My performance. */
-  showLeaderboardToAgents: boolean;
+  /** What agents see about each other on My performance. */
+  leaderboardMode: LeaderboardMode;
   updatedAt: string;
 }
 

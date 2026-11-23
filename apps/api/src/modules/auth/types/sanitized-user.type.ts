@@ -5,6 +5,8 @@ export interface SanitizedUser {
   phone: string | null;
   isActive: boolean;
   lastLoginAt: Date | null;
+  /** False: shown as "A teammate" on the leaderboard. */
+  showOnLeaderboard?: boolean;
   role: {
     id: string;
     name: string;

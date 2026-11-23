@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   MaxLength,
@@ -28,4 +29,9 @@ export class UpdateMeDto {
   @IsString()
   @MaxLength(30)
   phone?: string | null;
+
+  /** False: appear as "A teammate" on the My performance leaderboard. */
+  @IsOptional()
+  @IsBoolean()
+  showOnLeaderboard?: boolean;
 }

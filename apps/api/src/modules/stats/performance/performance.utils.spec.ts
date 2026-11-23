@@ -1,12 +1,14 @@
 import { DEFAULT_WORK_SCHEDULE } from '@crmpro/shared/workflow';
 import type { DealFact, LeadFact } from '../achievements/achievement-sources';
+import { TargetMetric } from '@crmpro/database';
 import {
   bestMonth,
-  canSeeLeaderboard,
+  effectiveLeaderboardMode,
   fastContactStreak,
   monthlySeries,
   mostVisitsInWeek,
   rankLeaderboard,
+  targetAttainment,
 } from './performance.utils';
 
 const TZ = 'Africa/Cairo';
@@ -126,41 +128,144 @@ describe('mostVisitsInWeek', () => {
   });
 });
 
-describe('canSeeLeaderboard', () => {
-  it('shows agents the rank only when the workspace allows it', () => {
-    expect(canSeeLeaderboard(true, { kind: 'own' })).toBe(true);
-    expect(canSeeLeaderboard(false, { kind: 'own' })).toBe(false);
+describe('effectiveLeaderboardMode', () => {
+  it('follows the workspace setting for agents', () => {
+    expect(effectiveLeaderboardMode('TARGET_PERCENT', { kind: 'own' })).toBe(
+      'TARGET_PERCENT',
+    );
+    expect(effectiveLeaderboardMode('FULL', { kind: 'own' })).toBe('FULL');
+    expect(effectiveLeaderboardMode('OFF', { kind: 'own' })).toBeNull();
   });
 
-  it('always shows it to people who read team or all leads', () => {
-    expect(canSeeLeaderboard(false, { kind: 'team' })).toBe(true);
-    expect(canSeeLeaderboard(false, { kind: 'all' })).toBe(true);
+  it('still shows managers the % of target when it is off for agents', () => {
+    expect(effectiveLeaderboardMode('OFF', { kind: 'team' })).toBe(
+      'TARGET_PERCENT',
+    );
+    expect(effectiveLeaderboardMode('RANK_ONLY', { kind: 'all' })).toBe(
+      'RANK_ONLY',
+    );
+  });
+});
+
+describe('targetAttainment', () => {
+  it('averages the share of each target reached, capping each at 150%', () => {
+    expect(
+      targetAttainment(
+        [
+          { metric: TargetMetric.DEALS, value: 4 },
+          { metric: TargetMetric.REVENUE, value: 10_000_000 },
+        ],
+        { [TargetMetric.DEALS]: 2, [TargetMetric.REVENUE]: 40_000_000 },
+      ),
+    ).toBe(100); // (50% + capped 150%) / 2
+  });
+
+  it('is null without targets, and ignores zero targets', () => {
+    expect(targetAttainment([], { [TargetMetric.DEALS]: 3 })).toBeNull();
+    expect(
+      targetAttainment([{ metric: TargetMetric.DEALS, value: 0 }], undefined),
+    ).toBeNull();
+    expect(
+      targetAttainment([{ metric: TargetMetric.VISITS, value: 4 }], undefined),
+    ).toBe(0);
   });
 });
 
 describe('rankLeaderboard', () => {
+  const person = (
+    userId: string,
+    name: string,
+    revenue: number,
+    deals: number,
+    targetPercent: number | null,
+    showOnLeaderboard = true,
+  ) => ({ userId, name, revenue, deals, targetPercent, showOnLeaderboard });
+
   const people = [
-    { userId: 'a', name: 'Amr', revenue: 5_000_000, deals: 1 },
-    { userId: 'b', name: 'Basma', revenue: 9_000_000, deals: 2 },
-    { userId: 'c', name: 'Chris', revenue: 5_000_000, deals: 3 },
-    { userId: 'd', name: 'Dina', revenue: 5_000_000, deals: 3 },
-    { userId: 'me', name: 'Me', revenue: 0, deals: 0 },
+    person('a', 'Amr', 5_000_000, 1, 60),
+    person('b', 'Basma', 9_000_000, 2, 80),
+    person('c', 'Chris', 5_000_000, 3, 120),
+    person('d', 'Dina', 5_000_000, 3, 120, false),
+    person('e', 'Emad', 1_000_000, 1, null),
+    person('me', 'Me', 0, 0, 0),
   ];
 
-  it('ranks by revenue then deals, ties share a rank, top lists sellers only', () => {
-    const result = rankLeaderboard(people, 'me');
+  it('ranks by % of target, sends no money, ties share a rank', () => {
+    const result = rankLeaderboard(people, 'me', 'TARGET_PERCENT');
 
+    // Emad has no target: not ranked.
     expect(result.participants).toBe(5);
-    expect(result.top.map((entry) => [entry.rank, entry.userId])).toEqual([
-      [1, 'b'],
-      [2, 'c'],
-      [2, 'd'],
+    expect(result.top).toEqual([
+      {
+        rank: 1,
+        userId: 'c',
+        name: 'Chris',
+        anonymous: false,
+        isMe: false,
+        targetPercent: 120,
+      },
+      {
+        rank: 1,
+        userId: null,
+        name: null,
+        anonymous: true,
+        isMe: false,
+        targetPercent: 120,
+      },
+      {
+        rank: 3,
+        userId: 'b',
+        name: 'Basma',
+        anonymous: false,
+        isMe: false,
+        targetPercent: 80,
+      },
     ]);
-    expect(result.me).toMatchObject({ rank: 5, isMe: true, revenue: 0 });
+    for (const entry of result.top) {
+      expect(entry).not.toHaveProperty('revenue');
+      expect(entry).not.toHaveProperty('deals');
+    }
+    expect(result.me).toMatchObject({ rank: 5, isMe: true, targetPercent: 0 });
+    expect(result.meHasNoTarget).toBe(false);
   });
 
-  it('flags the caller inside the top and returns null when not ranked', () => {
-    expect(rankLeaderboard(people, 'b').top[0].isMe).toBe(true);
-    expect(rankLeaderboard(people, 'stranger').me).toBeNull();
+  it('in RANK_ONLY sends only positions and names (your own % stays yours)', () => {
+    const result = rankLeaderboard(people, 'c', 'RANK_ONLY');
+
+    expect(result.top[0]).toEqual({
+      rank: 1,
+      userId: 'c',
+      name: 'Chris',
+      anonymous: false,
+      isMe: true,
+      targetPercent: 120,
+    });
+    expect(result.top[1]).not.toHaveProperty('targetPercent');
+    expect(result.top[2]).not.toHaveProperty('targetPercent');
+  });
+
+  it('in FULL ranks everyone by revenue then deals and sends the figures', () => {
+    const result = rankLeaderboard(people, 'me', 'FULL');
+
+    expect(result.participants).toBe(6);
+    expect(
+      result.top.map((entry) => [entry.rank, entry.name, entry.revenue]),
+    ).toEqual([
+      [1, 'Basma', 9_000_000],
+      [2, 'Chris', 5_000_000],
+      [2, null, 5_000_000],
+    ]);
+  });
+
+  it('shows an opted-out caller their own name, and flags a missing target', () => {
+    expect(rankLeaderboard(people, 'd', 'TARGET_PERCENT').me).toMatchObject({
+      userId: 'd',
+      name: 'Dina',
+      anonymous: false,
+    });
+    const noTarget = rankLeaderboard(people, 'e', 'TARGET_PERCENT');
+    expect(noTarget.me).toBeNull();
+    expect(noTarget.meHasNoTarget).toBe(true);
+    expect(rankLeaderboard(people, 'stranger', 'TARGET_PERCENT').me).toBeNull();
   });
 });

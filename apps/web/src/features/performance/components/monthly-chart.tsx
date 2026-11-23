@@ -31,6 +31,7 @@ export function MonthlyChart({ months, currency }: { months: MonthPoint[]; curre
   return (
     <PerformanceSection
       title="Last 12 months"
+      privateHint
       hint={
         <span className="inline-flex items-center gap-3">
           <span className="inline-flex items-center gap-1">

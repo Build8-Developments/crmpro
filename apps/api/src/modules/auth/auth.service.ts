@@ -342,6 +342,7 @@ export class AuthService {
       phone: user.phone,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
+      showOnLeaderboard: user.showOnLeaderboard,
       role: {
         id: user.role.id,
         name: user.role.name,

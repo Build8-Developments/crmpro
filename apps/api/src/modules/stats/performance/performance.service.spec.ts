@@ -20,13 +20,17 @@ const team: LeadScope = {
   userIds: ['agent-1', 'agent-2'],
 };
 
-function build(options: { showLeaderboardToAgents?: boolean } = {}) {
+function build(
+  options: {
+    leaderboardMode?: 'OFF' | 'RANK_ONLY' | 'TARGET_PERCENT' | 'FULL';
+  } = {},
+) {
   const prisma = {
     tenantSettings: {
       findUnique: jest.fn().mockResolvedValue({
         weekStartsOn: 6,
         currency: 'EGP',
-        showLeaderboardToAgents: options.showLeaderboardToAgents ?? true,
+        leaderboardMode: options.leaderboardMode ?? 'TARGET_PERCENT',
       }),
     },
     user: {
@@ -34,8 +38,23 @@ function build(options: { showLeaderboardToAgents?: boolean } = {}) {
         .fn()
         .mockResolvedValue({ createdAt: new Date('2025-03-01T00:00:00Z') }),
       findMany: jest.fn().mockResolvedValue([
-        { id: 'agent-1', name: 'Mona' },
-        { id: 'agent-2', name: 'Karim' },
+        { id: 'agent-1', name: 'Mona', showOnLeaderboard: true },
+        { id: 'agent-2', name: 'Karim', showOnLeaderboard: false },
+      ]),
+    },
+    target: {
+      // Mona: 12M of 10M (120%); Karim: 20M of 40M (50%).
+      findMany: jest.fn().mockResolvedValue([
+        {
+          userId: 'agent-1',
+          metric: 'REVENUE',
+          value: new Prisma.Decimal(10_000_000),
+        },
+        {
+          userId: 'agent-2',
+          metric: 'REVENUE',
+          value: new Prisma.Decimal(40_000_000),
+        },
       ]),
     },
     deal: {
@@ -59,7 +78,33 @@ function build(options: { showLeaderboardToAgents?: boolean } = {}) {
     lead: { findMany: jest.fn().mockResolvedValue([]) },
     userDailyStat: { findMany: jest.fn().mockResolvedValue([]) },
     userAchievement: {
-      findMany: jest.fn().mockResolvedValue([]),
+      // Recent wins (filtered by unlockedAt) vs the caller's own badges.
+      findMany: jest.fn((args: { where: { unlockedAt?: unknown } }) =>
+        Promise.resolve(
+          args.where.unlockedAt
+            ? [
+                {
+                  key: 'revenue',
+                  level: 1,
+                  unlockedAt: new Date('2026-11-15T10:00:00Z'),
+                  user: { id: 'agent-1', name: 'Mona' },
+                },
+                {
+                  key: 'deals',
+                  level: 2,
+                  unlockedAt: new Date('2026-11-14T10:00:00Z'),
+                  user: { id: 'agent-1', name: 'Mona' },
+                },
+                {
+                  key: 'deals',
+                  level: 2,
+                  unlockedAt: new Date('2026-11-13T10:00:00Z'),
+                  user: { id: 'agent-3', name: 'Salma' },
+                },
+              ]
+            : [],
+        ),
+      ),
       createMany: jest.fn().mockResolvedValue({ count: 3 }),
     },
     interaction: {
@@ -171,24 +216,72 @@ describe('PerformanceService.getMyPerformance', () => {
     expect(data.badges.map((badge) => badge.key)).toHaveLength(7);
   });
 
-  it('shows the rank to agents when the workspace allows it: top 3 + me', async () => {
-    const { service } = build({ showLeaderboardToAgents: true });
+  it("ranks agents by % of target and sends no one else's money", async () => {
+    const { service } = build({ leaderboardMode: 'TARGET_PERCENT' });
 
     const data = await service.getMyPerformance(USER, own, new Set(), NOW);
 
-    expect(data.rank).toEqual({
+    expect(data.rank).toMatchObject({
       period: '2026-11',
+      mode: 'TARGET_PERCENT',
       participants: 2,
+      meHasNoTarget: false,
       top: [
-        expect.objectContaining({ rank: 1, userId: 'agent-2', isMe: false }),
-        expect.objectContaining({ rank: 2, userId: 'agent-1', isMe: true }),
+        {
+          rank: 1,
+          userId: 'agent-1',
+          name: 'Mona',
+          isMe: true,
+          targetPercent: 120,
+        },
+        // Karim opted out: no id, no name.
+        {
+          rank: 2,
+          userId: null,
+          name: null,
+          anonymous: true,
+          targetPercent: 50,
+        },
       ],
-      me: expect.objectContaining({ rank: 2, revenue: 12_000_000, deals: 1 }),
+      me: { rank: 1, targetPercent: 120 },
+    });
+    expect(JSON.stringify(data.rank)).not.toContain('20000000');
+    expect(JSON.stringify(data.rank)).not.toContain('revenue');
+  });
+
+  it('praises recent badges, leaving out money badges unless figures are shown', async () => {
+    const percent = await build({
+      leaderboardMode: 'TARGET_PERCENT',
+    }).service.getMyPerformance(USER, own, new Set(), NOW);
+    expect(percent.rank?.recentWins).toEqual([
+      {
+        badgeName: 'Deal maker',
+        levelLabel: expect.any(String),
+        unlockedAt: '2026-11-14T10:00:00.000Z',
+        // Same level, one line.
+        people: [
+          { userId: 'agent-1', name: 'Mona', isMe: true },
+          { userId: 'agent-3', name: 'Salma', isMe: false },
+        ],
+        others: 0,
+      },
+    ]);
+
+    const full = await build({
+      leaderboardMode: 'FULL',
+    }).service.getMyPerformance(USER, own, new Set(), NOW);
+    expect(full.rank?.recentWins.map((win) => win.badgeName)).toEqual([
+      'Big seller',
+      'Deal maker',
+    ]);
+    expect(full.rank?.top[0]).toMatchObject({
+      name: null,
+      revenue: 20_000_000,
     });
   });
 
-  it('hides the rank from agents when the workspace turned it off', async () => {
-    const { service, actuals } = build({ showLeaderboardToAgents: false });
+  it('hides the leaderboard from agents when the workspace turned it off', async () => {
+    const { service, actuals } = build({ leaderboardMode: 'OFF' });
 
     const data = await service.getMyPerformance(USER, own, new Set(), NOW);
 
@@ -196,10 +289,13 @@ describe('PerformanceService.getMyPerformance', () => {
     expect(actuals.compute).not.toHaveBeenCalled();
   });
 
-  it('still shows the rank to team leads and managers when turned off', async () => {
-    const { service } = build({ showLeaderboardToAgents: false });
+  it('still shows team leads and managers the % of target when turned off', async () => {
+    const { service } = build({ leaderboardMode: 'OFF' });
     const data = await service.getMyPerformance(USER, team, new Set(), NOW);
-    expect(data.rank?.me?.rank).toBe(2);
+    expect(data.rank).toMatchObject({
+      mode: 'TARGET_PERCENT',
+      me: { rank: 1 },
+    });
   });
 
   it('includes month vs target only with target.read', async () => {

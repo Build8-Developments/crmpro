@@ -13,6 +13,7 @@ import {
   useUpdateOrganizationSettings,
 } from "@/features/organization/hooks";
 import type {
+  LeaderboardMode,
   OrganizationSettings,
   UpdateOrganizationSettingsInput,
 } from "@/features/organization/types";
@@ -24,6 +25,21 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SLA_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 const ESCALATE_OPTIONS = [15, 20, 30, 45, 60, 90, 120, 180, 240];
 
+const LEADERBOARD_MODES: ReadonlyArray<{ value: LeaderboardMode; label: string; hint: string }> = [
+  {
+    value: "TARGET_PERCENT",
+    label: "% of target (recommended)",
+    hint: "Positions and how much of their own targets each person reached. No money is shown.",
+  },
+  { value: "RANK_ONLY", label: "Positions only", hint: "Who is 1st, 2nd and 3rd, with no figures." },
+  {
+    value: "FULL",
+    label: "Full figures",
+    hint: "Positions with each person's contracted revenue and deals this month.",
+  },
+  { value: "OFF", label: "Off", hint: "Agents don't see a leaderboard." },
+];
+
 type Draft = Pick<
   OrganizationSettings,
   | "workingDays"
@@ -32,7 +48,7 @@ type Draft = Pick<
   | "firstContactSlaMinutes"
   | "escalateAfterMinutes"
   | "dailyInteractionGoal"
-  | "showLeaderboardToAgents"
+  | "leaderboardMode"
 >;
 
 function draftOf(settings: OrganizationSettings): Draft {
@@ -43,7 +59,7 @@ function draftOf(settings: OrganizationSettings): Draft {
     firstContactSlaMinutes: settings.firstContactSlaMinutes,
     escalateAfterMinutes: settings.escalateAfterMinutes,
     dailyInteractionGoal: settings.dailyInteractionGoal,
-    showLeaderboardToAgents: settings.showLeaderboardToAgents,
+    leaderboardMode: settings.leaderboardMode,
   };
 }
 
@@ -261,23 +277,40 @@ function WorkdayForm({
           />
           <span className="text-sm text-muted-foreground">touches per agent</span>
         </div>
-        <div className="mt-5 flex max-w-xl items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p id="leaderboard-label" className="text-sm font-medium">
-              Show the team leaderboard to agents
-            </p>
-            <p id="leaderboard-hint" className="mt-0.5 text-xs text-muted-foreground">
-              Agents see the top 3 and their own rank on My performance.
-            </p>
+        <fieldset className="mt-5 max-w-xl" disabled={!canManage}>
+          <legend className="text-sm font-medium">Team leaderboard for agents</legend>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Agents see the top 3 and their own rank on My performance. Anyone can choose to appear as
+            &ldquo;A teammate&rdquo; in their account settings. Managers always see the team&apos;s real numbers
+            on the dashboard.
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {LEADERBOARD_MODES.map((option) => (
+              <label
+                key={option.value}
+                className={cn(
+                  "flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2",
+                  draft.leaderboardMode === option.value
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-border/60 hover:bg-muted/40",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="leaderboard-mode"
+                  value={option.value}
+                  checked={draft.leaderboardMode === option.value}
+                  onChange={() => setDraft({ ...draft, leaderboardMode: option.value })}
+                  className="mt-0.5 accent-primary"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">{option.label}</span>
+                  <span className="block text-xs text-muted-foreground">{option.hint}</span>
+                </span>
+              </label>
+            ))}
           </div>
-          <ToggleSwitch
-            checked={draft.showLeaderboardToAgents}
-            disabled={!canManage}
-            labelledBy="leaderboard-label"
-            describedBy="leaderboard-hint"
-            onChange={(checked) => setDraft({ ...draft, showLeaderboardToAgents: checked })}
-          />
-        </div>
+        </fieldset>
       </SettingsSection>
 
       {problems.length > 0 && dirty ? (
@@ -301,44 +334,6 @@ function WorkdayForm({
         </div>
       ) : null}
     </form>
-  );
-}
-
-function ToggleSwitch({
-  checked,
-  disabled,
-  labelledBy,
-  describedBy,
-  onChange,
-}: {
-  checked: boolean;
-  disabled: boolean;
-  labelledBy: string;
-  describedBy?: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-labelledby={labelledBy}
-      aria-describedby={describedBy}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent transition-colors duration-fast outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
-        checked ? "bg-primary" : "bg-muted-foreground/30",
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "pointer-events-none block size-4 rounded-full bg-background shadow-xs transition-transform duration-fast",
-          checked ? "translate-x-4" : "translate-x-0.5",
-        )}
-      />
-    </button>
   );
 }
 

@@ -1,3 +1,5 @@
+import type { LeaderboardMode } from '@crmpro/database';
+
 export interface OrganizationSettingsResponse {
   countryCode: string;
   timezone: string;
@@ -9,8 +11,8 @@ export interface OrganizationSettingsResponse {
   firstContactSlaMinutes: number;
   escalateAfterMinutes: number;
   dailyInteractionGoal: number;
-  /** Agents see the top 3 and their own rank on My performance. */
-  showLeaderboardToAgents: boolean;
+  /** What agents see about each other on My performance. */
+  leaderboardMode: LeaderboardMode;
   updatedAt: Date;
 }
 

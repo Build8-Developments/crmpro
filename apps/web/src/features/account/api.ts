@@ -21,6 +21,7 @@ export function updateNotificationPreferences(
 export interface UpdateMeInput {
   name?: string;
   phone?: string | null;
+  showOnLeaderboard?: boolean;
 }
 
 /** PATCH /me — the signed-in user's own profile (no extra permission). */

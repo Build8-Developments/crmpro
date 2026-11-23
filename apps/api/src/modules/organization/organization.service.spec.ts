@@ -45,7 +45,7 @@ describe('OrganizationService', () => {
     firstContactSlaMinutes: 15,
     escalateAfterMinutes: 30,
     dailyInteractionGoal: 25,
-    showLeaderboardToAgents: true,
+    leaderboardMode: 'TARGET_PERCENT',
     updatedAt: new Date('2026-11-16T00:00:00Z'),
     updatedByUserId: null,
   };

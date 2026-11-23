@@ -40,7 +40,7 @@ const SETTINGS_KEYS = [
   'firstContactSlaMinutes',
   'escalateAfterMinutes',
   'dailyInteractionGoal',
-  'showLeaderboardToAgents',
+  'leaderboardMode',
 ] as const;
 
 @Injectable()
@@ -416,7 +416,7 @@ export class OrganizationService {
       firstContactSlaMinutes: settings.firstContactSlaMinutes,
       escalateAfterMinutes: settings.escalateAfterMinutes,
       dailyInteractionGoal: settings.dailyInteractionGoal,
-      showLeaderboardToAgents: settings.showLeaderboardToAgents,
+      leaderboardMode: settings.leaderboardMode,
       updatedAt: settings.updatedAt,
     };
   }

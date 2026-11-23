@@ -44,20 +44,38 @@ export interface Badge {
   } | null;
 }
 
+export type LeaderboardMode = "RANK_ONLY" | "TARGET_PERCENT" | "FULL";
+
+/** Only the fields the workspace's mode allows are present. */
 export interface LeaderboardEntry {
   rank: number;
-  userId: string;
-  name: string;
-  revenue: number;
-  deals: number;
+  /** Null for someone who chose to appear as "A teammate". */
+  userId: string | null;
+  name: string | null;
+  anonymous: boolean;
   isMe: boolean;
+  targetPercent?: number;
+  revenue?: number;
+  deals?: number;
+}
+
+/** Everyone who reached the same badge level lately, as one line. */
+export interface RecentWin {
+  badgeName: string;
+  levelLabel: string;
+  unlockedAt: string;
+  people: Array<{ userId: string; name: string; isMe: boolean }>;
+  others: number;
 }
 
 export interface Leaderboard {
   period: string;
+  mode: LeaderboardMode;
   participants: number;
   top: LeaderboardEntry[];
   me: LeaderboardEntry | null;
+  meHasNoTarget: boolean;
+  recentWins: RecentWin[];
 }
 
 export interface MyPerformance {

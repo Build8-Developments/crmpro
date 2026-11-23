@@ -291,6 +291,18 @@ enum ContractStatus {
   TERMINATED
 }
 
+/// What agents see about each other on the My performance leaderboard.
+enum LeaderboardMode {
+  /// No leaderboard for agents.
+  OFF
+  /// Positions and names only.
+  RANK_ONLY
+  /// Positions, names and % of each person's own monthly targets.
+  TARGET_PERCENT
+  /// Positions, names, contracted revenue and deals.
+  FULL
+}
+
 /// What a terminated contract leaves the workspace with until `accessEndsAt`.
 enum ContractTerminationMode {
   /// Full use until the contract end + grace days, then suspended.
@@ -431,8 +443,8 @@ model TenantSettings {
   escalateAfterMinutes   Int      @default(30)
   /// Interactions per agent per day the Today screen aims for.
   dailyInteractionGoal   Int      @default(25)
-  /// Agents see the top 3 and their own rank on My performance.
-  showLeaderboardToAgents Boolean @default(true)
+  /// What agents see about each other on My performance (top 3 + own rank).
+  leaderboardMode LeaderboardMode @default(TARGET_PERCENT)
   updatedAt       DateTime @updatedAt
   updatedByUserId String?  @db.Uuid
 
@@ -489,6 +501,8 @@ model User {
   passwordHash String
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  /// False: shown as "A teammate" on the leaderboard (they still see their rank).
+  showOnLeaderboard Boolean @default(true)
   teamId       String?   @db.Uuid
   /// Set when the user was invited by email; inviteAcceptedAt once they chose a password.
   invitedAt        DateTime?

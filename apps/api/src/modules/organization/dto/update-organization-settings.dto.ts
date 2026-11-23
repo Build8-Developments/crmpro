@@ -1,10 +1,11 @@
+import { LeaderboardMode } from '@crmpro/database';
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
   IsArray,
-  IsBoolean,
+  IsEnum,
   IsISO31661Alpha2,
   IsInt,
   IsOptional,
@@ -86,8 +87,8 @@ export class UpdateOrganizationSettingsDto {
   @Max(200)
   dailyInteractionGoal?: number;
 
-  /** Agents see the top 3 and their own rank on My performance. */
+  /** What agents see about each other on My performance. */
   @IsOptional()
-  @IsBoolean()
-  showLeaderboardToAgents?: boolean;
+  @IsEnum(LeaderboardMode)
+  leaderboardMode?: LeaderboardMode;
 }

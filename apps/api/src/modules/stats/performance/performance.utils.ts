@@ -1,3 +1,4 @@
+import type { LeaderboardMode, TargetMetric } from '@crmpro/database';
 import { FAST_FIRST_CONTACT_MINUTES } from '@crmpro/shared/achievements';
 import { addWorkingMinutes, type WorkSchedule } from '@crmpro/shared/workflow';
 import type { LeadScope } from '../../../common/auth';
@@ -13,6 +14,7 @@ import type {
   LeaderboardView,
   MonthPoint,
   PeriodBest,
+  VisibleLeaderboardMode,
 } from './performance.types';
 
 /**
@@ -139,60 +141,124 @@ export function mostVisitsInWeek(
 }
 
 /**
- * Agents see the leaderboard only when the workspace allows it
- * (showLeaderboardToAgents); people who manage others' leads (lead.read-all
- * or lead.read-team) always do.
+ * The leaderboard mode the caller gets, or null when hidden. Agents follow
+ * the workspace setting; people who manage others' leads (lead.read-all or
+ * lead.read-team) still see it when it is OFF for agents, as % of target.
  */
-export function canSeeLeaderboard(
-  showLeaderboardToAgents: boolean,
+export function effectiveLeaderboardMode(
+  mode: LeaderboardMode,
   scope: Pick<LeadScope, 'kind'>,
-): boolean {
-  return showLeaderboardToAgents || scope.kind !== 'own';
+): VisibleLeaderboardMode | null {
+  if (mode !== 'OFF') return mode;
+  return scope.kind === 'own' ? null : 'TARGET_PERCENT';
 }
 
 export const LEADERBOARD_TOP = 3;
+/** One target can count for at most 150%, so one big sale can't carry the score. */
+export const TARGET_RATIO_CAP = 1.5;
 
 /**
- * Rank by revenue (contracted this month), then deals; equal numbers share
- * a rank (1, 2, 2, 4). The top only lists people who sold something.
+ * Average share of a person's own targets reached this month, as a whole
+ * percent (each target capped at TARGET_RATIO_CAP). Null without targets.
+ */
+export function targetAttainment(
+  targets: ReadonlyArray<{ metric: TargetMetric; value: number }>,
+  actuals: Partial<Record<TargetMetric, number>> | undefined,
+): number | null {
+  const ratios = targets
+    .filter((target) => target.value > 0)
+    .map((target) =>
+      Math.min(
+        (actuals?.[target.metric] ?? 0) / target.value,
+        TARGET_RATIO_CAP,
+      ),
+    );
+  if (ratios.length === 0) return null;
+  const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
+  return Math.round(mean * 100);
+}
+
+export interface LeaderboardPerson {
+  userId: string;
+  name: string;
+  showOnLeaderboard: boolean;
+  revenue: number;
+  deals: number;
+  targetPercent: number | null;
+}
+
+/**
+ * Ranks people and keeps only what the mode allows. FULL ranks by revenue
+ * then deals (everyone who can sell); the other modes rank by % of target
+ * (people with a target). Equal scores share a rank (1, 2, 2, 4). The top
+ * lists people with a score above zero. Someone who opted out appears as
+ * "A teammate" (no id, no name) — except to themselves.
  */
 export function rankLeaderboard(
-  people: ReadonlyArray<{
-    userId: string;
-    name: string;
-    revenue: number;
-    deals: number;
-  }>,
+  people: readonly LeaderboardPerson[],
   meId: string,
+  mode: VisibleLeaderboardMode,
   top = LEADERBOARD_TOP,
-): Omit<LeaderboardView, 'period'> {
-  const sorted = [...people].sort(
-    (a, b) =>
-      b.revenue - a.revenue ||
-      b.deals - a.deals ||
-      a.name.localeCompare(b.name),
-  );
-  const ranked: LeaderboardEntry[] = [];
-  sorted.forEach((person, index) => {
-    const previous = ranked[index - 1];
-    const tied =
-      previous &&
-      previous.revenue === person.revenue &&
-      previous.deals === person.deals;
-    ranked.push({
-      rank: tied ? previous.rank : index + 1,
-      userId: person.userId,
-      name: person.name,
-      revenue: round2(person.revenue),
-      deals: person.deals,
-      isMe: person.userId === meId,
-    });
+): Omit<LeaderboardView, 'period' | 'mode' | 'recentWins'> {
+  const byMoney = mode === 'FULL';
+  const pool = byMoney
+    ? [...people]
+    : people.filter((person) => person.targetPercent !== null);
+  const score = (person: LeaderboardPerson): [number, number] =>
+    byMoney ? [person.revenue, person.deals] : [person.targetPercent ?? 0, 0];
+
+  pool.sort((a, b) => {
+    const [a1, a2] = score(a);
+    const [b1, b2] = score(b);
+    return b1 - a1 || b2 - a2 || a.name.localeCompare(b.name);
   });
+
+  const ranks: number[] = [];
+  pool.forEach((person, index) => {
+    const previous = pool[index - 1];
+    const tied =
+      previous !== undefined &&
+      score(previous)[0] === score(person)[0] &&
+      score(previous)[1] === score(person)[1];
+    ranks.push(tied ? ranks[index - 1] : index + 1);
+  });
+
+  const entryFor = (
+    person: LeaderboardPerson,
+    rank: number,
+  ): LeaderboardEntry => {
+    const isMe = person.userId === meId;
+    const named = isMe || person.showOnLeaderboard;
+    const entry: LeaderboardEntry = {
+      rank,
+      userId: named ? person.userId : null,
+      name: named ? person.name : null,
+      anonymous: !named,
+      isMe,
+    };
+    if (byMoney) {
+      entry.revenue = round2(person.revenue);
+      entry.deals = person.deals;
+    }
+    // Your own % is always yours to see; others' only in TARGET_PERCENT.
+    if (person.targetPercent !== null && (mode === 'TARGET_PERCENT' || isMe)) {
+      entry.targetPercent = person.targetPercent;
+    }
+    return entry;
+  };
+
+  const entries = pool.map((person, index) => entryFor(person, ranks[index]));
+  const scored = pool.map(
+    (person) => score(person)[0] > 0 || score(person)[1] > 0,
+  );
+  const meIndex = pool.findIndex((person) => person.userId === meId);
+  const meListed = people.find((person) => person.userId === meId);
+
   return {
-    participants: ranked.length,
-    top: ranked
-      .filter((entry) => entry.revenue > 0 || entry.deals > 0)
-      .slice(0, top),
-    me: ranked.find((entry) => entry.isMe) ?? null,
+    participants: entries.length,
+    top: entries.filter((_, index) => scored[index]).slice(0, top),
+    me: meIndex >= 0 ? entries[meIndex] : null,
+    meHasNoTarget:
+      !byMoney && meListed !== undefined && meListed.targetPercent === null,
   };
 }

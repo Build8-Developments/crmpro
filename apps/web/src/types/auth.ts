@@ -34,6 +34,8 @@ export interface AuthUser {
   phone: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
+  /** False: shown as "A teammate" on the leaderboard. */
+  showOnLeaderboard?: boolean;
   role: AuthUserRole;
   tenant: AuthUserTenant;
 }

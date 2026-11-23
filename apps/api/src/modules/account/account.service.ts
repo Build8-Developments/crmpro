@@ -19,6 +19,7 @@ const accountUserSelect = {
   phone: true,
   isActive: true,
   lastLoginAt: true,
+  showOnLeaderboard: true,
   role: { select: { id: true, name: true } },
   tenant: { select: { id: true, name: true, slug: true, status: true } },
 } as const;
@@ -39,9 +40,16 @@ export class AccountService {
     authUser: AuthenticatedUser,
     dto: UpdateMeDto,
   ): Promise<SanitizedUser> {
-    const data: { name?: string; phone?: string | null } = {};
+    const data: {
+      name?: string;
+      phone?: string | null;
+      showOnLeaderboard?: boolean;
+    } = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.showOnLeaderboard !== undefined) {
+      data.showOnLeaderboard = dto.showOnLeaderboard;
+    }
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('Nothing to update');

@@ -53,24 +53,56 @@ export interface BadgeView {
   } | null;
 }
 
+/** What agents see about each other (TenantSettings.leaderboardMode, minus OFF). */
+export type VisibleLeaderboardMode = 'RANK_ONLY' | 'TARGET_PERCENT' | 'FULL';
+
+/**
+ * One row. Only the fields the mode allows are sent: other people's money
+ * never leaves the API unless the workspace chose FULL.
+ */
 export interface LeaderboardEntry {
-  /** 1-based; equal numbers share a rank. */
+  /** 1-based; equal scores share a rank. */
   rank: number;
-  userId: string;
-  name: string;
-  revenue: number;
-  deals: number;
+  /** Null for someone who chose to appear as "A teammate". */
+  userId: string | null;
+  name: string | null;
+  anonymous: boolean;
   isMe: boolean;
+  /** TARGET_PERCENT (and the caller's own row in every mode): average % of own targets reached. */
+  targetPercent?: number;
+  /** FULL only: contracted revenue this month. */
+  revenue?: number;
+  /** FULL only: deals reserved this month. */
+  deals?: number;
+}
+
+/**
+ * A badge level people unlocked lately — praise without numbers. Everyone
+ * who reached the same level is one line ("Mona, Omar and 3 others").
+ */
+export interface RecentWin {
+  badgeName: string;
+  levelLabel: string;
+  /** Latest unlock among them (ISO). */
+  unlockedAt: string;
+  /** Up to RECENT_WIN_NAMES people, latest first; the caller as isMe. */
+  people: Array<{ userId: string; name: string; isMe: boolean }>;
+  /** How many more reached it. */
+  others: number;
 }
 
 export interface LeaderboardView {
   period: string;
-  /** Active people who can record deals. */
+  mode: VisibleLeaderboardMode;
+  /** People in the ranking (with targets this month, except in FULL). */
   participants: number;
-  /** Up to 3, people with at least one sale or deal this month. */
+  /** Up to 3 people with a score above zero. */
   top: LeaderboardEntry[];
-  /** The caller; null when the caller cannot record deals. */
+  /** The caller; null when they can't record deals or have no target. */
   me: LeaderboardEntry | null;
+  /** True when the caller could be ranked but has no target this month. */
+  meHasNoTarget: boolean;
+  recentWins: RecentWin[];
 }
 
 export interface MyPerformanceResponse {
@@ -111,6 +143,6 @@ export interface MyPerformanceResponse {
     mostVisitsWeek: { weekStart: string; value: number } | null;
   };
   badges: BadgeView[];
-  /** Null when hidden (see canSeeLeaderboard). */
+  /** Null when hidden (see effectiveLeaderboardMode). */
   rank: LeaderboardView | null;
 }

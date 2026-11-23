@@ -9,6 +9,11 @@ import { LeaderboardCard } from "@/features/performance/components/leaderboard-c
 import { MonthVsTarget } from "@/features/performance/components/month-vs-target";
 import { MonthlyChart } from "@/features/performance/components/monthly-chart";
 import { PersonalBests } from "@/features/performance/components/personal-bests";
+import {
+  PrivacyProvider,
+  PrivacyToggle,
+  PrivateBlock,
+} from "@/features/performance/components/privacy";
 import { useMyPerformance } from "@/features/performance/hooks";
 import type { MyPerformance } from "@/features/performance/types";
 import { formatMonthYear } from "@/features/performance/utils/performance-format";
@@ -37,19 +42,23 @@ export function PerformancePage() {
   const hasSide = data.month !== null || data.rank !== null;
 
   return (
+    <PrivacyProvider>
     <div className="space-y-5 px-4 py-5 md:px-8">
-      <header>
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">My performance</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Your numbers, personal bests and badges · since {formatMonthYear(data.allTime.since, data.timeZone)}
           </p>
         </div>
+        <PrivacyToggle />
       </header>
 
       {isFreshStart(data) ? <FreshStart /> : null}
 
-      <AllTimeStrip data={data} />
+      <PrivateBlock>
+        <AllTimeStrip data={data} />
+      </PrivateBlock>
 
       <div className={cn("grid gap-5", hasSide && "lg:grid-cols-[minmax(0,1fr)_340px]")}>
         <div className="min-w-0 space-y-5">
@@ -59,13 +68,14 @@ export function PerformancePage() {
         {hasSide ? (
           <aside className="min-w-0 space-y-5">
             {data.month ? <MonthVsTarget month={data.month} /> : null}
-            {data.rank ? <LeaderboardCard rank={data.rank} currency={data.currency} /> : null}
+            {data.rank ? <LeaderboardCard rank={data.rank} currency={data.currency} timeZone={data.timeZone} /> : null}
           </aside>
         ) : null}
       </div>
 
       <BadgesGrid badges={data.badges} currency={data.currency} timeZone={data.timeZone} />
     </div>
+    </PrivacyProvider>
   );
 }
 
