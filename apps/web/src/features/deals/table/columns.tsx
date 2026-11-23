@@ -3,8 +3,9 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { DealStatusBadge } from "@/features/deals/components/deal-status-badge";
 import type { Deal } from "@/features/deals/types";
-import { formatDealDate, formatMoney } from "@/features/deals/utils/deal-format";
+import { formatDealDate } from "@/features/deals/utils/deal-format";
 import { StageColorDot } from "@/features/leads/utils/stage-color";
+import { formatMoney } from "@/lib/format";
 
 /** Column ids double as the API sort field where `meta.sortable` is set. */
 export const dealColumns: ColumnDef<Deal>[] = [

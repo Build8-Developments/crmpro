@@ -12,8 +12,7 @@ import {
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionCard } from "@/features/dashboard/components/dashboard-section-card";
-import { formatCompactMoney } from "@/features/targets/utils/target-format";
-import { formatChartDate } from "@/lib/format";
+import { formatChartDate, formatCompactMoney, formatCompactNumber } from "@/lib/format";
 import type { DashboardMoney } from "./money-types";
 
 interface MoneyTrendChartProps {
@@ -76,7 +75,7 @@ export function MoneyTrendChart({ trend, currency, previousLabel }: MoneyTrendCh
                 tickLine={false}
                 axisLine={false}
                 width={44}
-                tickFormatter={(value: number) => formatCompactMoney(value, "").trim()}
+                tickFormatter={(value: number) => formatCompactNumber(value)}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
               />
               <Tooltip

@@ -1,5 +1,5 @@
 import type { TargetMetric } from "@/features/targets/types";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
 
 export const METRIC_LABELS: Record<TargetMetric, string> = {
   DEALS: "Deals",
@@ -13,18 +13,6 @@ export const MONEY_METRICS: ReadonlySet<TargetMetric> = new Set(["REVENUE", "COM
 
 export function isMoneyMetric(metric: TargetMetric): boolean {
   return MONEY_METRICS.has(metric);
-}
-
-const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-
-/** "4.5M EGP" — same style as lead budgets. */
-export function formatCompactMoney(value: number, currency: string): string {
-  return `${compactNumber.format(value)} ${currency}`;
-}
-
-/** "EGP 4,500,000" for exact amounts. */
-export function formatMoney(value: number, currency: string): string {
-  return `${currency} ${formatNumber(value)}`;
 }
 
 /** A metric value for display: compact money or a whole number. */

@@ -4,6 +4,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { TaskLifecycleService } from '../workflow/common/task-lifecycle.service';
 import { Test } from '@nestjs/testing';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
+import { mergeCustomFieldValues } from '../custom-fields/custom-field-values';
 import { LeadsService } from './leads.service';
 import { LeadActivityService } from './services/lead-activity.service';
 
@@ -35,6 +37,13 @@ async function serviceFor(mocks: ReturnType<typeof build>) {
   const module = await Test.createTestingModule({
     providers: [
       LeadsService,
+      {
+        provide: CustomFieldsService,
+        useValue: {
+          getLeadDefinitions: jest.fn().mockResolvedValue([]),
+          resolveLeadValues: mergeCustomFieldValues,
+        },
+      },
       { provide: PrismaService, useValue: mocks.prisma },
       { provide: LeadActivityService, useValue: mocks.activity },
       { provide: DomainEventBus, useValue: mocks.events },

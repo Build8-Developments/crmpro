@@ -13,7 +13,7 @@ import {
 import type { LeadTimelineActivity } from "@/features/leads/types";
 import { formatDue } from "@/features/leads/components/workflow-visuals";
 import { formatMergeCounts } from "@/features/leads/utils/lead-merge";
-import { formatMoney } from "@/features/deals/utils/deal-format";
+import { formatMoney } from "@/lib/format";
 
 export type TimelineTone = "default" | "positive" | "negative" | "muted" | "accent";
 

@@ -1,5 +1,5 @@
 import type { Lead } from "@/features/leads/types";
-import { formatRelativeTime } from "@/lib/format";
+import { formatCompactNumber, formatRelativeTime } from "@/lib/format";
 
 const STALE_CONTACT_DAYS = 7;
 
@@ -22,15 +22,13 @@ export function formatLastContacted(lastContactedAt: string | null): string {
   return formatRelativeTime(lastContactedAt);
 }
 
-const compactNumber = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-
 /** "2M – 3.5M EGP", "From 2M EGP", "Up to 3M EGP", or null when unknown. */
 export function formatBudget(min: number | null, max: number | null): string | null {
   if (min === null && max === null) return null;
   if (min !== null && max !== null) {
-    return `${compactNumber.format(min)} – ${compactNumber.format(max)} EGP`;
+    return `${formatCompactNumber(min)} – ${formatCompactNumber(max)} EGP`;
   }
   return min !== null
-    ? `From ${compactNumber.format(min)} EGP`
-    : `Up to ${compactNumber.format(max!)} EGP`;
+    ? `From ${formatCompactNumber(min)} EGP`
+    : `Up to ${formatCompactNumber(max!)} EGP`;
 }

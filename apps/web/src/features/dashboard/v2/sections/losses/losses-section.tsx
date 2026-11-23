@@ -67,7 +67,7 @@ function LossesContent({ data }: { data: DashboardLosses }) {
           title="Why we lose"
           subtitle={`${formatNumber(data.lost.total)} leads lost in the period`}
         >
-          <LossesReasons lost={data.lost} />
+          <LossesReasons lost={data.lost} period={data.period} />
         </DashboardSectionCard>
         <DashboardSectionCard
           icon={AppIcons.refresh}

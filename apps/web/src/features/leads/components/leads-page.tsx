@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -46,8 +46,10 @@ const LEADS_VIEW_DEFAULTS: TablePreferences = {
 };
 
 export function LeadsPage() {
-  const [search, setSearch] = useState("");
+  // Filters, search, sort and layout live in the store, mirrored in the URL.
   useLeadsUrlFilters();
+  const search = useLeadsTableStore((s) => s.search);
+  const setSearch = useLeadsTableStore((s) => s.setSearch);
   const listParams = useLeadsListParams(search);
 
   const layout = useLeadsTableStore((s) => s.layout);
@@ -179,8 +181,6 @@ export function LeadsPage() {
           viewMenu={
             <>
               <SavedViewsMenu
-                search={search}
-                onSearchChange={setSearch}
                 columnVisibility={view.columnVisibility}
                 density={view.density}
                 onApplyDisplay={view.apply}

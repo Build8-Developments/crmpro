@@ -17,10 +17,10 @@ import type { Deal, DealDetailsInput, UpdateDealInput } from "@/features/deals/t
 import {
   computeCommission,
   formatAmountInput,
-  formatMoney,
   parseAmount,
   UNIT_TYPE_SUGGESTIONS,
 } from "@/features/deals/utils/deal-format";
+import { formatMoney } from "@/lib/format";
 
 /** Form state: inputs as strings, "" = not set. */
 export interface DealDraft {

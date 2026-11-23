@@ -1,3 +1,4 @@
+import { CustomFieldType } from '@crmpro/database';
 import type { LeadExportRow } from '../entities/export-job.types';
 
 /**
@@ -127,6 +128,68 @@ export const LEAD_EXPORT_COLUMNS: readonly ExportColumn<LeadExportRow>[] = [
     value: (r) => r.lostReason ?? '',
   },
 ];
+
+/** What an export column needs from a custom field definition. */
+export interface ExportCustomField {
+  key: string;
+  label: string;
+  type: CustomFieldType;
+}
+
+const CUSTOM_FIELD_WIDTHS: Record<CustomFieldType, number> = {
+  [CustomFieldType.TEXT]: 24,
+  [CustomFieldType.NUMBER]: 14,
+  [CustomFieldType.DATE]: 14,
+  [CustomFieldType.SELECT]: 18,
+  [CustomFieldType.MULTI_SELECT]: 28,
+  [CustomFieldType.BOOLEAN]: 10,
+  [CustomFieldType.URL]: 32,
+};
+
+/** Stored custom field value → cell text ('' when empty or malformed). */
+function customFieldCellText(type: CustomFieldType, value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (type === CustomFieldType.BOOLEAN) {
+    return value === true ? 'Yes' : value === false ? 'No' : '';
+  }
+  if (Array.isArray(value)) {
+    return value.filter((item) => typeof item === 'string').join(', ');
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  return '';
+}
+
+/**
+ * One column per active custom field, after the built-in columns (in the
+ * fields' sort order). Values go through the same formula escaping: numbers
+ * are native numbers in XLSX; dates stay YYYY-MM-DD text; everything else
+ * is text.
+ */
+export function buildLeadExportColumns(
+  customFields: readonly ExportCustomField[],
+): ExportColumn<LeadExportRow>[] {
+  const headers = new Set(LEAD_EXPORT_COLUMNS.map((column) => column.header));
+
+  return [
+    ...LEAD_EXPORT_COLUMNS,
+    ...customFields.map((field): ExportColumn<LeadExportRow> => {
+      // A label equal to a built-in header gets the key appended.
+      const header = headers.has(field.label)
+        ? `${field.label} (${field.key})`
+        : field.label;
+      headers.add(header);
+      return {
+        header,
+        type: field.type === CustomFieldType.NUMBER ? 'number' : 'text',
+        width: CUSTOM_FIELD_WIDTHS[field.type],
+        value: (row) =>
+          customFieldCellText(field.type, row.customFields?.[field.key]),
+      };
+    }),
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Formula-injection escaping

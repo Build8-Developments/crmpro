@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import {
+  formatCreatedRange,
   HEAT_OPTIONS,
   INTEREST_LEVEL_OPTIONS,
   LAST_CONTACT_OPTIONS,
   LEAD_STATUS_OPTIONS,
+  NEXT_STEP_OPTIONS,
 } from "@/features/leads/utils/lead-filters";
 import { useLeadFilterOptions, useLostReasons } from "@/features/leads/hooks";
 import { formatNumber } from "@/lib/format";
@@ -102,6 +104,14 @@ export function ActiveFilterBadges({ filters, onFiltersChange }: ActiveFilterBad
       { lastContact: undefined },
     );
   }
+  // "No next step" and "Overdue" are quick chips; links can set the others.
+  if (filters.nextStep === "today" || filters.nextStep === "scheduled") {
+    add(
+      "nextStep",
+      `Next step ${NEXT_STEP_OPTIONS.find((o) => o.value === filters.nextStep)?.label.toLowerCase()}`,
+      { nextStep: undefined },
+    );
+  }
   if (filters.slaBreached === "today") {
     add("slaBreached", "SLA missed today", { slaBreached: undefined });
   }
@@ -154,11 +164,16 @@ export function ActiveFilterBadges({ filters, onFiltersChange }: ActiveFilterBad
     add("occupation", `Job “${filters.occupation.trim()}”`, { occupation: undefined });
   }
   if (filters.createdFrom || filters.createdTo) {
-    add(
-      "created",
-      `Created ${filters.createdFrom ?? "…"} → ${filters.createdTo ?? "today"}`,
-      { createdFrom: undefined, createdTo: undefined },
-    );
+    add("created", formatCreatedRange(filters.createdFrom, filters.createdTo), {
+      createdFrom: undefined,
+      createdTo: undefined,
+    });
+  }
+  if (filters.closedFrom || filters.closedTo) {
+    add("closed", formatCreatedRange(filters.closedFrom, filters.closedTo, "Closed"), {
+      closedFrom: undefined,
+      closedTo: undefined,
+    });
   }
 
   if (badges.length === 0) return null;

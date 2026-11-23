@@ -41,11 +41,31 @@ export interface DashboardSources {
   projects: ProjectDemandRow[];
 }
 
-/** Leads list filtered by source (the list has no "no source" filter). */
-export function sourceLeadsHref(sourceId: string | null): string | null {
-  return sourceId ? `/leads?sourceIds=${encodeURIComponent(sourceId)}` : null;
+export type SourcesPeriodWindow = Pick<DashboardSources["period"], "from" | "to">;
+
+/**
+ * The row's cohort in the leads list: that source's leads created in the
+ * period (same bounds as the count; the list's `createdTo` is inclusive, the
+ * period's `to` exclusive). Null for "No source" — the list cannot filter
+ * on a missing source.
+ */
+export function sourceLeadsHref(sourceId: string | null, period: SourcesPeriodWindow): string | null {
+  if (!sourceId) return null;
+  const params = new URLSearchParams({
+    sourceIds: sourceId,
+    createdFrom: period.from,
+    createdTo: new Date(Date.parse(period.to) - 1).toISOString(),
+  });
+  return `/leads?${params.toString()}`;
 }
 
+/** Shown instead of a link on the "No source" row. */
+export const NO_SOURCE_LINK_HINT = "Leads without a source can't be opened as a list";
+
+/**
+ * Every lead interested in the project. The list cannot filter on when the
+ * interest was added, so it can hold more leads than the period's count.
+ */
 export function projectLeadsHref(projectId: string): string {
   return `/leads?projectId=${encodeURIComponent(projectId)}`;
 }

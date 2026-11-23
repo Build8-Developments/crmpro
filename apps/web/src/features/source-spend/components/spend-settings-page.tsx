@@ -2,27 +2,39 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconNotes } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSaveSourceSpend, useSourceSpend } from "@/features/source-spend/hooks";
 import type { SaveSourceSpendInput, SourceSpendGrid, SpendCell } from "@/features/source-spend/types";
 import {
-  formatCompactMoney,
-  formatMoney,
   formatPeriodLabel,
   formatPeriodShort,
   shiftPeriod,
 } from "@/features/targets/utils/target-format";
 import { usePermissions } from "@/hooks/use-permissions";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatMoney, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Draft = Record<string, string>;
 
 const cellKey = (sourceId: string, period: string) => `${sourceId}:${period}`;
+
+/** Same limit as the API (MAX_SPEND_NOTE_LENGTH). */
+const MAX_NOTE_LENGTH = 300;
+
+/** Trimmed note, null when blank (the API stores blank as no note). */
+const noteValue = (raw: string | undefined) => raw?.trim() || null;
 
 /** "" → null, invalid → undefined. */
 function parseAmount(raw: string): number | null | undefined {
@@ -43,11 +55,25 @@ function draftOf(grid: SourceSpendGrid): Draft {
   return draft;
 }
 
+function notesOf(grid: SourceSpendGrid): Draft {
+  const notes: Draft = {};
+  for (const row of grid.sources) {
+    for (const cell of row.months) notes[cellKey(row.source.id, cell.period)] = cell.note ?? "";
+  }
+  return notes;
+}
+
 function savedSignature(grid: SourceSpendGrid): string {
   return JSON.stringify([
     grid.periods,
-    grid.sources.map((row) => [row.source.id, row.months.map((cell) => cell.amount)]),
+    grid.sources.map((row) => [row.source.id, row.months.map((cell) => [cell.amount, cell.note])]),
   ]);
+}
+
+interface NoteTarget {
+  key: string;
+  sourceName: string;
+  period: string;
 }
 
 /**
@@ -101,6 +127,8 @@ function SpendForm({
   onWindowChange: (to: string) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftOf(grid));
+  const [notes, setNotes] = useState<Draft>(() => notesOf(grid));
+  const [noteTarget, setNoteTarget] = useState<NoteTarget | null>(null);
   const [selected, setSelected] = useState(grid.periods[grid.periods.length - 1]);
   const { can } = usePermissions();
   const canEdit = can("spend.manage");
@@ -110,9 +138,20 @@ function SpendForm({
   let invalidCount = 0;
   for (const row of grid.sources) {
     for (const cell of row.months) {
-      const parsed = parseAmount(draft[cellKey(row.source.id, cell.period)] ?? "");
+      const key = cellKey(row.source.id, cell.period);
+      const parsed = parseAmount(draft[key] ?? "");
+      // A month without an amount has no note (clearing the amount clears it).
+      const note = parsed === null ? null : noteValue(notes[key]);
+      const noteChanged = note !== (cell.note ?? null);
       if (parsed === undefined) invalidCount += 1;
-      else if (parsed !== cell.amount) entries.push({ sourceId: row.source.id, period: cell.period, amount: parsed });
+      else if (parsed !== cell.amount || noteChanged) {
+        entries.push({
+          sourceId: row.source.id,
+          period: cell.period,
+          amount: parsed,
+          ...(noteChanged ? { note } : {}),
+        });
+      }
     }
   }
   const dirty = entries.length > 0 || invalidCount > 0;
@@ -173,6 +212,8 @@ function SpendForm({
                       const key = cellKey(row.source.id, cell.period);
                       const value = draft[key] ?? "";
                       const parsed = parseAmount(value);
+                      const note = noteValue(notes[key]);
+                      const canNote = canEdit && parsed !== null && parsed !== undefined;
                       return (
                         <td key={cell.period} className="px-2 py-2.5 align-top">
                           <Input
@@ -188,8 +229,35 @@ function SpendForm({
                               parsed !== undefined && parsed !== cell.amount && "border-primary/60 bg-primary/5",
                             )}
                           />
-                          <div className="mt-1 text-right text-[11px] text-muted-foreground tabular-nums">
-                            {formatNumber(cell.leads)} {cell.leads === 1 ? "lead" : "leads"}
+                          <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground tabular-nums">
+                            {!canNote && note ? (
+                              <span title={note} aria-label={`Note: ${note}`} className="text-primary">
+                                <IconNotes className="size-3.5" />
+                              </span>
+                            ) : canNote ? (
+                              <button
+                                type="button"
+                                title={note ?? "Add a note"}
+                                aria-label={
+                                  note
+                                    ? `Note for ${row.source.name} in ${formatPeriodLabel(cell.period)}: ${note}`
+                                    : `Add a note for ${row.source.name} in ${formatPeriodLabel(cell.period)}`
+                                }
+                                onClick={() =>
+                                  setNoteTarget({ key, sourceName: row.source.name, period: cell.period })
+                                }
+                                className={cn(
+                                  "rounded p-0.5 transition-colors duration-fast hover:bg-muted hover:text-foreground",
+                                  note ? "text-primary" : "text-muted-foreground/50",
+                                  note !== (cell.note ?? null) && "ring-1 ring-primary/60",
+                                )}
+                              >
+                                <IconNotes className="size-3.5" />
+                              </button>
+                            ) : null}
+                            <span>
+                              {formatNumber(cell.leads)} {cell.leads === 1 ? "lead" : "leads"}
+                            </span>
                           </div>
                         </td>
                       );
@@ -220,7 +288,15 @@ function SpendForm({
                 : `${entries.length} unsaved ${entries.length === 1 ? "change" : "changes"}. Costs below update after saving.`}
             </span>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(draftOf(grid))}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDraft(draftOf(grid));
+                  setNotes(notesOf(grid));
+                }}
+              >
                 Discard
               </Button>
               <Button type="submit" size="sm" disabled={invalidCount > 0 || entries.length === 0 || save.isPending}>
@@ -277,7 +353,97 @@ function SpendForm({
           </div>
         </section>
       ) : null}
+
+      <SpendNoteDialog
+        target={noteTarget}
+        value={noteTarget ? (notes[noteTarget.key] ?? "") : ""}
+        onClose={() => setNoteTarget(null)}
+        onSave={(key, value) => setNotes((current) => ({ ...current, [key]: value }))}
+      />
     </form>
+  );
+}
+
+/** Edits one month's note; it is saved with the amounts ("Save spend"). */
+function SpendNoteDialog({
+  target,
+  value,
+  onClose,
+  onSave,
+}: {
+  target: NoteTarget | null;
+  value: string;
+  onClose: () => void;
+  onSave: (key: string, value: string) => void;
+}) {
+  return (
+    <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-sm">
+        {target ? (
+          <SpendNoteForm
+            key={target.key}
+            target={target}
+            initial={value}
+            onClose={onClose}
+            onSave={(next) => {
+              onSave(target.key, next);
+              onClose();
+            }}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SpendNoteForm({
+  target,
+  initial,
+  onClose,
+  onSave,
+}: {
+  target: NoteTarget;
+  initial: string;
+  onClose: () => void;
+  onSave: (value: string) => void;
+}) {
+  const [text, setText] = useState(initial);
+  return (
+    <div className="space-y-4">
+      <DialogHeader>
+        <DialogTitle>Spend note</DialogTitle>
+        <DialogDescription>
+          {target.sourceName} · {formatPeriodLabel(target.period)}. Saved with the amounts.
+        </DialogDescription>
+      </DialogHeader>
+      <textarea
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        maxLength={MAX_NOTE_LENGTH}
+        rows={3}
+        autoFocus
+        placeholder="e.g. Includes the launch event boost"
+        aria-label="Note"
+        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow,border-color] duration-fast ease-enter focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      />
+      <DialogFooter className="sm:justify-between">
+        {initial.trim() ? (
+          <Button type="button" variant="ghost" size="sm" onClick={() => onSave("")}>
+            Remove note
+          </Button>
+        ) : (
+          <span />
+        )}
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" size="sm" onClick={() => onSave(text)}>
+            Done
+          </Button>
+        </div>
+      </DialogFooter>
+    </div>
   );
 }
 

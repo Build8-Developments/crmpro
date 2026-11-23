@@ -4,7 +4,11 @@ import { SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { LeadsService } from '../../leads/leads.service';
 import { LeadExportParams } from '../../leads/types/lead.types';
+import { loadLeadFilterContext } from '../../leads/utils/lead-filter-where.util';
+import { CustomFieldsService } from '../../custom-fields/custom-fields.service';
+import { toStoredCustomFields } from '../../custom-fields/custom-field-values';
 import { LeadExportRow } from '../entities/export-job.types';
+import { buildLeadExportColumns, type ExportColumn } from './export-columns';
 import {
   CONTACT_CHANNEL_LABELS,
   CONTACT_TIME_LABELS,
@@ -31,6 +35,7 @@ const leadExportSelect = {
   budgetMax: true,
   heat: true,
   lastContactedAt: true,
+  customFields: true,
   lostReason: { select: { name: true } },
   source: { select: { name: true } },
   pipeline: { select: { name: true } },
@@ -53,16 +58,39 @@ export class LeadExportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadsService: LeadsService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
-  buildWhereInput(
+  /** Built-in columns plus one per active custom field. */
+  async loadColumns(tenantId: string): Promise<ExportColumn<LeadExportRow>[]> {
+    const definitions = await this.customFields.getLeadDefinitions(tenantId);
+    return buildLeadExportColumns(
+      definitions.filter((field) => !field.archivedAt),
+    );
+  }
+
+  /**
+   * The leads list's own where-builder (every list filter, incl. the ones
+   * that need the tenant's today or stage thresholds), so an export holds
+   * exactly the leads the list showed.
+   */
+  async buildWhereInput(
     tenantId: string,
     params: LeadExportParams,
     scope: LeadScope,
-  ): Prisma.LeadWhereInput {
+  ): Promise<Prisma.LeadWhereInput> {
+    const context = await loadLeadFilterContext(
+      this.prisma,
+      tenantId,
+      params,
+      new Date(),
+    );
     return {
       AND: [
-        this.leadsService.buildLeadsWhereInput(tenantId, params),
+        this.leadsService.buildLeadsWhereInput(tenantId, {
+          ...params,
+          ...context,
+        }),
         leadScopeWhere(scope),
       ],
     };
@@ -81,7 +109,7 @@ export class LeadExportService {
     scope: LeadScope,
   ): Promise<number> {
     return this.prisma.lead.count({
-      where: this.buildWhereInput(tenantId, params, scope),
+      where: await this.buildWhereInput(tenantId, params, scope),
     });
   }
 
@@ -91,7 +119,7 @@ export class LeadExportService {
     scope: LeadScope,
     onProgress?: (processedRows: number, totalRows: number) => Promise<void>,
   ): Promise<LeadExportRow[]> {
-    const where = this.buildWhereInput(tenantId, params, scope);
+    const where = await this.buildWhereInput(tenantId, params, scope);
     const orderBy = this.buildOrderBy(params);
     const totalRows = await this.prisma.lead.count({ where });
     const rows: LeadExportRow[] = [];
@@ -163,6 +191,7 @@ export class LeadExportService {
       heat: lead.heat,
       lastContactedAt: lead.lastContactedAt?.toISOString() ?? '',
       lostReason: lead.lostReason?.name ?? '',
+      customFields: toStoredCustomFields(lead.customFields),
     };
   }
 }

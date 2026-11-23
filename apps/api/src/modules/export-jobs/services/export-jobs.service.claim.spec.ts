@@ -11,6 +11,7 @@ import { QueueService } from '../../jobs/queues/queue.service';
 import { AuditWriterService } from '../../audit/audit-writer.service';
 import { CsvExportService } from './csv-export.service';
 import { ExportJobsService } from './export-jobs.service';
+import { LEAD_EXPORT_COLUMNS } from './export-columns';
 import { LeadExportService } from './lead-export.service';
 import { XlsxExportService } from './xlsx-export.service';
 import { EXPORT_XLSX_MIME_TYPE } from '../export-jobs.constants';
@@ -18,7 +19,10 @@ import { LeadExportRow } from '../entities/export-job.types';
 
 describe('ExportJobsService job claiming', () => {
   let service: ExportJobsService;
-  let leadExportService: { fetchAllForExport: jest.Mock };
+  let leadExportService: {
+    fetchAllForExport: jest.Mock;
+    loadColumns: jest.Mock;
+  };
   let filesService: { createServerGeneratedFile: jest.Mock };
   let csvExportService: { generateCsv: jest.Mock };
   let prisma: {
@@ -33,6 +37,7 @@ describe('ExportJobsService job claiming', () => {
   beforeEach(async () => {
     leadExportService = {
       fetchAllForExport: jest.fn(),
+      loadColumns: jest.fn().mockResolvedValue(LEAD_EXPORT_COLUMNS),
     };
     filesService = {
       createServerGeneratedFile: jest.fn().mockResolvedValue({ id: 'file-1' }),
@@ -207,7 +212,7 @@ describe('ExportJobsService job claiming', () => {
 });
 
 describe('LeadExportService.assertSupportedFormat', () => {
-  const service = new LeadExportService({} as never, {} as never);
+  const service = new LeadExportService({} as never, {} as never, {} as never);
 
   it.each([ExportFormat.CSV, ExportFormat.XLSX])('accepts %s', (format) => {
     expect(() => service.assertSupportedFormat(format)).not.toThrow();

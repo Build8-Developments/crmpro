@@ -14,6 +14,7 @@ import type {
   LeadsListParams,
 } from "@/features/leads/types";
 import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
+import type { LeadsUrlState } from "@/features/leads/utils/leads-url-state";
 
 export interface LeadsTableFilters {
   id?: string;
@@ -32,9 +33,15 @@ export interface LeadsTableFilters {
   sourceIds?: string[];
   heat?: LeadHeat[];
   interestLevel?: Exclude<InterestLevel, null>;
-  /** yyyy-mm-dd, inclusive. */
+  /**
+   * Inclusive. `yyyy-mm-dd` (a picked local day) or an ISO timestamp (an
+   * exact bound from a dashboard link).
+   */
   createdFrom?: string;
   createdTo?: string;
+  /** Won or lost between these; same formats as createdFrom/createdTo. */
+  closedFrom?: string;
+  closedTo?: string;
   lastContact?: LeadLastContactFilter;
   nextStep?: LeadNextStepFilter;
   /** Dashboard "needs attention" filters (see apps/api leads/utils/lead-filter-where.util.ts). */
@@ -69,13 +76,18 @@ interface LeadsTableState {
   /** Table or kanban board (same filters either way). */
   layout: LeadsLayout;
   setLayout: (layout: LeadsLayout) => void;
-  /** Applies a saved view: replaces filters and sort in one step. */
+  /** Applies a saved view: replaces filters and sort in one step (search cleared). */
   applyView: (view: {
     filters: LeadsTableFilters;
     sortBy?: LeadsSortField;
     sortOrder?: "asc" | "desc";
     layout?: LeadsLayout;
   }) => void;
+  /** Applies the state read from the URL (arrival, Back/Forward, a link). */
+  applyUrlState: (state: LeadsUrlState) => void;
+  /** Search box text (the list query uses it debounced). */
+  search: string;
+  setSearch: (search: string) => void;
   page: number;
   limit: number;
   sortBy: LeadsSortField;
@@ -97,7 +109,7 @@ interface LeadsTableState {
 
 const DEFAULT_LIMIT = 25;
 
-export const useLeadsTableStore = create<LeadsTableState>((set, get) => ({
+export const useLeadsTableStore = create<LeadsTableState>((set) => ({
   layout: "list",
   setLayout: (layout) => set({ layout, rowSelection: {}, selectAllMatching: false }),
   applyView: (view) =>
@@ -106,10 +118,24 @@ export const useLeadsTableStore = create<LeadsTableState>((set, get) => ({
       sortBy: view.sortBy ?? "createdAt",
       sortOrder: view.sortOrder ?? "desc",
       layout: view.layout ?? state.layout,
+      search: "",
       page: 1,
       rowSelection: {},
       selectAllMatching: false,
     })),
+  applyUrlState: (urlState) =>
+    set({
+      filters: urlState.filters,
+      search: urlState.search,
+      sortBy: urlState.sortBy,
+      sortOrder: urlState.sortOrder,
+      layout: urlState.layout,
+      page: 1,
+      rowSelection: {},
+      selectAllMatching: false,
+    }),
+  search: "",
+  setSearch: (search) => set({ search }),
   page: 1,
   limit: DEFAULT_LIMIT,
   sortBy: "createdAt",
@@ -172,8 +198,11 @@ export function buildLeadSelectionFilters(
   const trimmedSearch = search.trim();
   const state = { filters };
   const nonEmpty = <T,>(values?: T[]) => (values && values.length > 0 ? values : undefined);
-  const endOfDay = (day?: string) => (day ? `${day}T23:59:59.999` : undefined);
-  const startOfDay = (day?: string) => (day ? `${day}T00:00:00` : undefined);
+  // A picked day covers the whole local day; a timestamp (dashboard link) is exact.
+  const dateBound = (value: string, edge: "start" | "end") =>
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? new Date(`${value}${edge === "start" ? "T00:00:00" : "T23:59:59.999"}`).toISOString()
+      : new Date(value).toISOString();
 
   return {
     ...(trimmedSearch ? { search: trimmedSearch } : {}),
@@ -194,12 +223,10 @@ export function buildLeadSelectionFilters(
     ...(nonEmpty(filters.sourceIds) ? { sourceIds: filters.sourceIds } : {}),
     ...(nonEmpty(filters.heat) ? { heat: filters.heat } : {}),
     ...(filters.interestLevel ? { interestLevel: filters.interestLevel } : {}),
-    ...(filters.createdFrom
-      ? { createdFrom: new Date(startOfDay(filters.createdFrom)!).toISOString() }
-      : {}),
-    ...(filters.createdTo
-      ? { createdTo: new Date(endOfDay(filters.createdTo)!).toISOString() }
-      : {}),
+    ...(filters.createdFrom ? { createdFrom: dateBound(filters.createdFrom, "start") } : {}),
+    ...(filters.createdTo ? { createdTo: dateBound(filters.createdTo, "end") } : {}),
+    ...(filters.closedFrom ? { closedFrom: dateBound(filters.closedFrom, "start") } : {}),
+    ...(filters.closedTo ? { closedTo: dateBound(filters.closedTo, "end") } : {}),
     ...(filters.lastContact ? { lastContact: filters.lastContact } : {}),
     ...(filters.nextStep ? { nextStep: filters.nextStep } : {}),
     ...(filters.slaBreached ? { slaBreached: filters.slaBreached } : {}),

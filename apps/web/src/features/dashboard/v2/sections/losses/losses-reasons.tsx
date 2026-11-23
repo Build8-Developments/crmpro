@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   formatShare,
+  lostReasonLeadsHref,
   reasonColor,
   type DashboardLosses,
   type LostBreakdownRow,
@@ -16,7 +18,13 @@ type Split = "source" | "agent";
 const reasonKey = (reasonId: string | null) => reasonId ?? "none";
 
 /** Lost reasons overall, then split by source or by owner as stacked bars. */
-export function LossesReasons({ lost }: { lost: DashboardLosses["lost"] }) {
+export function LossesReasons({
+  lost,
+  period,
+}: {
+  lost: DashboardLosses["lost"];
+  period: DashboardLosses["period"];
+}) {
   const [split, setSplit] = useState<Split>("source");
 
   if (lost.total === 0) {
@@ -38,7 +46,7 @@ export function LossesReasons({ lost }: { lost: DashboardLosses["lost"] }) {
               aria-hidden
             />
             <span className="min-w-0 flex-1 truncate">
-              {reason.name}
+              <ReasonName reasonId={reason.reasonId} name={reason.name} period={period} />
               {reason.recyclable ? (
                 <span className="ml-1 text-[10px] text-muted-foreground" title="Comes back as a re-engage task">
                   · recyclable
@@ -90,6 +98,24 @@ export function LossesReasons({ lost }: { lost: DashboardLosses["lost"] }) {
         </ul>
       </div>
     </div>
+  );
+}
+
+function ReasonName({
+  reasonId,
+  name,
+  period,
+}: {
+  reasonId: string | null;
+  name: string;
+  period: DashboardLosses["period"];
+}) {
+  const href = lostReasonLeadsHref(reasonId, period);
+  if (!href) return <>{name}</>;
+  return (
+    <Link href={href} className="hover:text-primary hover:underline" title="Open the leads lost for this reason in this period">
+      {name}
+    </Link>
   );
 }
 

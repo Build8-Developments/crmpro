@@ -23,6 +23,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { LEAD_SCOPE_LABELS, useLeadScope } from "@/hooks/use-lead-scope";
 import { LeadsFiltersSheet } from "./leads-filters-sheet";
 import { ActiveFilterBadges } from "./active-filter-badges";
+import { LeadsExportButton } from "./leads-export-button";
 
 interface LeadsToolbarProps {
   search: string;
@@ -195,6 +196,7 @@ export function LeadsToolbar({
               Transfer
             </Button>
           ) : null}
+          <LeadsExportButton />
           {can("import-job.create") ? (
             <Button variant="outline" size="sm" className="h-8" asChild>
               <Link href="/imports">

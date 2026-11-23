@@ -4,6 +4,8 @@ import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { TaskLifecycleService } from '../workflow/common/task-lifecycle.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
+import { mergeCustomFieldValues } from '../custom-fields/custom-field-values';
 import { LeadsService } from './leads.service';
 
 describe('LeadsService.buildLeadsWhereInput', () => {
@@ -13,6 +15,13 @@ describe('LeadsService.buildLeadsWhereInput', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeadsService,
+        {
+          provide: CustomFieldsService,
+          useValue: {
+            getLeadDefinitions: jest.fn().mockResolvedValue([]),
+            resolveLeadValues: mergeCustomFieldValues,
+          },
+        },
         { provide: PrismaService, useValue: {} },
         { provide: LeadActivityService, useValue: {} },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
@@ -69,6 +78,13 @@ describe('LeadsService.buildLeadsWhereInput — manager filters', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeadsService,
+        {
+          provide: CustomFieldsService,
+          useValue: {
+            getLeadDefinitions: jest.fn().mockResolvedValue([]),
+            resolveLeadValues: mergeCustomFieldValues,
+          },
+        },
         { provide: PrismaService, useValue: {} },
         { provide: LeadActivityService, useValue: {} },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },

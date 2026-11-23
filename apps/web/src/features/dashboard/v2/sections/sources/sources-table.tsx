@@ -5,9 +5,14 @@ import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table/data-table";
 import { useDataTable } from "@/components/data-table/use-data-table";
-import { formatCompactMoney } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
-import { formatRate, sourceLeadsHref, type SourceRow } from "./sources-types";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
+import {
+  formatRate,
+  NO_SOURCE_LINK_HINT,
+  sourceLeadsHref,
+  type SourceRow,
+  type SourcesPeriodWindow,
+} from "./sources-types";
 
 type Row = SourceRow & { id: string };
 type SortKey =
@@ -44,7 +49,7 @@ function Rate({ value, part, whole, of }: { value: number | null; part: number; 
   );
 }
 
-function useColumns(currency: string, spendVisible: boolean): ColumnDef<Row>[] {
+function useColumns(currency: string, spendVisible: boolean, period: SourcesPeriodWindow): ColumnDef<Row>[] {
   return useMemo<ColumnDef<Row>[]>(() => {
     const money = (value: number | null) =>
       value === null ? <span className="text-muted-foreground">—</span> : formatCompactMoney(value, currency);
@@ -54,13 +59,15 @@ function useColumns(currency: string, spendVisible: boolean): ColumnDef<Row>[] {
         header: "Source",
         meta: { sortable: true },
         cell: ({ row }) => {
-          const href = sourceLeadsHref(row.original.sourceId);
+          const href = sourceLeadsHref(row.original.sourceId, period);
           return href ? (
-            <Link href={href} className="font-medium hover:text-primary" title="Open these leads">
+            <Link href={href} className="font-medium hover:text-primary" title="Open the leads created in this period">
               {row.original.name}
             </Link>
           ) : (
-            <span className="font-medium text-muted-foreground">{row.original.name}</span>
+            <span className="font-medium text-muted-foreground" title={NO_SOURCE_LINK_HINT}>
+              {row.original.name}
+            </span>
           );
         },
       },
@@ -135,12 +142,22 @@ function useColumns(currency: string, spendVisible: boolean): ColumnDef<Row>[] {
         cell: ({ row }) => <span className="tabular-nums">{money(row.original.costPerDeal)}</span>,
       },
     ];
-  }, [currency, spendVisible]);
+  }, [currency, spendVisible, period]);
 }
 
-function SourceCard({ row, currency, spendVisible }: { row: Row; currency: string; spendVisible: boolean }) {
+function SourceCard({
+  row,
+  currency,
+  spendVisible,
+  period,
+}: {
+  row: Row;
+  currency: string;
+  spendVisible: boolean;
+  period: SourcesPeriodWindow;
+}) {
   const money = (value: number | null) => (value === null ? "—" : formatCompactMoney(value, currency));
-  const href = sourceLeadsHref(row.sourceId);
+  const href = sourceLeadsHref(row.sourceId, period);
   const stats: Array<[string, string]> = [
     ["Leads", formatNumber(row.leads)],
     ["Contacted", formatRate(row.contactRate)],
@@ -163,7 +180,9 @@ function SourceCard({ row, currency, spendVisible }: { row: Row; currency: strin
             {row.name}
           </Link>
         ) : (
-          <span className="truncate text-sm font-medium text-muted-foreground">{row.name}</span>
+          <span className="truncate text-sm font-medium text-muted-foreground" title={NO_SOURCE_LINK_HINT}>
+            {row.name}
+          </span>
         )}
         {spendVisible && row.spend !== null ? (
           <span className="shrink-0 text-xs text-muted-foreground">{money(row.spend)} spent</span>
@@ -185,10 +204,12 @@ export function SourcesTable({
   sources,
   currency,
   spendVisible,
+  period,
 }: {
   sources: SourceRow[];
   currency: string;
   spendVisible: boolean;
+  period: SourcesPeriodWindow;
 }) {
   const [sortBy, setSortBy] = useState<SortKey>("leads");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -201,7 +222,7 @@ export function SourcesTable({
       ),
     [sources, sortBy, sortOrder],
   );
-  const columns = useColumns(currency, spendVisible);
+  const columns = useColumns(currency, spendVisible, period);
   const table = useDataTable({ data, columns });
 
   return (
@@ -214,7 +235,9 @@ export function SourcesTable({
         setSortBy(key);
         setSortOrder(order);
       }}
-      renderCard={(row) => <SourceCard row={row.original} currency={currency} spendVisible={spendVisible} />}
+      renderCard={(row) => (
+        <SourceCard row={row.original} currency={currency} spendVisible={spendVisible} period={period} />
+      )}
       scrollClassName="md:max-h-[28rem]"
       aria-label="Lead sources"
       emptyState={

@@ -34,6 +34,7 @@ import {
 } from '../../audit/audit.constants';
 import { AuditWriterService } from '../../audit/audit-writer.service';
 import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
+import { normalizeLeadExportFilters } from '../utils/lead-export-filters.util';
 import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
 import {
   CreateExportJobResponse,
@@ -46,6 +47,7 @@ import {
   EXPORT_XLSX_MIME_TYPE,
 } from '../export-jobs.constants';
 import { CsvExportService } from './csv-export.service';
+import type { ExportColumn } from './export-columns';
 import { LeadExportService } from './lead-export.service';
 import { XlsxExportService } from './xlsx-export.service';
 import { SYSTEM_LEAD_SCOPE } from '../../../common/auth';
@@ -346,7 +348,12 @@ export class ExportJobsService {
         `Export job ${jobId}: loaded ${rows.length} lead(s) for ${job.format} generation`,
       );
 
-      const fileBuffer = await this.generateExportBuffer(job.format, rows);
+      const columns = await this.leadExportService.loadColumns(tenantId);
+      const fileBuffer = await this.generateExportBuffer(
+        job.format,
+        rows,
+        columns,
+      );
 
       this.logger.log(`Export job ${jobId}: ${job.format} generated`);
 
@@ -427,12 +434,13 @@ export class ExportJobsService {
   private async generateExportBuffer(
     format: ExportFormat,
     rows: LeadExportRow[],
+    columns: ExportColumn<LeadExportRow>[],
   ): Promise<Buffer> {
     if (format === ExportFormat.XLSX) {
-      return this.xlsxExportService.generateXlsx(rows);
+      return this.xlsxExportService.generateXlsx(rows, columns);
     }
 
-    return this.csvExportService.generateCsv(rows);
+    return this.csvExportService.generateCsv(rows, columns);
   }
 
   private getExportFileType(format: ExportFormat): {
@@ -449,29 +457,10 @@ export class ExportJobsService {
   }
 
   private normalizeExportParams(dto: CreateLeadExportDto): LeadExportParams {
-    const filters = this.normalizeFilters(dto.filters);
-
     return {
-      ...filters,
+      ...normalizeLeadExportFilters(dto.filters),
       sortBy: dto.sortBy,
       sortOrder: dto.sortOrder ?? SortOrder.DESC,
-    };
-  }
-
-  private normalizeFilters(filters?: LeadExportParams): LeadExportParams {
-    if (!filters) {
-      return {};
-    }
-
-    return {
-      ...(filters.pipelineId ? { pipelineId: filters.pipelineId } : {}),
-      ...(filters.stageId ? { stageId: filters.stageId } : {}),
-      ...(filters.assignedUserId
-        ? { assignedUserId: filters.assignedUserId }
-        : {}),
-      ...(filters.sourceId ? { sourceId: filters.sourceId } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.search ? { search: filters.search } : {}),
     };
   }
 
@@ -483,23 +472,8 @@ export class ExportJobsService {
     const record = value as Record<string, unknown>;
 
     return {
-      ...this.normalizeFilters({
-        pipelineId:
-          typeof record.pipelineId === 'string' ? record.pipelineId : undefined,
-        stageId:
-          typeof record.stageId === 'string' ? record.stageId : undefined,
-        assignedUserId:
-          typeof record.assignedUserId === 'string'
-            ? record.assignedUserId
-            : undefined,
-        sourceId:
-          typeof record.sourceId === 'string' ? record.sourceId : undefined,
-        status:
-          typeof record.status === 'string'
-            ? (record.status as LeadExportParams['status'])
-            : undefined,
-        search: typeof record.search === 'string' ? record.search : undefined,
-      }),
+      // Sort keys are not filters; the DTO whitelist leaves them out.
+      ...normalizeLeadExportFilters(record),
       sortBy: typeof record.sortBy === 'string' ? record.sortBy : undefined,
       sortOrder:
         record.sortOrder === SortOrder.ASC ||

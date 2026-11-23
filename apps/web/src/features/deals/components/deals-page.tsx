@@ -24,7 +24,6 @@ import type { Deal, DealSortField, DealStatus, DealsListParams } from "@/feature
 import {
   DEAL_STATUS_LABELS,
   formatDealDate,
-  formatMoney,
   formatMonthKey,
   monthStart,
   toMonthKey,
@@ -39,12 +38,12 @@ import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useNow } from "@/hooks/use-now";
 import { usePermissions } from "@/hooks/use-permissions";
-import { formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const DEALS_PAGE_SIZE = 50;
 const DEAL_STATUSES = ["RESERVED", "CONTRACTED", "CANCELLED"] as const;
-const PERIOD_FIELDS = ["any", "reservedAt", "contractedAt"] as const;
+const PERIOD_FIELDS = ["any", "reservedAt", "contractedAt", "cancelledAt"] as const;
 
 /** A date window from a link (e.g. the dashboard): `from`/`to` ISO, `to` exclusive. */
 interface LinkedRange {
@@ -64,19 +63,23 @@ function readLinkedRange(params: URLSearchParams): LinkedRange | null {
   return { from, to, periodField };
 }
 
+const PERIOD_FIELD_LABELS: Record<LinkedRange["periodField"], string> = {
+  any: "Dated",
+  reservedAt: "Reserved",
+  contractedAt: "Contracted",
+  cancelledAt: "Cancelled",
+};
+
 function linkedRangeLabel(range: LinkedRange): string {
-  const what =
-    range.periodField === "contractedAt"
-      ? "Contracted"
-      : range.periodField === "reservedAt"
-        ? "Reserved"
-        : "Dated";
+  const what = PERIOD_FIELD_LABELS[range.periodField];
   // `to` is exclusive: show the last included day.
   const last = new Date(Date.parse(range.to) - 1).toISOString();
   return `${what} ${formatDealDate(range.from)} – ${formatDealDate(last)}`;
 }
 const MONTHS_BACK = 12;
 const ALL = "all";
+/** Status filter value for "reserved or contracted" (`live=true`). */
+const LIVE = "live";
 
 /**
  * Deals on won leads: totals per status for the filtered set, a sortable
@@ -94,8 +97,10 @@ export function DealsPage() {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<DealSortField>("reservedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [status, setStatus] = useState<DealStatus | typeof ALL>(
-    () => DEAL_STATUSES.find((value) => value === searchParams.get("status")) ?? ALL,
+  const [status, setStatus] = useState<DealStatus | typeof ALL | typeof LIVE>(
+    () =>
+      DEAL_STATUSES.find((value) => value === searchParams.get("status")) ??
+      (searchParams.get("live") === "true" ? LIVE : ALL),
   );
   const [agentId, setAgentId] = useState<string>(() => searchParams.get("agentId") ?? ALL);
   const [projectId, setProjectId] = useState<string>(
@@ -130,7 +135,8 @@ export function DealsPage() {
       search: debouncedSearch.trim() || undefined,
       sortBy,
       sortOrder,
-      status: status === ALL ? undefined : status,
+      status: status === ALL || status === LIVE ? undefined : status,
+      live: status === LIVE ? true : undefined,
       agentId: agentId === ALL ? undefined : agentId,
       projectId: projectId === ALL ? undefined : projectId,
       from,
@@ -238,13 +244,16 @@ export function DealsPage() {
 
           <Select
             value={status}
-            onValueChange={(value) => withPageReset(setStatus)(value as DealStatus | typeof ALL)}
+            onValueChange={(value) =>
+              withPageReset(setStatus)(value as DealStatus | typeof ALL | typeof LIVE)
+            }
           >
             <SelectTrigger className="h-8 w-[8.5rem] text-xs" aria-label="Status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL}>All statuses</SelectItem>
+              <SelectItem value={LIVE}>Not cancelled</SelectItem>
               {(Object.keys(DEAL_STATUS_LABELS) as DealStatus[]).map((key) => (
                 <SelectItem key={key} value={key}>
                   {DEAL_STATUS_LABELS[key]}

@@ -13,14 +13,12 @@ import {
 import type { MonthPoint } from "@/features/performance/types";
 import { PerformanceSection } from "@/features/performance/components/performance-section";
 import {
-  formatCompactMoney,
   formatPeriodLabel,
   formatPeriodShort,
 } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatCompactNumber, formatNumber } from "@/lib/format";
 
 const CHART_HEIGHT = 240;
-const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 
 /** Spec §4.1 month-by-month: deals (bars) and contracted revenue (line), last 12 months. */
 export function MonthlyChart({ months, currency }: { months: MonthPoint[]; currency: string }) {
@@ -83,7 +81,7 @@ export function MonthlyChart({ months, currency }: { months: MonthPoint[]; curre
                 tickLine={false}
                 axisLine={false}
                 width={40}
-                tickFormatter={(value: number) => compact.format(value)}
+                tickFormatter={(value: number) => formatCompactNumber(value)}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
               />
               <Tooltip

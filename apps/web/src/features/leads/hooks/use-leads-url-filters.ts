@@ -1,108 +1,126 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
-import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import { useLeadsTableStore } from "@/features/leads/stores/leads-table-store";
-import type { LeadStatus } from "@/features/leads/types";
+import {
+  buildLeadsQueryString,
+  hasLeadsFilterParams,
+  leadsUrlStateKey,
+  parseLeadsUrlState,
+  sameQueryString,
+  type LeadsUrlState,
+} from "@/features/leads/utils/leads-url-state";
 
-function parseBooleanParam(value: string | null): boolean {
-  return value === "true";
+/** Typing in the search box writes the URL once the user pauses. */
+const SEARCH_WRITE_DELAY_MS = 400;
+/** Other changes are batched briefly (typed sheet fields, multi-step updates). */
+const FILTER_WRITE_DELAY_MS = 250;
+
+type TableState = ReturnType<typeof useLeadsTableStore.getState>;
+
+function pickUrlState(state: TableState): LeadsUrlState {
+  return {
+    filters: state.filters,
+    search: state.search,
+    sortBy: state.sortBy,
+    sortOrder: state.sortOrder,
+    layout: state.layout,
+  };
 }
 
-const LAST_CONTACT_VALUES: ReadonlyArray<string> = [
-  "never",
-  "over_2d",
-  "over_3d",
-  "over_7d",
-  "over_14d",
-  "over_30d",
-];
-
 /**
- * Applies filters from the URL (dashboard links, shared links) to the leads
- * table. A URL with filters replaces whatever filters were set before (e.g.
- * left from an earlier visit), so the list shows exactly the leads behind the
- * link. A URL with only `id` / `view` keeps the current filters.
+ * Two-way sync between the leads list state (store) and the URL.
+ *
+ * - Store → URL: every filter / search / sort / layout change rewrites the
+ *   query with `router.replace` (no history entries), debounced; defaults are
+ *   left out and other params (`id` of the open lead) are kept.
+ * - URL → store: arriving with filters in the URL (dashboard or shared link)
+ *   replaces whatever was set before; later URL changes that did not come
+ *   from this hook (Back/Forward, a link to /leads?… while on the page) are
+ *   applied too. Arriving without filters keeps the current ones and writes
+ *   them to the URL.
+ * - No loops: `syncedKey` is the state key the URL is known to hold (written
+ *   or applied). A URL change whose key equals it is our own echo, or only
+ *   touched `id`, and is ignored; a store change writes only when the query
+ *   string actually differs.
+ * - `?id=` opens the lead drawer whenever it changes.
  */
 export function useLeadsUrlFilters() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const setFilters = useLeadsTableStore((state) => state.setFilters);
-  const clearFilters = useLeadsTableStore((state) => state.clearFilters);
+  const applyUrlState = useLeadsTableStore((state) => state.applyUrlState);
   const setLayout = useLeadsTableStore((state) => state.setLayout);
   const openDrawer = useLeadUiStore((state) => state.openDrawer);
-  const appliedRef = useRef<string | null>(null);
 
+  const syncedKeyRef = useRef<string | null>(null);
+  const openedIdRef = useRef<string | null>(null);
+  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const writeUrl = useCallback(() => {
+    clearTimeout(writeTimerRef.current);
+    // A write scheduled just before leaving the page must not touch the next one.
+    if (window.location.pathname !== pathname) return;
+    const urlState = pickUrlState(useLeadsTableStore.getState());
+    const current = new URLSearchParams(window.location.search);
+    const next = buildLeadsQueryString(current, urlState);
+    syncedKeyRef.current = leadsUrlStateKey(urlState);
+    if (sameQueryString(next, current.toString())) return;
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [pathname, router]);
+
+  // Store → URL.
   useEffect(() => {
-    const signature = searchParams.toString();
-    if (!signature || appliedRef.current === signature) {
+    const unsubscribe = useLeadsTableStore.subscribe((state, previous) => {
+      const filtersChanged =
+        state.filters !== previous.filters ||
+        state.sortBy !== previous.sortBy ||
+        state.sortOrder !== previous.sortOrder ||
+        state.layout !== previous.layout;
+      const searchChanged = state.search !== previous.search;
+      if (!filtersChanged && !searchChanged) return;
+      clearTimeout(writeTimerRef.current);
+      writeTimerRef.current = setTimeout(
+        writeUrl,
+        filtersChanged ? FILTER_WRITE_DELAY_MS : SEARCH_WRITE_DELAY_MS,
+      );
+    });
+    return () => {
+      unsubscribe();
+      clearTimeout(writeTimerRef.current);
+    };
+  }, [writeUrl]);
+
+  // URL → store.
+  useEffect(() => {
+    const leadId = searchParams.get("id");
+    if (leadId && leadId !== openedIdRef.current) openDrawer(leadId);
+    openedIdRef.current = leadId;
+
+    const parsed = parseLeadsUrlState(searchParams);
+    const urlKey = leadsUrlStateKey(parsed);
+
+    if (syncedKeyRef.current === null) {
+      // Arrival on the page.
+      if (hasLeadsFilterParams(searchParams)) {
+        syncedKeyRef.current = urlKey;
+        applyUrlState(parsed);
+      } else {
+        // Keep the filters from earlier in the session; `?view=board` alone still switches layout.
+        if (parsed.layout === "board") setLayout("board");
+        writeUrl();
+      }
       return;
     }
 
-    const partial: Partial<LeadsTableFilters> = {};
+    // Our own write echoing back, or only `id` / unrelated params changed.
+    if (urlKey === syncedKeyRef.current) return;
 
-    if (parseBooleanParam(searchParams.get("unassigned"))) {
-      partial.unassignedOnly = true;
-    }
-    if (parseBooleanParam(searchParams.get("stale"))) {
-      partial.staleOnly = true;
-    }
-    if (parseBooleanParam(searchParams.get("openOnly"))) partial.openOnly = true;
-    if (parseBooleanParam(searchParams.get("stuck"))) partial.stuck = true;
-    if (parseBooleanParam(searchParams.get("stageStale"))) partial.stageStale = true;
-    if (parseBooleanParam(searchParams.get("assignedOnly"))) partial.assignedOnly = true;
-    if (searchParams.get("slaBreached") === "today") partial.slaBreached = "today";
-
-    if (searchParams.get("view") === "board") setLayout("board");
-
-    const leadId = searchParams.get("id");
-    if (leadId) {
-      openDrawer(leadId);
-    }
-
-    const stageId = searchParams.get("stageId");
-    if (stageId) partial.stageId = stageId;
-
-    const assignedUserId = searchParams.get("assignedUserId");
-    if (assignedUserId) partial.assignees = [assignedUserId];
-
-    const list = (key: string) =>
-      searchParams.get(key)?.split(",").filter(Boolean) ?? [];
-    if (list("assignees").length) partial.assignees = list("assignees");
-    if (list("stageIds").length) partial.stageIds = list("stageIds");
-    if (list("sourceIds").length) partial.sourceIds = list("sourceIds");
-    const heat = list("heat").filter((h) => h === "HOT" || h === "WARM" || h === "COLD");
-    if (heat.length) partial.heat = heat as LeadsTableFilters["heat"];
-
-    const nextStep = searchParams.get("nextStep");
-    if (nextStep === "overdue" || nextStep === "today" || nextStep === "none" || nextStep === "scheduled") {
-      partial.nextStep = nextStep;
-    }
-    const lastContact = searchParams.get("lastContact");
-    if (lastContact && LAST_CONTACT_VALUES.includes(lastContact)) {
-      partial.lastContact = lastContact as LeadsTableFilters["lastContact"];
-    }
-
-    const sourceId = searchParams.get("sourceId");
-    if (sourceId) partial.sourceId = sourceId;
-
-    const projectId = searchParams.get("projectId");
-    if (projectId) partial.projectId = projectId;
-
-    const pipelineId = searchParams.get("pipelineId");
-    if (pipelineId) partial.pipelineId = pipelineId;
-
-    const status = searchParams.get("status");
-    if (status === "OPEN" || status === "ARCHIVED") {
-      partial.status = status as LeadStatus;
-    }
-
-    if (Object.keys(partial).length > 0) {
-      clearFilters();
-      setFilters(partial);
-    }
-
-    appliedRef.current = signature;
-  }, [searchParams, setFilters, clearFilters, setLayout, openDrawer]);
+    // Back/Forward or a link while on the page: the URL wins over a pending write.
+    clearTimeout(writeTimerRef.current);
+    syncedKeyRef.current = urlKey;
+    applyUrlState(parsed);
+  }, [searchParams, applyUrlState, setLayout, openDrawer, writeUrl]);
 }

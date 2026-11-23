@@ -4,6 +4,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -73,4 +74,12 @@ export class UpdateLeadDto extends LeadProfileFieldsDto {
   @ValidateNested({ each: true })
   @Type(() => ProjectInterestDto)
   projectInterests?: ProjectInterestDto[];
+
+  /**
+   * Custom field values keyed by definition key (see /custom-fields).
+   * Merged into the stored values; null or "" clears one.
+   */
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, unknown>;
 }

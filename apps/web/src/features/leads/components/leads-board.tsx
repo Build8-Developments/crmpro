@@ -32,13 +32,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DEAL_STATUS_LABELS, formatMoney } from "@/features/deals/utils/deal-format";
+import { DEAL_STATUS_LABELS } from "@/features/deals/utils/deal-format";
 import { useLeadFilterOptions, useLeads } from "@/features/leads/hooks";
 import { useMoveLeadStage } from "@/features/leads/mutations";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
 import type { Lead, LeadsListParams } from "@/features/leads/types";
 import { usePermissions } from "@/hooks/use-permissions";
-import { formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { HeatBadge, NextStepLabel } from "./workflow-visuals";
 

@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardSectionCard } from "@/features/dashboard/components/dashboard-section-card";
 import type { DashboardSectionProps } from "@/features/dashboard/v2/period";
-import { formatCompactMoney } from "@/features/targets/utils/target-format";
 import { ApiError } from "@/lib/api/client";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
 import { useDashboardSources } from "./sources-hooks";
 import { SourcesProjectDemand } from "./sources-project-demand";
 import { SourcesTable } from "./sources-table";
@@ -81,7 +80,12 @@ function SourcesContent({ data }: { data: DashboardSources }) {
           ))}
           contentClassName="p-0"
         >
-          <SourcesTable sources={data.sources} currency={data.currency} spendVisible={data.spendVisible} />
+          <SourcesTable
+            sources={data.sources}
+            currency={data.currency}
+            spendVisible={data.spendVisible}
+            period={data.period}
+          />
         </DashboardSectionCard>
         <DashboardSectionCard
           icon={AppIcons.projects}

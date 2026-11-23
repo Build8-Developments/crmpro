@@ -1,7 +1,9 @@
 import { LeadStatus, Prisma } from '@crmpro/database';
+import { dayBoundsInZone } from '@crmpro/shared/workflow';
 import type { PrismaService } from '../../../common/prisma/prisma.service';
 import type {
   LeadLastContactFilter,
+  LeadListFilters,
   LeadNextStepFilter,
   LeadStageThreshold,
   LeadStageThresholds,
@@ -181,4 +183,42 @@ export async function loadStageThresholdRows(
     ...stage,
     pipelineName: pipeline.name,
   }));
+}
+
+/** Fallback when a tenant has no settings row (same as the leads list). */
+const DEFAULT_FILTER_TIME_ZONE = 'Africa/Cairo';
+
+/**
+ * What some list filters need from the database: the tenant's "today"
+ * (`nextStep: today`, `slaBreached`) and the stages' stuck / stale thresholds
+ * (`stuck`, `stageStale`). Loaded only when such a filter is set. Mirrors
+ * LeadsService.loadFilterContext, for callers outside the leads list (exports).
+ */
+export async function loadLeadFilterContext(
+  prisma: Pick<PrismaService, 'pipelineStage' | 'tenantSettings'>,
+  tenantId: string,
+  filters: Pick<
+    LeadListFilters,
+    'nextStep' | 'slaBreached' | 'stuck' | 'stageStale'
+  >,
+  now: Date,
+): Promise<Pick<LeadListFilters, 'todayBounds' | 'stageThresholds'>> {
+  const needsToday =
+    filters.nextStep === 'today' || filters.slaBreached === 'today';
+  const needsStages = Boolean(filters.stuck || filters.stageStale);
+  const [settings, stageRows] = await Promise.all([
+    needsToday
+      ? prisma.tenantSettings.findUnique({
+          where: { tenantId },
+          select: { timezone: true },
+        })
+      : undefined,
+    needsStages ? loadStageThresholdRows(prisma, tenantId) : undefined,
+  ]);
+  return {
+    todayBounds: needsToday
+      ? dayBoundsInZone(now, settings?.timezone ?? DEFAULT_FILTER_TIME_ZONE)
+      : undefined,
+    stageThresholds: stageRows ? toStageThresholds(stageRows) : undefined,
+  };
 }

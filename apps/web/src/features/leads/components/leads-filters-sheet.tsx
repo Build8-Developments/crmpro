@@ -24,6 +24,7 @@ import {
 import { useLeadFilterOptions, useLostReasons } from "@/features/leads/hooks";
 import type { LeadsTableFilters } from "@/features/leads/stores/leads-table-store";
 import {
+  createdBoundDay,
   HEAT_OPTIONS,
   INTEREST_LEVEL_OPTIONS,
   LAST_CONTACT_OPTIONS,
@@ -353,14 +354,14 @@ export function LeadsFiltersSheet({
                   type="date"
                   aria-label="Created from"
                   className="h-8 text-xs"
-                  value={filters.createdFrom ?? ""}
+                  value={createdBoundDay(filters.createdFrom)}
                   onChange={(event) => onFiltersChange({ createdFrom: event.target.value || undefined })}
                 />
                 <Input
                   type="date"
                   aria-label="Created to"
                   className="h-8 text-xs"
-                  value={filters.createdTo ?? ""}
+                  value={createdBoundDay(filters.createdTo)}
                   onChange={(event) => onFiltersChange({ createdTo: event.target.value || undefined })}
                 />
               </div>

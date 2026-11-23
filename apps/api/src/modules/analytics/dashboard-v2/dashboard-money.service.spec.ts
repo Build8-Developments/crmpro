@@ -138,6 +138,8 @@ describe('DashboardMoneyService', () => {
       countChangePercent: 50,
       listQuery: {
         periodField: 'reservedAt',
+        // Cancelled deals don't count, so the list leaves them out too.
+        live: 'true',
         from: thisMonth.from.toISOString(),
         to: NOW.toISOString(),
       },
@@ -153,6 +155,13 @@ describe('DashboardMoneyService', () => {
       previousCount: 0,
       previousValue: 0,
       countChangePercent: null,
+      // Same window as the count, on the cancellation date.
+      listQuery: {
+        status: 'CANCELLED',
+        periodField: 'cancelledAt',
+        from: thisMonth.from.toISOString(),
+        to: NOW.toISOString(),
+      },
     });
     expect(result.reservedBacklog).toEqual({
       count: 5,

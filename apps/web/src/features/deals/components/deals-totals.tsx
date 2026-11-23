@@ -2,8 +2,8 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DealStatus, DealTotals } from "@/features/deals/types";
-import { DEAL_STATUS_LABELS, formatMoney } from "@/features/deals/utils/deal-format";
-import { formatNumber } from "@/lib/format";
+import { DEAL_STATUS_LABELS } from "@/features/deals/utils/deal-format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const STATUS_ORDER: DealStatus[] = ["RESERVED", "CONTRACTED", "CANCELLED"];

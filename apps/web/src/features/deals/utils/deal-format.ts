@@ -21,26 +21,6 @@ export const UNIT_TYPE_SUGGESTIONS = [
   "Clinic",
 ] as const;
 
-const moneyFormatters = new Map<string, Intl.NumberFormat>();
-
-/** "5,250,000 EGP" (or "5.3M EGP" when compact). */
-export function formatMoney(
-  amount: number,
-  currency = "EGP",
-  options: { compact?: boolean } = {},
-): string {
-  const key = options.compact ? "compact" : "full";
-  let formatter = moneyFormatters.get(key);
-  if (!formatter) {
-    formatter = new Intl.NumberFormat("en-US", {
-      maximumFractionDigits: options.compact ? 1 : 2,
-      notation: options.compact ? "compact" : "standard",
-    });
-    moneyFormatters.set(key, formatter);
-  }
-  return `${formatter.format(amount)} ${currency}`;
-}
-
 const dateFormat = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
   month: "short",

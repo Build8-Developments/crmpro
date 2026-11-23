@@ -46,8 +46,6 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 
 interface SavedViewsMenuProps {
-  search: string;
-  onSearchChange: (value: string) => void;
   columnVisibility: VisibilityState;
   density: TableDensity;
   onApplyDisplay: (prefs: Partial<TablePreferences>) => void;
@@ -56,10 +54,10 @@ interface SavedViewsMenuProps {
 /**
  * Saved views for the leads screen: filters, sort, list/board, columns and
  * density in one click. Views store settings only — the leads shown always
- * follow the viewer's own visibility.
+ * follow the viewer's own visibility. Applying a view goes through the leads
+ * store, so the URL follows it (see useLeadsUrlFilters).
  */
 export function SavedViewsMenu({
-  onSearchChange,
   columnVisibility,
   density,
   onApplyDisplay,
@@ -108,7 +106,6 @@ export function SavedViewsMenu({
       sortOrder: view.sort?.sortOrder,
       layout: view.display?.layout,
     });
-    onSearchChange("");
     onApplyDisplay({
       columnVisibility: view.display?.columns,
       density: view.display?.density,

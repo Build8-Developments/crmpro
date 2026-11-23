@@ -215,6 +215,31 @@ describe('DealsService', () => {
       expect(prisma.deal.groupBy.mock.calls[0][0].where).toBe(where);
     });
 
+    it('filters the period on the cancellation date', async () => {
+      await service.list(
+        't',
+        {
+          status: 'CANCELLED',
+          from: new Date('2026-11-01'),
+          to: new Date('2026-12-01'),
+          periodField: 'cancelledAt',
+        },
+        own,
+      );
+
+      expect(prisma.deal.findMany.mock.calls[0][0].where).toMatchObject({
+        status: 'CANCELLED',
+        AND: [
+          {
+            cancelledAt: {
+              gte: new Date('2026-11-01'),
+              lt: new Date('2026-12-01'),
+            },
+          },
+        ],
+      });
+    });
+
     it('sums count, price and commission by status', async () => {
       prisma.deal.groupBy.mockResolvedValue([
         {

@@ -1,6 +1,7 @@
 import { DealStatus, Prisma } from '@crmpro/database';
 import { maskEmail, maskPhone } from '@crmpro/shared/leads';
 import type { LiveDealSummary } from '../deals/deal.mapper';
+import { toStoredCustomFields } from '../custom-fields/custom-field-values';
 import { LeadResponse } from './types/lead.types';
 
 export const leadSelect = {
@@ -20,6 +21,7 @@ export const leadSelect = {
   contactChannelPreference: true,
   contactTimePreference: true,
   purchasePurpose: true,
+  customFields: true,
   lastContactedAt: true,
   firstContactedAt: true,
   stageEnteredAt: true,
@@ -114,6 +116,8 @@ export function toLeadResponse(lead: LeadRecord): LeadResponse {
     contactChannelPreference: lead.contactChannelPreference,
     contactTimePreference: lead.contactTimePreference,
     purchasePurpose: lead.purchasePurpose,
+    // As stored: archived fields' values are included (the UI greys them).
+    customFields: toStoredCustomFields(lead.customFields),
     lastContactedAt: lead.lastContactedAt,
     firstContactedAt: lead.firstContactedAt,
     stageEnteredAt: lead.stageEnteredAt,

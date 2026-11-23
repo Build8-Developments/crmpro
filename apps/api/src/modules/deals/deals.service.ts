@@ -554,6 +554,7 @@ export class DealsService {
         ...(query.from ? { gte: query.from } : {}),
         ...(query.to ? { lt: query.to } : {}),
       };
+      // reservedAt / contractedAt / cancelledAt: that date in the window.
       const field = query.periodField ?? 'any';
       and.push(
         field === 'any'
@@ -564,7 +565,11 @@ export class DealsService {
 
     return {
       tenantId,
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.status
+        ? { status: query.status }
+        : query.live
+          ? { status: { not: DealStatus.CANCELLED } }
+          : {}),
       ...(query.agentId ? { agentId: query.agentId } : {}),
       ...(query.projectId ? { projectId: query.projectId } : {}),
       lead: {

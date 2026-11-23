@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { formatCompactMoney } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
 import { formatRate, projectLeadsHref, type ProjectDemandRow } from "./sources-types";
 
 const VISIBLE_PROJECTS = 10;
@@ -34,7 +33,7 @@ export function SourcesProjectDemand({
               <Link
                 href={projectLeadsHref(row.projectId)}
                 className="min-w-0 truncate font-medium hover:text-primary"
-                title="Open leads interested in this project"
+                title="Open every lead interested in this project (any date, so it can be more than this period's count)"
               >
                 {row.name}
                 {row.developerName ? (

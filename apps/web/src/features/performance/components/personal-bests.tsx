@@ -2,8 +2,8 @@ import { IconBolt, IconCalendarStats, IconCash, IconMapPin, type Icon } from "@t
 import type { MyPerformance } from "@/features/performance/types";
 import { PerformanceSection } from "@/features/performance/components/performance-section";
 import { formatWeekOf } from "@/features/performance/utils/performance-format";
-import { formatCompactMoney, formatPeriodLabel } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
+import { formatPeriodLabel } from "@/features/targets/utils/target-format";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
 
 /** Spec §4.1 "Personal bests". */
 export function PersonalBests({ data }: { data: MyPerformance }) {

@@ -78,7 +78,9 @@ export interface DealsListParams {
   /** ISO dates; `to` is exclusive. */
   from?: string;
   to?: string;
-  periodField?: "any" | "reservedAt" | "contractedAt";
+  periodField?: "any" | "reservedAt" | "contractedAt" | "cancelledAt";
+  /** Only deals that weren't cancelled. */
+  live?: boolean;
 }
 
 /** Sent with a move to a Won stage (POST /leads/:id/move-stage `deal`). */

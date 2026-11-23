@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -71,4 +72,12 @@ export class CreateLeadDto extends LeadProfileFieldsDto {
   @ValidateNested({ each: true })
   @Type(() => ProjectInterestDto)
   projectInterests?: ProjectInterestDto[];
+
+  /**
+   * Custom field values keyed by definition key (see /custom-fields).
+   * Merged into the stored values; null or "" clears one.
+   */
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, unknown>;
 }

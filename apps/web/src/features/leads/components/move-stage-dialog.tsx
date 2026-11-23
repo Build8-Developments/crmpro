@@ -25,7 +25,7 @@ import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
 import { Input } from "@/components/ui/input";
 import { useNow } from "@/hooks/use-now";
 import { usePermissions } from "@/hooks/use-permissions";
-import { formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { StageColorDot } from "@/features/leads/utils/stage-color";
 import { LostReasonFields } from "./lost-reason-fields";
 import {
@@ -36,9 +36,9 @@ import {
   type DealDraft,
 } from "@/features/deals/components/deal-fields";
 import { useDealFormOptions } from "@/features/deals/components/use-deal-form-options";
+import { useOrganization } from "@/features/organization/hooks";
 import {
   dayToIso,
-  formatMoney,
   toDateInputValue,
 } from "@/features/deals/utils/deal-format";
 
@@ -59,6 +59,9 @@ export function MoveStageDialog() {
   // Optional: when the contract should be signed (drives the paperwork task).
   const [expectedContractDay, setExpectedContractDay] = useState("");
   const now = useNow();
+  // Deals are recorded in the workspace currency (Settings → General).
+  const { data: organization } = useOrganization();
+  const currency = organization?.settings.currency;
 
   const open = Boolean(moveStageDialog);
   const leadIds = moveStageDialog?.leadIds ?? [];
@@ -228,6 +231,7 @@ export function MoveStageDialog() {
                   onChange={setDealDraft}
                   projects={projectOptions}
                   agents={agents}
+                  currency={currency}
                 />
                 <div className="space-y-1.5">
                   <Label htmlFor="win-expected-contract-at">

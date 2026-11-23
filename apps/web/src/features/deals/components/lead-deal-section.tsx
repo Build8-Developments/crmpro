@@ -12,9 +12,10 @@ import {
 import { DealStatusBadge } from "@/features/deals/components/deal-status-badge";
 import { useLeadDeals } from "@/features/deals/hooks";
 import type { Deal } from "@/features/deals/types";
-import { formatDealDate, formatMoney } from "@/features/deals/utils/deal-format";
+import { formatDealDate } from "@/features/deals/utils/deal-format";
 import type { Lead } from "@/features/leads/types";
 import { usePermissions } from "@/hooks/use-permissions";
+import { formatMoney } from "@/lib/format";
 
 type DealAction = { kind: "edit" | "contract" | "cancel"; deal: Deal } | null;
 

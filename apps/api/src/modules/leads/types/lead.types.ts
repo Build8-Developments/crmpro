@@ -62,6 +62,8 @@ export interface LeadResponse {
   contactChannelPreference: ContactChannelPreference | null;
   contactTimePreference: ContactTimePreference | null;
   purchasePurpose: PurchasePurpose | null;
+  /** Custom field values keyed by definition key (see /custom-fields). */
+  customFields: Record<string, unknown>;
   lastContactedAt: Date | null;
   firstContactedAt: Date | null;
   stageEnteredAt: Date;
@@ -162,6 +164,8 @@ export interface ImportLeadRowInput {
   email?: string | null;
   sourceId?: string | null;
   assignedUserId?: string | null;
+  /** Already validated custom field values (import mapping). */
+  customFields?: Record<string, unknown>;
 }
 
 export interface DefaultPipelinePlacement {
@@ -229,6 +233,8 @@ export interface LeadListFilters {
   interestLevel?: InterestLevel;
   createdFrom?: Date;
   createdTo?: Date;
+  closedFrom?: Date;
+  closedTo?: Date;
   lastContact?: LeadLastContactFilter;
   nextStep?: LeadNextStepFilter;
   /** Required for `nextStep: 'today'` / `slaBreached` — the tenant's local day. */

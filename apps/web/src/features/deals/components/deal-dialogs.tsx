@@ -22,9 +22,10 @@ import {
 import { useDealFormOptions } from "@/features/deals/components/use-deal-form-options";
 import { useCancelDeal, useContractDeal, useUpdateDeal } from "@/features/deals/mutations";
 import type { Deal } from "@/features/deals/types";
-import { dayToIso, formatMoney, toDateInputValue } from "@/features/deals/utils/deal-format";
+import { dayToIso, toDateInputValue } from "@/features/deals/utils/deal-format";
 import type { Lead } from "@/features/leads/types";
 import { useNow } from "@/hooks/use-now";
+import { formatMoney } from "@/lib/format";
 
 const textareaClass =
   "w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow,border-color] duration-fast ease-enter focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";

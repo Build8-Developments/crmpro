@@ -151,6 +151,17 @@ export class LeadFiltersDto {
   @IsDate()
   createdTo?: Date;
 
+  /** Won or lost between these (Lead.closedAt, inclusive). */
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  closedFrom?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  closedTo?: Date;
+
   @IsOptional()
   @IsIn(LEAD_LAST_CONTACT_FILTERS)
   lastContact?: LeadLastContactFilter;

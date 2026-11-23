@@ -63,4 +63,6 @@ export interface LeadExportRow {
   heat?: string;
   lastContactedAt?: string;
   lostReason?: string;
+  /** Stored Lead.customFields (rendered by the custom field columns). */
+  customFields?: Record<string, unknown>;
 }

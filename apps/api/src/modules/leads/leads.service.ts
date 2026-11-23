@@ -26,6 +26,7 @@ import {
   normalizePhone,
   phoneSearchCore,
 } from '../../common/utils/phone-normalization.util';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import {
   LEAD_PROFILE_KEYS,
@@ -91,6 +92,7 @@ export class LeadsService {
     private readonly domainEventBus: DomainEventBus,
     private readonly quotaService: QuotaService,
     private readonly taskLifecycle: TaskLifecycleService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   async listLeads(
@@ -206,6 +208,14 @@ export class LeadsService {
 
     this.ensurePhonesDistinct(primaryPhoneNormalized, secondaryPhoneNormalized);
 
+    // Required custom fields apply to every new lead, submitted or not.
+    const customFields = this.customFields.resolveLeadValues({
+      definitions: await this.customFields.getLeadDefinitions(tenantId),
+      existing: null,
+      submitted: dto.customFields,
+      required: 'all',
+    });
+
     const duplicateWarning = await this.detectDuplicates(
       tenantId,
       primaryPhoneNormalized,
@@ -232,6 +242,9 @@ export class LeadsService {
           secondaryPhoneNormalized,
           email: dto.email ?? null,
           ...this.buildProfileData(dto),
+          ...(Object.keys(customFields).length > 0
+            ? { customFields: customFields as Prisma.InputJsonObject }
+            : {}),
         },
         select: { id: true },
       });
@@ -456,6 +469,9 @@ export class LeadsService {
             importJobId: options.importJobId ?? null,
             importRowNumber: options.importRowNumber ?? null,
             ...this.importProfileData(row.profile),
+            ...(row.customFields && Object.keys(row.customFields).length > 0
+              ? { customFields: row.customFields as Prisma.InputJsonObject }
+              : {}),
           },
           select: { id: true },
         });
@@ -670,7 +686,21 @@ export class LeadsService {
       existing.id,
     );
 
+    const customFieldDefinitions =
+      dto.customFields !== undefined
+        ? await this.customFields.getLeadDefinitions(tenantId)
+        : null;
+
     await this.prisma.$transaction(async (tx) => {
+      const customFields = customFieldDefinitions
+        ? await this.mergeLeadCustomFields(
+            tx,
+            existing.id,
+            customFieldDefinitions,
+            dto.customFields,
+          )
+        : undefined;
+
       await tx.lead.update({
         where: { id: existing.id },
         data: {
@@ -685,6 +715,7 @@ export class LeadsService {
             : {}),
           ...(dto.email !== undefined ? { email: dto.email } : {}),
           ...this.buildProfileData(dto, existing),
+          ...(customFields !== undefined ? { customFields } : {}),
         },
       });
 
@@ -838,6 +869,14 @@ export class LeadsService {
             },
           }
         : {}),
+      ...(filters.closedFrom || filters.closedTo
+        ? {
+            closedAt: {
+              ...(filters.closedFrom ? { gte: filters.closedFrom } : {}),
+              ...(filters.closedTo ? { lte: filters.closedTo } : {}),
+            },
+          }
+        : {}),
       // Conditions that need their own OR (or would collide on a key) are
       // combined with AND so none overwrites another.
       ...this.combineAnd([
@@ -900,6 +939,31 @@ export class LeadsService {
       );
     }
     return leads.map((lead) => lead.id);
+  }
+
+  /**
+   * Submitted custom field values merged into the stored ones, read under a
+   * row lock so two concurrent edits of different fields both survive.
+   * Values of archived fields and unknown keys are kept as they are.
+   */
+  private async mergeLeadCustomFields(
+    tx: Prisma.TransactionClient,
+    leadId: string,
+    definitions: Awaited<ReturnType<CustomFieldsService['getLeadDefinitions']>>,
+    submitted: Record<string, unknown> | undefined,
+  ): Promise<Prisma.InputJsonObject | typeof Prisma.DbNull> {
+    const rows = await tx.$queryRaw<Array<{ customFields: unknown }>>`
+      SELECT "customFields" FROM "Lead" WHERE id = ${leadId}::uuid FOR UPDATE
+    `;
+    const merged = this.customFields.resolveLeadValues({
+      definitions,
+      existing: rows[0]?.customFields ?? null,
+      submitted,
+      required: 'all',
+    });
+    return Object.keys(merged).length > 0
+      ? (merged as Prisma.InputJsonObject)
+      : Prisma.DbNull;
   }
 
   /**
@@ -1161,6 +1225,8 @@ export class LeadsService {
       interestLevel: query.interestLevel,
       createdFrom: query.createdFrom,
       createdTo: query.createdTo,
+      closedFrom: query.closedFrom,
+      closedTo: query.closedTo,
       lastContact: query.lastContact,
       nextStep: query.nextStep,
       slaBreached: query.slaBreached,

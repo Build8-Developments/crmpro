@@ -1,7 +1,7 @@
 import type { Leaderboard, LeaderboardEntry } from "@/features/performance/types";
 import { PerformanceSection } from "@/features/performance/components/performance-section";
-import { formatCompactMoney, formatPeriodLabel } from "@/features/targets/utils/target-format";
-import { formatNumber, getInitials } from "@/lib/format";
+import { formatPeriodLabel } from "@/features/targets/utils/target-format";
+import { formatCompactMoney, formatNumber, getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const MEDALS: Record<number, string> = {

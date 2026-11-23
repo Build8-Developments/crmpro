@@ -74,6 +74,24 @@ export interface DashboardLosses {
   funnel: PipelineAnalyticsData;
 }
 
+/**
+ * Leads lost for a reason in the period (closed between its bounds; the
+ * list's `closedTo` is inclusive, the period's `to` exclusive). Null for
+ * "No reason".
+ */
+export function lostReasonLeadsHref(
+  reasonId: string | null,
+  period: { from: string; to: string },
+): string | null {
+  if (!reasonId) return null;
+  const query = new URLSearchParams({
+    lostReasonId: reasonId,
+    closedFrom: period.from,
+    closedTo: new Date(Date.parse(period.to) - 1).toISOString(),
+  });
+  return `/leads?${query.toString()}`;
+}
+
 /** A stable chart colour per lost reason (by its rank in the breakdown). */
 export function reasonColor(index: number): string {
   const base = `var(--chart-${(index % 5) + 1})`;

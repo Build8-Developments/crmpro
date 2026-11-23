@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { QuotaModule } from '../../common/quota/quota.module';
 import { AuditModule } from '../audit/audit.module';
+import { CustomFieldsModule } from '../custom-fields/custom-fields.module';
 import { DealsCoreModule } from '../deals/deals-core.module';
 import { LeadAttachmentModule } from '../lead-attachments/lead-attachment.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -26,6 +27,7 @@ import { LeadTimelineService } from './services/lead-timeline.service';
     AuthRbacModule,
     QuotaModule,
     AuditModule,
+    CustomFieldsModule,
     NotificationsModule,
     LeadActivityModule,
     LeadAttachmentModule,

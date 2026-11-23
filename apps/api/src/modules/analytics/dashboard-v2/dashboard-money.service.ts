@@ -142,7 +142,7 @@ export class DashboardMoneyService {
           ...bucket(
             [reservedCount, num(totals.reserved_value)],
             [num(totals.prev_reserved_count), num(totals.prev_reserved_value)],
-            dealsQuery(period, { periodField: 'reservedAt' }),
+            dealsQuery(period, { periodField: 'reservedAt', live: 'true' }),
           ),
           target: toMoneyTarget(
             reservedCount,
@@ -166,7 +166,10 @@ export class DashboardMoneyService {
         cancelled: bucket(
           [num(totals.cancelled_count), num(totals.cancelled_value)],
           [num(totals.prev_cancelled_count), num(totals.prev_cancelled_value)],
-          { status: DealStatus.CANCELLED },
+          dealsQuery(period, {
+            status: DealStatus.CANCELLED,
+            periodField: 'cancelledAt',
+          }),
         ),
       },
       reservedBacklog: {

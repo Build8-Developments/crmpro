@@ -9,8 +9,7 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 import type { MyPerformance } from "@/features/performance/types";
-import { formatCompactMoney, formatMoney } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatMoney, formatNumber } from "@/lib/format";
 
 interface Tile {
   label: string;

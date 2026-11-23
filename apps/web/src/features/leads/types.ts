@@ -114,6 +114,8 @@ export interface Lead extends LeadProfile {
   projectInterests: LeadProjectInterest[];
   /** The live (reserved or contracted) deal of a won lead. */
   liveDeal: LiveDealSummary | null;
+  /** Custom field values by key (archived fields' values included). */
+  customFields: Record<string, unknown>;
 }
 
 export interface CreateLeadInput extends Partial<LeadProfile> {
@@ -129,6 +131,8 @@ export interface CreateLeadInput extends Partial<LeadProfile> {
     projectId: string;
     interestLevel?: InterestLevel;
   }>;
+  /** Custom field values by key; null clears one. */
+  customFields?: Record<string, unknown>;
 }
 
 /** A possible duplicate; leads outside your visibility only show who handles them. */
@@ -162,6 +166,8 @@ export interface UpdateLeadInput extends Partial<LeadProfile> {
     projectId: string;
     interestLevel?: InterestLevel;
   }>;
+  /** Only the changed custom fields; merged into the stored values. */
+  customFields?: Record<string, unknown>;
 }
 
 export interface LeadNote {
@@ -204,6 +210,8 @@ export interface LeadsListParams extends ListQueryParams {
   interestLevel?: Exclude<InterestLevel, null>;
   createdFrom?: string;
   createdTo?: string;
+  closedFrom?: string;
+  closedTo?: string;
   lastContact?: LeadLastContactFilter;
   nextStep?: LeadNextStepFilter;
   slaBreached?: LeadSlaBreachedFilter;

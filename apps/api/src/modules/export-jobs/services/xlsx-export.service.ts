@@ -33,7 +33,10 @@ export class XlsxExportService {
    * and released as soon as it is committed, so large exports do not keep a
    * full worksheet model in memory.
    */
-  async generateXlsx(rows: LeadExportRow[]): Promise<Buffer> {
+  async generateXlsx(
+    rows: LeadExportRow[],
+    columns: readonly ExportColumn<LeadExportRow>[] = LEAD_EXPORT_COLUMNS,
+  ): Promise<Buffer> {
     const output = new PassThrough();
     const chunks: Buffer[] = [];
     const done = new Promise<Buffer>((resolve, reject) => {
@@ -50,7 +53,6 @@ export class XlsxExportService {
     workbook.creator = 'CRMPro';
     workbook.created = new Date();
 
-    const columns = LEAD_EXPORT_COLUMNS;
     const sheet = workbook.addWorksheet(SHEET_NAME, {
       views: [{ state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2' }],
     });

@@ -9,8 +9,7 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 import type { AchievementKey, AchievementUnit } from "@crmpro/shared/achievements";
-import { formatCompactMoney } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
 
 export const BADGE_ICONS: Record<AchievementKey, Icon> = {
   deals: IconTrophy,

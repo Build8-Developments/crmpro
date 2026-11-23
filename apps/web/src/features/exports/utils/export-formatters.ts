@@ -1,5 +1,6 @@
 import type {
   ExportFormat,
+  ExportJobFilters,
   ExportJobStatus,
   ExportType,
 } from "@/features/exports/types";
@@ -57,14 +58,9 @@ export function isActiveExportStatus(status: ExportJobStatus): boolean {
   return status === "PENDING" || status === "PROCESSING";
 }
 
-export function summarizeExportFilters(filters: {
-  status?: string;
-  search?: string;
-  pipelineId?: string;
-  stageId?: string;
-  assignedUserId?: string;
-  sourceId?: string;
-}): string {
+const SUMMARIZED_FILTERS = new Set(["status", "search", "pipelineId", "stageId", "assignedUserId", "sourceId"]);
+
+export function summarizeExportFilters(filters: ExportJobFilters): string {
   const parts: string[] = [];
   if (filters.status) parts.push(filters.status === "OPEN" ? "Open" : "Archived");
   if (filters.search) parts.push(`“${filters.search}”`);
@@ -72,5 +68,15 @@ export function summarizeExportFilters(filters: {
   if (filters.stageId) parts.push("Stage filter");
   if (filters.assignedUserId) parts.push("Agent filter");
   if (filters.sourceId) parts.push("Source filter");
+  // Exports started from the leads list can carry any list filter.
+  const others = Object.entries(filters).filter(
+    ([key, value]) =>
+      !SUMMARIZED_FILTERS.has(key) &&
+      value !== undefined &&
+      value !== null &&
+      value !== false &&
+      !(Array.isArray(value) && value.length === 0),
+  ).length;
+  if (others > 0) parts.push(`${others} more ${others === 1 ? "filter" : "filters"}`);
   return parts.length > 0 ? parts.join(" · ") : "All leads";
 }

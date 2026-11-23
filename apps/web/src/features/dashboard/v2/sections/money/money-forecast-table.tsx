@@ -2,8 +2,7 @@ import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionCard } from "@/features/dashboard/components/dashboard-section-card";
-import { formatCompactMoney } from "@/features/targets/utils/target-format";
-import { formatNumber } from "@/lib/format";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
 import { leadsListHref, type DashboardMoney } from "./money-types";
 
 interface MoneyForecastTableProps {

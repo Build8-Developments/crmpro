@@ -42,6 +42,7 @@ export function countActiveLeadFilters(filters: LeadsTableFilters): number {
   if (filters.heat?.length) count += 1;
   if (filters.interestLevel) count += 1;
   if (filters.createdFrom || filters.createdTo) count += 1;
+  if (filters.closedFrom || filters.closedTo) count += 1;
   if (filters.lastContact) count += 1;
   if (filters.nextStep) count += 1;
   if (filters.slaBreached) count += 1;
@@ -95,4 +96,42 @@ export function filtersToLabelMap(filters: LeadsTableFilters): string[] {
     );
   }
   return labels;
+}
+
+const DAY_VALUE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A created-date bound as a local `yyyy-mm-dd` (date inputs, labels). Bounds
+ * are a picked day or an exact timestamp from a dashboard link.
+ */
+export function createdBoundDay(value: string | undefined): string {
+  if (!value) return "";
+  if (DAY_VALUE.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+const createdDayFormat = new Intl.DateTimeFormat(undefined, {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** "Created 1 Nov 2026 – 22 Nov 2026", "Created from 1 Nov 2026", "Created until …". */
+export function formatCreatedRange(
+  from: string | undefined,
+  to: string | undefined,
+  verb = "Created",
+): string {
+  const label = (value: string | undefined) => {
+    const day = createdBoundDay(value);
+    return day ? createdDayFormat.format(new Date(`${day}T00:00:00`)) : null;
+  };
+  const start = label(from);
+  const end = label(to);
+  if (start && end) return start === end ? `${verb} ${start}` : `${verb} ${start} – ${end}`;
+  if (start) return `${verb} from ${start}`;
+  return end ? `${verb} until ${end}` : verb;
 }
