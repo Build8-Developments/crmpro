@@ -1,7 +1,7 @@
 "use client";
 import { getHomeRoute } from "@/lib/home-route";
 
-import { PRODUCT_NAME, ProductMark } from "@/components/brand/product-logo";
+import { ProductLogo } from "@/components/brand/product-logo";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthSplash } from "@/features/auth/components/auth-splash";
@@ -29,12 +29,9 @@ export function LoginPageClient() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-muted/30 p-4">
       <div className="w-full max-w-[400px] rounded-xl border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <ProductMark className="size-10" />
-          <div>
-            <span className="text-lg font-semibold tracking-tight">{PRODUCT_NAME}</span>
-            <p className="text-xs text-muted-foreground">Sign in to your workspace</p>
-          </div>
+        <div className="mb-6">
+          <ProductLogo className="text-2xl" />
+          <p className="mt-3 text-xs text-muted-foreground">Sign in to your workspace</p>
         </div>
 
         <LoginFlow />

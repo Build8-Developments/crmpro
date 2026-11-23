@@ -1,6 +1,6 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { TargetProgressBar } from "@/features/targets/components/target-progress-bar";
 import type { TargetMetric } from "@/features/targets/types";
 import {
@@ -41,13 +41,13 @@ export function TargetCell({
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Input
-        inputMode={money ? "decimal" : "numeric"}
+      <AmountInput
+        decimals={money ? 2 : 0}
         value={value}
         placeholder="No target"
         aria-label={`${METRIC_LABELS[metric]} target for ${ownerLabel}`}
         aria-invalid={invalid || undefined}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
         className={cn(
           "h-8 text-right tabular-nums placeholder:text-muted-foreground/60",
           changed && !invalid && "border-primary/60 bg-primary/5",

@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Placeholder product icon; replace with the real CRMPro brand mark. -->
-  <rect width="32" height="32" rx="8" fill="#10b981"/>
-  <path d="M20.5 11.2a6.5 6.5 0 1 0 0 9.6" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="3 2 96 96"><path fill="#00845b" d="M9 88L9 54C9 40.745 19.745 30 33 30C37.434 30 41.587 31.202 45.15 33.298C46.493 21.315 56.658 12 69 12C82.255 12 93 22.745 93 36L93 88L81 88L81 36C81 29.373 75.627 24 69 24C62.373 24 57 29.373 57 36L57 88L45 88L45 54C45 47.373 39.627 42 33 42C26.373 42 21 47.373 21 54L21 88Z"/></svg>

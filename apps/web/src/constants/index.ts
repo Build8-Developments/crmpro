@@ -1,4 +1,4 @@
-export const APP_NAME = "CRMPro";
+export const APP_NAME = "Nomow";
 export const APP_DESCRIPTION = "CRM for real estate marketing agencies";
 
 /** Default route to land on after a successful login. */

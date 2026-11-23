@@ -35,7 +35,7 @@ export function AdminsEmptyState({ hasFilters }: AdminsEmptyStateProps) {
         No admins yet
       </h2>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Create platform staff accounts and assign roles to operate CRMPro Admin.
+        Create platform staff accounts and assign roles to operate Nomow Admin.
       </p>
       {can(ADMIN_PERMISSIONS.ADMIN_MANAGE) ? (
         <Button size="sm" className="mt-4" onClick={openCreateDialog}>

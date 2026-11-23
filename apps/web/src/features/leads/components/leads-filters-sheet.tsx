@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import {
   Sheet,
   SheetContent,
@@ -331,19 +332,19 @@ export function LeadsFiltersSheet({
                 Budget ({currency})
               </p>
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  inputMode="numeric"
+                <AmountInput
+                  decimals={0}
                   placeholder="Min"
-                  className="h-8 text-xs"
-                  value={filters.budgetMin ?? ""}
-                  onChange={(event) => onFiltersChange({ budgetMin: parseAmount(event.target.value) })}
+                  className="h-8 text-xs tabular-nums"
+                  value={filters.budgetMin != null ? String(filters.budgetMin) : ""}
+                  onValueChange={(next) => onFiltersChange({ budgetMin: parseAmount(next) })}
                 />
-                <Input
-                  inputMode="numeric"
+                <AmountInput
+                  decimals={0}
                   placeholder="Max"
-                  className="h-8 text-xs"
-                  value={filters.budgetMax ?? ""}
-                  onChange={(event) => onFiltersChange({ budgetMax: parseAmount(event.target.value) })}
+                  className="h-8 text-xs tabular-nums"
+                  value={filters.budgetMax != null ? String(filters.budgetMax) : ""}
+                  onValueChange={(next) => onFiltersChange({ budgetMax: parseAmount(next) })}
                 />
               </div>
             </div>

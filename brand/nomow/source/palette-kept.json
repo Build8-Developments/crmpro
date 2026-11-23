@@ -1,0 +1,28 @@
+{
+  "schema": "brand-identity/palette@1",
+  "name": "Kept",
+  "direction": "the brand's existing colours",
+  "brand": [
+    {
+      "id": "brand-1",
+      "name": "Primary",
+      "hex": "#0f172a",
+      "source": "chosen",
+      "locked": true
+    },
+    {
+      "id": "brand-2",
+      "name": "Accent",
+      "hex": "#00845b",
+      "source": "chosen",
+      "locked": true
+    },
+    {
+      "id": "brand-3",
+      "name": "Ground",
+      "hex": "#10b981",
+      "source": "chosen",
+      "locked": true
+    }
+  ]
+}

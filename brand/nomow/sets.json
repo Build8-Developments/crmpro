@@ -1,0 +1,486 @@
+{
+  "schema": "brand-identity/sets@1",
+  "sets": [
+    {
+      "identity": {
+        "set": {
+          "id": "A",
+          "name": "Rising Arcade",
+          "recommended": true,
+          "mechanism": "The m in nomow steps up: two arches that share a leg, the right one higher; the wordmark repeats the emerald once, in a solid first o, on today's navy.",
+          "expression_move": "The stepped m symbol is the only loud thing; type and colour stay as calm as today's app.",
+          "differs_by": "PropSpace is blue, Bitrix24 lime, Zoho and HubSpot black; emerald is free on this shelf, and none of them uses a symbol built from its own letters."
+        },
+        "axes": {
+          "playful_serious": 1,
+          "quiet_loud": 0,
+          "friend_authority": 0
+        },
+        "type": {
+          "pairing_mode": "contrast",
+          "display": {
+            "family": "Alexandria",
+            "source": "google",
+            "license": "OFL-1.1",
+            "weights": [
+              600
+            ],
+            "location": {
+              "wght": 600
+            },
+            "features": [],
+            "case": "lower",
+            "tracking": -20,
+            "fallback": "system-ui, sans-serif",
+            "file": null
+          },
+          "text": {
+            "family": "Alan Sans",
+            "source": "google",
+            "license": "OFL-1.1",
+            "weights": [
+              400,
+              600
+            ],
+            "location": {
+              "wght": 400
+            },
+            "features": [
+              "tnum"
+            ],
+            "case": "as-is",
+            "tracking": 0,
+            "fallback": "system-ui, sans-serif",
+            "file": null
+          },
+          "mono": null
+        },
+        "logo": {
+          "type": "symbol+wordmark",
+          "concept": "An arcade of two arches, the right one a step higher: the m of nomow, two doorways, and this month above the last. In the wordmark the first o is a solid emerald dot.",
+          "symbol": "logo/symbol.svg",
+          "wordmark": {
+            "text": "nomow",
+            "role": "display",
+            "location": null,
+            "tracking": -20,
+            "case": "lower"
+          },
+          "monogram": null,
+          "lockups": [
+            "horizontal",
+            "stacked"
+          ],
+          "colors": {
+            "arcade": "primary",
+            "wordmark": "text",
+            "green-o": "primary"
+          },
+          "tags": [
+            "abstract-geometric",
+            "letterform"
+          ],
+          "clear_space": {
+            "unit": "cap-height",
+            "multiple": 1,
+            "inferred": true
+          },
+          "min_size": {
+            "px": 20,
+            "mm": 7
+          },
+          "defect": "User asked for a designed wordmark; stepped letters, door and keyhole details were rejected; the solid emerald first o was kept.",
+          "misuse": [
+            {
+              "do": "stretch"
+            },
+            {
+              "do": "rotate"
+            },
+            {
+              "do": "recolour"
+            },
+            {
+              "do": "low-contrast"
+            },
+            {
+              "svg": "logo/misuse-1.svg",
+              "label": "Don't fill the doorways"
+            },
+            {
+              "svg": "logo/misuse-2.svg",
+              "label": "Don't level the arches: the right one always steps up"
+            }
+          ]
+        },
+        "palette_build": {
+          "strategy": null,
+          "accent": null,
+          "light_bg": "#f5f7f9",
+          "dark_bg": "#0b1120",
+          "neutral_tint": null,
+          "neutral_chroma": null,
+          "extra": []
+        },
+        "defaults_used": [
+          {
+            "id": "navy-primary",
+            "why": "Existing asset: the app's sidebar navy #0f172a, which the user asked to keep; here it is the text and sidebar colour, and emerald is the brand colour."
+          }
+        ],
+        "rationale": [
+          {
+            "claim": "Emerald is unused by the measured competitors (blue, lime, black, black).",
+            "evidence": "measured",
+            "source": "brand.py site competitors"
+          },
+          {
+            "claim": "Keeps the current app colours, so the product does not need a visual migration.",
+            "evidence": "judgement",
+            "source": "user brief: likes the current look"
+          },
+          {
+            "claim": "Alexandria and Alan Sans both draw Arabic and Latin, so the Arabic UI uses the same faces.",
+            "evidence": "measured",
+            "source": "brand.py fonts audit"
+          }
+        ]
+      },
+      "palette": {
+        "schema": "brand-identity/palette@1",
+        "name": "Rising Arcade",
+        "direction": "Today's emerald on slate navy, tuned.",
+        "brand": [
+          {
+            "id": "brand-1",
+            "name": "Emerald",
+            "hex": "#00845b",
+            "source": "chosen",
+            "locked": true,
+            "usage": "symbol, primary buttons, active states"
+          },
+          {
+            "id": "brand-2",
+            "name": "Slate Navy",
+            "hex": "#0f172a",
+            "source": "chosen",
+            "locked": true,
+            "usage": "wordmark, text, sidebar"
+          }
+        ],
+        "feels": [
+          "steady",
+          "clear",
+          "ambitious"
+        ]
+      },
+      "symbol_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><g id=\"arcade\" data-color=\"primary\"><path id=\"arch-1\" d=\"M9 88 V54 A24 24 0 0 1 57 54 V88 Z\"/><path id=\"arch-2\" data-op=\"union\" d=\"M45 88 V36 A24 24 0 0 1 93 36 V88 Z\"/><path id=\"door-1\" data-op=\"subtract\" d=\"M21 101 V54 A12 12 0 0 1 45 54 V101 Z\"/><path id=\"door-2\" data-op=\"subtract\" d=\"M57 101 V36 A12 12 0 0 1 81 36 V101 Z\"/></g></svg>",
+      "symbol_small_svg": null,
+      "wordmark_detail_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect id=\"old-o\" x=\"94\" y=\"-40\" width=\"88\" height=\"145\" data-op=\"subtract\" data-glyph=\"2\"/><path id=\"green-o\" data-color=\"primary\" d=\"M96.821 61.643 A41.250 39.100 0 1 0 179.321 61.643 A41.250 39.100 0 1 0 96.821 61.643 Z\"/></svg>",
+      "misuse_svgs": {
+        "misuse-1": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path data-color=\"primary\" d=\"M9 88 V54 A24 24 0 0 1 57 54 V88 Z\"/><path data-color=\"primary\" d=\"M45 88 V36 A24 24 0 0 1 93 36 V88 Z\"/></svg>",
+        "misuse-2": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path data-color=\"primary\" fill-rule=\"evenodd\" d=\"M9 88 V45 A24 24 0 0 1 57 45 V88 Z M21 88 V45 A12 12 0 0 1 45 45 V88 Z\"/><path data-color=\"primary\" fill-rule=\"evenodd\" d=\"M45 88 V45 A24 24 0 0 1 93 45 V88 Z M57 88 V45 A12 12 0 0 1 81 45 V88 Z\"/></svg>"
+      }
+    },
+    {
+      "identity": {
+        "set": {
+          "id": "B",
+          "name": "Hidden Figures",
+          "recommended": false,
+          "mechanism": "Numbers stay hidden until you choose to look: the two o's of nomow are filled into dots like masked digits, set in one sober grotesk whose figures are tabular by default, on deep night ink.",
+          "expression_move": "The two emerald dots are the only colour on an almost black-and-white identity.",
+          "differs_by": "Competitors sell openness and dashboards; this is the only discreet, dark, wordmark-only route, built on the product's hidden-by-default numbers."
+        },
+        "axes": {
+          "playful_serious": 2,
+          "quiet_loud": -2,
+          "friend_authority": 2
+        },
+        "type": {
+          "pairing_mode": "single-family",
+          "display": {
+            "family": "IBM Plex Sans Arabic",
+            "source": "google",
+            "license": "OFL-1.1",
+            "weights": [
+              500
+            ],
+            "location": {},
+            "features": [],
+            "case": "lower",
+            "tracking": -10,
+            "fallback": "system-ui, sans-serif",
+            "file": null
+          },
+          "text": {
+            "family": "IBM Plex Sans Arabic",
+            "source": "google",
+            "license": "OFL-1.1",
+            "weights": [
+              400,
+              600
+            ],
+            "location": {},
+            "features": [
+              "tnum"
+            ],
+            "case": "as-is",
+            "tracking": 0,
+            "fallback": "system-ui, sans-serif",
+            "file": null
+          },
+          "mono": null
+        },
+        "logo": {
+          "type": "wordmark",
+          "concept": "The name with its numbers hidden: both o's become solid dots, the way the app masks figures until you tap to show them.",
+          "symbol": null,
+          "wordmark": {
+            "text": "nomow",
+            "role": "display",
+            "location": null,
+            "tracking": -10,
+            "case": "lower"
+          },
+          "monogram": null,
+          "lockups": [
+            "horizontal"
+          ],
+          "colors": {
+            "wordmark": "text",
+            "dots": "accent"
+          },
+          "tags": [
+            "letterform"
+          ],
+          "clear_space": {
+            "unit": "cap-height",
+            "multiple": 1,
+            "inferred": true
+          },
+          "min_size": {
+            "px": 24,
+            "mm": 8
+          },
+          "defect": "Round 1: the o's were still open; filled both into emerald dots and resized the small n-dot mark to the wordmark's proportions. Round 2: #10b981 fell under 3:1 on white, so the dots turned black there; deepened to #059669."
+        },
+        "palette_build": {
+          "strategy": null,
+          "accent": "#059669",
+          "light_bg": "#ffffff",
+          "dark_bg": "#0b1324",
+          "neutral_tint": null,
+          "neutral_chroma": null,
+          "extra": []
+        },
+        "defaults_used": [
+          {
+            "id": "navy-primary",
+            "why": "Existing asset deepened: the app's navy #0f172a taken to night ink so the dark ground carries the discreet idea; the user asked to keep the current colours."
+          }
+        ],
+        "rationale": [
+          {
+            "claim": "The dots echo a shipped feature: performance numbers are hidden by default and re-hide after a minute idle.",
+            "evidence": "judgement",
+            "source": "product: PrivacyProvider"
+          },
+          {
+            "claim": "IBM Plex Sans Arabic has tabular figures by default and a distinct I/l/1, which suits tables of prices and targets.",
+            "evidence": "measured",
+            "source": "brand.py fonts audit"
+          },
+          {
+            "claim": "The current dark-mode emerald #10b981 becomes the only accent, so dark mode is the brand's home.",
+            "evidence": "judgement",
+            "source": "apps/web globals.css"
+          }
+        ],
+        "card": {
+          "ground": "dark"
+        }
+      },
+      "palette": {
+        "schema": "brand-identity/palette@1",
+        "name": "Hidden Figures",
+        "direction": "Night ink and white, with one emerald for the dots.",
+        "brand": [
+          {
+            "id": "brand-1",
+            "name": "Night Ink",
+            "hex": "#0b1324",
+            "source": "chosen",
+            "locked": true,
+            "usage": "wordmark, dark grounds, text"
+          },
+          {
+            "id": "brand-2",
+            "name": "Signal Emerald",
+            "hex": "#059669",
+            "source": "chosen",
+            "locked": true,
+            "usage": "the dots; focus and success states only (3:1 on white and on night ink)"
+          }
+        ],
+        "feels": [
+          "discreet",
+          "exact",
+          "serious"
+        ]
+      },
+      "symbol_svg": null,
+      "symbol_small_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path id=\"initial\" data-glyphs=\"n\" data-cap=\"60\" data-x=\"25.5\" data-baseline=\"72\" data-anchor=\"middle\" data-color=\"text\"/><circle id=\"dot\" cx=\"72.5\" cy=\"50\" r=\"20.5\" data-color=\"accent\"/></svg>",
+      "wordmark_detail_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\"><path id=\"dot-1\" data-color=\"accent\" d=\"M87.36 63 A34.7 38.8 0 1 0 156.76 63 A34.7 38.8 0 1 0 87.36 63 Z\"/><path id=\"dot-2\" data-color=\"accent\" d=\"M291.66 63 A34.7 38.8 0 1 0 361.06 63 A34.7 38.8 0 1 0 291.66 63 Z\"/></svg>"
+    },
+    {
+      "identity": {
+        "set": {
+          "id": "C",
+          "name": "Nūn",
+          "recommended": false,
+          "mechanism": "The first letter in both scripts: an Arabic nūn (a bowl with one dot) as the symbol, one humanist family named after old Cairo for both languages, and emerald used as large surfaces on a pale green ground.",
+          "expression_move": "Big bilingual type: Arabic and English set at the same size, side by side, everywhere the brand speaks.",
+          "differs_by": "Every measured competitor is Latin-only and imported; this route is Arabic-first and Egyptian, without navy or any listed default."
+        },
+        "axes": {
+          "playful_serious": 0,
+          "quiet_loud": 2,
+          "friend_authority": -2
+        },
+        "type": {
+          "pairing_mode": "single-family",
+          "display": {
+            "family": "Fustat",
+            "source": "google",
+            "license": "OFL-1.1",
+            "weights": [
+              700
+            ],
+            "location": {
+              "wght": 700
+            },
+            "features": [],
+            "case": "lower",
+            "tracking": -15,
+            "fallback": "system-ui, sans-serif",
+            "file": null
+          },
+          "text": {
+            "family": "Fustat",
+            "source": "google",
+            "license": "OFL-1.1",
+            "weights": [
+              400,
+              600
+            ],
+            "location": {
+              "wght": 400
+            },
+            "features": [
+              "tnum"
+            ],
+            "case": "as-is",
+            "tracking": 0,
+            "fallback": "system-ui, sans-serif",
+            "file": null
+          },
+          "mono": null
+        },
+        "logo": {
+          "type": "symbol+wordmark",
+          "concept": "نـ: the bowl and dot of the Arabic n, which opens نومو; upside down, the bowl is the Latin n that opens nomow.",
+          "symbol": "logo/symbol.svg",
+          "wordmark": {
+            "text": "nomow",
+            "role": "display",
+            "location": null,
+            "tracking": -15,
+            "case": "lower"
+          },
+          "monogram": null,
+          "lockups": [
+            "horizontal",
+            "stacked"
+          ],
+          "colors": {
+            "bowl": "primary",
+            "dot": "text",
+            "wordmark": "text"
+          },
+          "tags": [
+            "letterform"
+          ],
+          "clear_space": {
+            "unit": "cap-height",
+            "multiple": 1,
+            "inferred": true
+          },
+          "min_size": {
+            "px": 20,
+            "mm": 7
+          },
+          "defect": "Round 1: a symmetric bowl under a dot read as a smiley; the right horn now rises with a slanted cut, as the calligraphic nūn does."
+        },
+        "palette_build": {
+          "strategy": null,
+          "accent": null,
+          "light_bg": "#eef5f1",
+          "dark_bg": "#0a1f1c",
+          "neutral_tint": null,
+          "neutral_chroma": null,
+          "extra": []
+        },
+        "defaults_used": [],
+        "rationale": [
+          {
+            "claim": "None of the four measured competitor sites sets Arabic in its brand; the product will ship an Arabic UI.",
+            "evidence": "measured",
+            "source": "brand.py site competitors"
+          },
+          {
+            "claim": "The rhombus dot is the calligraphic nūn dot; a round dot over a bowl reads as a person with raised arms.",
+            "evidence": "judgement",
+            "source": "logo.md: read it cold"
+          },
+          {
+            "claim": "Fustat covers Arabic and Latin with tabular figures in one variable file (~36 KB).",
+            "evidence": "measured",
+            "source": "brand.py fonts audit"
+          }
+        ]
+      },
+      "palette": {
+        "schema": "brand-identity/palette@1",
+        "name": "Nūn",
+        "direction": "Emerald as surfaces on a pale green ground, deep teal ink instead of navy.",
+        "brand": [
+          {
+            "id": "brand-1",
+            "name": "Nūn Green",
+            "hex": "#0a7a52",
+            "source": "chosen",
+            "locked": true,
+            "usage": "symbol bowl, large surfaces, primary buttons"
+          },
+          {
+            "id": "brand-2",
+            "name": "Deep Teal",
+            "hex": "#0b2e33",
+            "source": "chosen",
+            "locked": true,
+            "usage": "text, wordmark, the dot"
+          }
+        ],
+        "feels": [
+          "local",
+          "open",
+          "confident"
+        ]
+      },
+      "symbol_svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><g id=\"bowl\" data-color=\"primary\"><path id=\"bowl-curve\" d=\"M12 50 A38 38 0 0 0 88 50 L75 50 A25 25 0 0 1 25 50 Z\"/><polygon id=\"right-horn\" data-op=\"union\" points=\"75,50.5 88,50.5 88,26 75,33\"/></g><polygon id=\"dot\" data-color=\"text\" points=\"50,11 61,22 50,33 39,22\"/></svg>",
+      "symbol_small_svg": null,
+      "wordmark_detail_svg": null
+    }
+  ]
+}

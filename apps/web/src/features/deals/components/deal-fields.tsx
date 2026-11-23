@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -255,14 +256,12 @@ export function DealFields({
 
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-price`}>Price ({currency})</Label>
-        <Input
+        <AmountInput
           id={`${id}-price`}
-          inputMode="decimal"
-          value={formatAmountInput(value.price)}
-          onChange={(event) => set("price")(event.target.value)}
+          value={value.price}
+          onValueChange={set("price")}
           placeholder="e.g. 5,250,000"
           className="tabular-nums"
-          autoComplete="off"
         />
       </div>
 
@@ -304,11 +303,10 @@ export function DealFields({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-commission-amount`}>Commission ({currency})</Label>
-          <Input
+          <AmountInput
             id={`${id}-commission-amount`}
-            inputMode="decimal"
-            value={formatAmountInput(value.commissionAmount)}
-            onChange={(event) => set("commissionAmount")(event.target.value)}
+            value={value.commissionAmount}
+            onValueChange={set("commissionAmount")}
             placeholder={
               autoCommission !== null ? formatAmountInput(String(autoCommission)) : "Optional"
             }

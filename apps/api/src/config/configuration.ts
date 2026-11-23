@@ -163,7 +163,7 @@ export default () => {
     },
     mail: {
       transport: process.env.MAIL_TRANSPORT ?? 'log',
-      from: process.env.MAIL_FROM ?? 'CRMPro <no-reply@crmpro.local>',
+      from: process.env.MAIL_FROM ?? 'Nomow <no-reply@crmpro.local>',
       smtpHost: process.env.SMTP_HOST,
       smtpPort: parseInt(process.env.SMTP_PORT ?? '587', 10),
       smtpSecure: parseBoolean(process.env.SMTP_SECURE, false),

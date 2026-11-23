@@ -20,7 +20,7 @@ export function EmptyDashboard() {
         <div className="mb-2 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <AppIcons.trendingUp className="size-7" stroke={1.5} />
         </div>
-        <CardTitle className="text-xl">Welcome to CRMPro</CardTitle>
+        <CardTitle className="text-xl">Welcome to Nomow</CardTitle>
         <CardDescription className="max-w-md text-balance">
           Start by importing leads or creating your first project. Your dashboard
           will populate as activity grows.

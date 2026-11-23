@@ -28,8 +28,8 @@ async function bootstrap() {
   });
   if (configService.get<boolean>('app.enableSwagger')) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('CRMPro API')
-      .setDescription('CRMPro backend API documentation')
+      .setTitle('Nomow API')
+      .setDescription('Nomow backend API documentation')
       .setVersion(configService.get<string>('app.version') ?? '1.0.0')
       .addBearerAuth()
       .build();

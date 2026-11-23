@@ -1,7 +1,7 @@
 /**
  * Phone normalization for duplicate detection and search.
  *
- * CRMPro's market is Egypt-first, so numbers without an explicit country code
+ * Nomow's market is Egypt-first, so numbers without an explicit country code
  * are treated as Egyptian. The output is E.164-like (`+<country><number>`) so
  * that `01001234567`, `+20 100 123 4567`, `00201001234567` and
  * `٠١٠٠١٢٣٤٥٦٧` all produce the same key: `+201001234567`.

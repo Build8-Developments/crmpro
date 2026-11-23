@@ -51,21 +51,21 @@ export function inviteEmail(params: {
   const workspace = escapeHtml(params.workspaceName);
 
   return {
-    subject: `دعوة للانضمام · You're invited to ${params.workspaceName} on CRMPro`,
+    subject: `دعوة للانضمام · You're invited to ${params.workspaceName} on Nomow`,
     ...renderEmail({
       heading: {
         ar: `دعوة للانضمام إلى ${workspace}`,
-        en: `Join ${workspace} on CRMPro`,
+        en: `Join ${workspace} on Nomow`,
       },
       body: {
         ar: [
           `مرحبًا ${name}،`,
-          `دعاك ${inviter} للانضمام إلى فريق «${workspace}» على CRMPro.`,
+          `دعاك ${inviter} للانضمام إلى فريق «${workspace}» على نومو.`,
           `اختر كلمة مرور لتفعيل حسابك. الدعوة صالحة لمدة ${params.expiresInDays} أيام.`,
         ],
         en: [
           `Hi ${name},`,
-          `${inviter} invited you to join the "${workspace}" team on CRMPro.`,
+          `${inviter} invited you to join the "${workspace}" team on Nomow.`,
           `Choose a password to activate your account. The invitation is valid for ${params.expiresInDays} days.`,
         ],
       },
@@ -96,7 +96,7 @@ export function notificationEmail(params: {
       body: { ar: [message], en: [] },
       action: {
         url: params.url,
-        label: { ar: 'فتح CRMPro', en: 'Open CRMPro' },
+        label: { ar: 'فتح نومو', en: 'Open Nomow' },
       },
       footer: {
         ar: 'يمكنك إيقاف رسائل البريد من الإعدادات ← الإشعارات.',

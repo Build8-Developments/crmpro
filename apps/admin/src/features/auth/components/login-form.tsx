@@ -28,7 +28,7 @@ export function LoginForm() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight">Admin sign in</h1>
         <p className="text-sm text-muted-foreground">
-          Sign in with your CRMPro platform credentials.
+          Sign in with your Nomow platform credentials.
         </p>
       </div>
 
@@ -45,7 +45,7 @@ export function LoginForm() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@crmpro.com"
+              placeholder="admin@nomow.app"
               autoComplete="email"
               autoFocus
               disabled={isSubmitting}

@@ -165,7 +165,7 @@ export const utilityRoutes: NavRoute[] = [
   {
     label: "Help & support",
     href: "/support",
-    subtitle: "Chat with CRMPro platform support",
+    subtitle: "Chat with Nomow platform support",
     icon: AppIcons.lifeBuoy,
     requiredPermissions: ["support.read"],
     searchable: true,

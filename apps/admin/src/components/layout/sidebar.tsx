@@ -13,6 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { ProductMark } from "@/components/brand/product-logo";
 
 /* ─── Brand ───────────────────────────────────────────────────────────────── */
 
@@ -24,9 +25,7 @@ function SidebarBrand({ collapsed }: { collapsed: boolean }) {
         collapsed && "justify-center px-0",
       )}
     >
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-[13px] font-bold text-sidebar-primary-foreground">
-        A
-      </div>
+      <ProductMark className="h-6 fill-sidebar-primary" />
       {!collapsed && (
         <span className="text-[15px] font-semibold tracking-tight text-sidebar-foreground">
           Control Center

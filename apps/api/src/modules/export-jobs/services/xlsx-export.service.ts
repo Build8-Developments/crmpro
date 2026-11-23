@@ -50,7 +50,7 @@ export class XlsxExportService {
       useStyles: true,
       useSharedStrings: true,
     });
-    workbook.creator = 'CRMPro';
+    workbook.creator = 'Nomow';
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet(SHEET_NAME, {
