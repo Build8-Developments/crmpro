@@ -227,10 +227,12 @@ describe('DailyStatsJobService', () => {
     expect(ticks).toBe(9);
   });
 
-  it('restarts a finished backfill when the rows were wiped (re-seed)', async () => {
+  const KEY = 'stats:daily:backfill:tenant-1';
+
+  it('restarts a finished backfill when its oldest rows were wiped (re-seed)', async () => {
     const { job, prisma, cacheStore } = build();
-    cacheStore.set('stats:daily:backfill:tenant-1', { done: true });
-    // Only the final passes' recent rows exist: nothing older than 3 days.
+    cacheStore.set(KEY, { done: true, oldestDay: '2026-08-20' });
+    // Recent rows from the final passes may exist, but nothing that old.
     prisma.userDailyStat.findFirst.mockResolvedValue(null);
 
     const result = await job.runTenant(TENANT, NOW);
@@ -239,22 +241,62 @@ describe('DailyStatsJobService', () => {
       expect.objectContaining({
         where: {
           tenantId: 'tenant-1',
-          day: { lt: new Date('2026-11-14T00:00:00Z') },
+          day: { lte: new Date('2026-08-20T00:00:00Z') },
         },
       }),
     );
     expect(result.backfilled).toBe(10);
+    expect(cacheStore.get(KEY)).toEqual({
+      cursor: '2026-11-05',
+      until: '2026-08-19',
+    });
   });
 
-  it('keeps a finished backfill when older rows are still there', async () => {
+  it('keeps a finished backfill while its oldest rows are still there', async () => {
     const { job, cacheStore } = build();
-    cacheStore.set('stats:daily:backfill:tenant-1', { done: true });
+    cacheStore.set(KEY, { done: true, oldestDay: '2026-08-20' });
 
     const result = await job.runTenant(TENANT, NOW);
 
     expect(result.backfilled).toBe(0);
-    expect(cacheStore.get('stats:daily:backfill:tenant-1')).toEqual({
+    expect(cacheStore.get(KEY)).toEqual({
       done: true,
+      oldestDay: '2026-08-20',
+    });
+  });
+
+  it('keeps a finished backfill that found no history at all', async () => {
+    const { job, prisma, cacheStore } = build();
+    cacheStore.set(KEY, { done: true, oldestDay: null });
+    prisma.userDailyStat.findFirst.mockResolvedValue(null);
+
+    const result = await job.runTenant(TENANT, NOW);
+
+    expect(result.backfilled).toBe(0);
+  });
+
+  it('re-runs an old "done" flag once so it records its oldest day', async () => {
+    const { job, cacheStore } = build();
+    cacheStore.set(KEY, { done: true });
+
+    const result = await job.runTenant(TENANT, NOW);
+
+    expect(result.backfilled).toBe(10);
+  });
+
+  it('records the oldest stored day when the backfill finishes', async () => {
+    const { job, prisma, cacheStore } = build();
+    cacheStore.set(KEY, { cursor: '2026-08-20', until: '2026-08-19' });
+    prisma.userDailyStat.findFirst.mockResolvedValue({
+      day: new Date('2026-08-19T00:00:00Z'),
+    });
+
+    const result = await job.runTenant(TENANT, NOW);
+
+    expect(result.backfilled).toBe(2);
+    expect(cacheStore.get(KEY)).toEqual({
+      done: true,
+      oldestDay: '2026-08-19',
     });
   });
 
@@ -269,6 +311,7 @@ describe('DailyStatsJobService', () => {
 
     expect(cacheStore.get('stats:daily:backfill:tenant-1')).toEqual({
       done: true,
+      oldestDay: null,
     });
   });
 

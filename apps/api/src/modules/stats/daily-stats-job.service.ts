@@ -22,14 +22,21 @@ import {
 } from './stats.constants';
 import {
   addDays,
+  dbDateToDay,
   dayToDbDate,
   localDayBounds,
   localDayOf,
 } from './utils/local-day.util';
 
-/** Backfill progress: next day to compute (walking back) down to `until`. */
+/**
+ * Backfill progress: next day to compute (walking back) down to `until`.
+ * When done, `oldestDay` is the earliest day that had rows at that point
+ * (null: none). Old days are never rewritten afterwards, so if that day's
+ * rows are gone the table was wiped (re-seed, restore) and the backfill
+ * starts over. A flag without `oldestDay` predates this and re-runs once.
+ */
 export type BackfillState =
-  | { done: true }
+  | { done: true; oldestDay?: string | null }
   | { done?: false; cursor: string; until: string };
 
 export interface TenantPassResult {
@@ -203,22 +210,26 @@ export class DailyStatsJobService implements OnModuleInit {
     const state = await this.cache.get<BackfillState>(key);
     if (state && !state.done) return;
 
-    // "Done" lives in Redis for a year, but the rows can be wiped meanwhile
-    // (a re-seed, a restore). A finished backfill leaves rows older than the
-    // final passes write (yesterday, 3 days back); none means start over.
-    const before = state?.done ? addDays(today, -3) : today;
-    const existing = await this.prisma.userDailyStat.findFirst({
-      where: { tenantId, day: { lt: dayToDbDate(before) } },
-      select: { day: true },
-    });
-    if (existing) return;
+    if (state?.done) {
+      // "Done" lives in Redis for a year; the rows can be wiped meanwhile.
+      if (!(await this.backfillWiped(tenantId, state.oldestDay))) return;
+      this.logger.log(
+        `Daily stats rows were wiped for ${tenantId}; backfilling again`,
+      );
+    } else {
+      const existing = await this.prisma.userDailyStat.findFirst({
+        where: { tenantId, day: { lt: dayToDbDate(today) } },
+        select: { day: true },
+      });
+      if (existing) return;
+    }
 
     // Yesterday and the settle day are handled by the final passes.
     const cursor = addDays(today, -2);
     const oldest = addDays(today, -BACKFILL_DAYS);
     const until = oldest > firstDay ? oldest : firstDay;
     if (cursor < until) {
-      await this.cache.set(key, { done: true }, BACKFILL_DONE_TTL_SECONDS);
+      await this.markBackfillDone(tenantId);
       return;
     }
     await this.cache.set(
@@ -227,6 +238,38 @@ export class DailyStatsJobService implements OnModuleInit {
       BACKFILL_STATE_TTL_SECONDS,
     );
     this.logger.log(`Daily stats backfill ${until}..${cursor} for ${tenantId}`);
+  }
+
+  /** True when the rows a finished backfill left behind are gone. */
+  private async backfillWiped(
+    tenantId: string,
+    oldestDay: string | null | undefined,
+  ): Promise<boolean> {
+    // Flag from before `oldestDay` was recorded: re-run once to record it.
+    if (oldestDay === undefined) return true;
+    // Nothing was stored, so nothing can have been lost.
+    if (oldestDay === null) return false;
+    const kept = await this.prisma.userDailyStat.findFirst({
+      where: { tenantId, day: { lte: dayToDbDate(oldestDay) } },
+      select: { day: true },
+    });
+    return kept === null;
+  }
+
+  private async markBackfillDone(tenantId: string): Promise<void> {
+    const oldest = await this.prisma.userDailyStat.findFirst({
+      where: { tenantId },
+      orderBy: { day: 'asc' },
+      select: { day: true },
+    });
+    await this.cache.set(
+      backfillStateKey(tenantId),
+      {
+        done: true,
+        oldestDay: oldest ? dbDateToDay(oldest.day) : null,
+      } satisfies BackfillState,
+      BACKFILL_DONE_TTL_SECONDS,
+    );
   }
 
   private async continueBackfill(tenantId: string, now: Date): Promise<number> {
@@ -252,7 +295,7 @@ export class DailyStatsJobService implements OnModuleInit {
         computed += 1;
       }
       if (cursor < state.until) {
-        await this.cache.set(key, { done: true }, BACKFILL_DONE_TTL_SECONDS);
+        await this.markBackfillDone(tenantId);
       } else {
         await this.cache.set(
           key,
