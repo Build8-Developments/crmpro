@@ -26,6 +26,7 @@ export function TeamHeatmap({
     );
   }
 
+  const busiest = heatmap.cells.reduce((best, cell) => (cell.count > best.count ? cell : best));
   const counts = new Map(heatmap.cells.map((cell) => [`${cell.weekday}:${cell.hour}`, cell.count]));
   const hoursWithData = heatmap.cells.map((cell) => cell.hour);
   const firstHour = Math.min(DEFAULT_FIRST_HOUR, ...hoursWithData);
@@ -77,8 +78,8 @@ export function TeamHeatmap({
         </tbody>
       </table>
       <p className="mt-2 text-[11px] text-muted-foreground">
-        {formatNumber(heatmap.total)} interactions · darker = busier · busiest hour{" "}
-        {formatNumber(heatmap.max)}
+        {formatNumber(heatmap.total)} interactions · darker = busier · busiest{" "}
+        {WEEKDAYS[busiest.weekday]} {hourLabel(busiest.hour)}:00 ({formatNumber(busiest.count)})
       </p>
     </div>
   );

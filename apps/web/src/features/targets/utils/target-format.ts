@@ -45,7 +45,8 @@ export function formatPeriodShort(period: string, withYear = false): string {
   const [year, month] = period.split("-").map(Number);
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
-    ...(withYear ? { year: "2-digit" } : {}),
+    // "Nov 2026" — a 2-digit year ("Nov 26") reads like a day.
+    ...(withYear ? { year: "numeric" } : {}),
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, month - 1, 1)));
 }

@@ -22,7 +22,11 @@ export function AttentionStageList({ stuck, stale }: AttentionStageListProps) {
         <h3 className="truncate text-xs font-semibold">Stuck & stale by stage</h3>
       </div>
       <div className="space-y-2.5 px-3.5 py-2.5">
-        {groups.map(({ key, label, unit, group }) => (
+        {groups.map(({ key, label, unit, group }) => {
+          // Two pipelines can both have a "Proposal": name the pipeline then.
+          const names = group.byStage.map((row) => row.stageName);
+          const repeated = new Set(names.filter((name, index) => names.indexOf(name) !== index));
+          return (
           <div key={key}>
             <p className="mb-1 text-[11px] font-medium text-muted-foreground">{label}</p>
             <ul className="flex flex-wrap gap-1.5">
@@ -33,7 +37,12 @@ export function AttentionStageList({ stuck, stale }: AttentionStageListProps) {
                     className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-[11px] hover:bg-muted"
                     title={`${row.pipelineName} · over ${row.thresholdDays} days ${unit}`}
                   >
-                    <span className="font-medium">{row.stageName}</span>
+                    <span className="font-medium">
+                      {row.stageName}
+                      {repeated.has(row.stageName) ? (
+                        <span className="font-normal text-muted-foreground"> · {row.pipelineName}</span>
+                      ) : null}
+                    </span>
                     <span className="text-muted-foreground">&gt;{row.thresholdDays}d</span>
                     <span className="font-semibold tabular-nums">{formatNumber(row.count)}</span>
                   </Link>
@@ -41,7 +50,8 @@ export function AttentionStageList({ stuck, stale }: AttentionStageListProps) {
               ))}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
