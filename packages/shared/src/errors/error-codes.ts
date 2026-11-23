@@ -18,6 +18,8 @@ export const API_ERROR_CODES = {
   DEAL_REQUIRED: 'DEAL_REQUIRED',
   /** The lead has a live deal; cancel it before moving the lead out of Won. */
   DEAL_ACTIVE: 'DEAL_ACTIVE',
+  /** The contract was terminated in read-only mode: no changes until access ends. */
+  TENANT_READ_ONLY: 'TENANT_READ_ONLY',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
 } as const;
 

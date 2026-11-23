@@ -31,6 +31,7 @@ import {
   MANAGER_PERMISSION_KEYS,
   OWNER_PERMISSION_KEYS,
 } from '@crmpro/shared/bootstrap';
+import { buildPlanSnapshot } from '@crmpro/shared/billing';
 import {
   DEMO_HISTORY_DAYS,
   seedDemoDataset,
@@ -866,10 +867,20 @@ async function seedTenantContracts(): Promise<void> {
 
   for (const contract of contracts) {
     const { id, ...data } = contract;
+    // Signed contracts carry the plan as signed (drafts get it on activation).
+    const plan =
+      contract.status === ContractStatus.DRAFT
+        ? null
+        : await prisma.subscriptionPlan.findUniqueOrThrow({
+            where: { id: contract.planId },
+          });
+    const planSnapshot = plan
+      ? (buildPlanSnapshot(plan, contract) as unknown as Prisma.InputJsonValue)
+      : Prisma.DbNull;
     await prisma.tenantContract.upsert({
       where: { id },
-      create: contract,
-      update: data,
+      create: { ...contract, planSnapshot },
+      update: { ...data, planSnapshot },
     });
   }
 }

@@ -222,6 +222,7 @@ enum NotificationType {
   SUPPORT_REPLY
   ESCALATION
   ACHIEVEMENT
+  PROJECT_UPDATE
 }
 
 enum SupportConversationStatus {
@@ -288,6 +289,37 @@ enum ContractStatus {
   ACTIVE
   EXPIRED
   TERMINATED
+}
+
+/// What a terminated contract leaves the workspace with until `accessEndsAt`.
+enum ContractTerminationMode {
+  /// Full use until the contract end + grace days, then suspended.
+  FULL_ACCESS
+  /// Sign in, read and export only until the contract end + grace days.
+  READ_ONLY
+  /// Suspended on termination; sessions revoked.
+  IMMEDIATE
+}
+
+enum CustomFieldEntity {
+  LEAD
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTI_SELECT
+  BOOLEAN
+  URL
+}
+
+enum ProjectUpdateType {
+  PRICE_CHANGE
+  NEW_PHASE
+  AVAILABILITY
+  GENERAL
 }
 
 enum PaymentMethod {
@@ -368,6 +400,8 @@ model Tenant {
   sourceSpends          SourceSpend[]
   userDailyStats        UserDailyStat[]
   userAchievements      UserAchievement[]
+  customFieldDefinitions CustomFieldDefinition[]
+  projectUpdates        ProjectUpdate[]
 
   @@index([subscriptionPlanId])
 }
@@ -493,6 +527,7 @@ model User {
   targets              Target[]              @relation("TargetUser")
   dailyStats           UserDailyStat[]
   achievements         UserAchievement[]
+  projectUpdates       ProjectUpdate[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -575,6 +610,7 @@ model Project {
   leadProjectInterests LeadProjectInterest[]
   interactions        Interaction[]
   deals               Deal[]
+  updates             ProjectUpdate[]
 
   // (tenantId, name) is unique among live rows via a partial unique index
   // (WHERE "deletedAt" IS NULL) created in migration
@@ -1300,6 +1336,14 @@ model TenantContract {
   autoRenew        Boolean          @default(false)
   notes            String?          @db.VarChar(5000)
   status           ContractStatus   @default(DRAFT)
+  /// The plan as signed: { planId, name, price, currency, quotas, featureFlags }.
+  /// Quotas and existing flags stay frozen; flags added to the plan later come
+  /// from the live plan. Null only on contracts signed before snapshots.
+  planSnapshot     Json?
+  terminatedAt     DateTime?
+  terminationMode  ContractTerminationMode?
+  /// When a terminated contract stops giving access (end + grace, or now).
+  accessEndsAt     DateTime?
   createdByAdminId String           @db.Uuid
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -1551,4 +1595,50 @@ model UserAchievement {
 
   @@unique([userId, key, level])
   @@index([tenantId, unlockedAt])
+}
+
+/// A tenant-defined lead field. Values live in `Lead.customFields` keyed by
+/// `key`; archiving hides the field but keeps its values.
+model CustomFieldDefinition {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @db.Uuid
+  entity      CustomFieldEntity @default(LEAD)
+  /// Stable key in `Lead.customFields` (lower_snake_case); never changes.
+  key         String
+  label       String
+  description String?
+  type        CustomFieldType
+  /// SELECT / MULTI_SELECT choices: string[]
+  options     Json?
+  isRequired  Boolean           @default(false)
+  sortOrder   Int               @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, entity, key])
+  @@index([tenantId, entity, archivedAt])
+}
+
+/// News about a project agents need to know (price change, new phase…).
+model ProjectUpdate {
+  id           String            @id @default(uuid()) @db.Uuid
+  tenantId     String            @db.Uuid
+  projectId    String            @db.Uuid
+  authorUserId String?           @db.Uuid
+  type         ProjectUpdateType @default(GENERAL)
+  title        String
+  body         String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author  User?   @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([projectId, createdAt(sort: Desc)])
 }

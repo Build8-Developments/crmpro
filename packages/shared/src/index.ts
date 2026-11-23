@@ -52,9 +52,25 @@ export {
   type ValidationErrorLike,
 } from './errors';
 export {
+  CONTRACT_TERMINATION_MODES,
+  PLAN_SNAPSHOT_VERSION,
+  buildPlanSnapshot,
   computeContractAccessEndAt,
+  computeTerminationAccessEndsAt,
   isWithinContractGrace,
+  parseFeatureFlagRecord,
+  parsePlanSnapshot,
+  resolvePlanTerms,
   type ContractGraceInput,
+  type ContractTerminationModeValue,
+  type PlanSnapshot,
+  type PlanSnapshotContractSource,
+  type PlanSnapshotFeatureFlags,
+  type PlanSnapshotIssueHandler,
+  type PlanSnapshotPlanSource,
+  type PlanSnapshotQuotas,
+  type PlanTermsLivePlan,
+  type ResolvedPlanTerms,
 } from './billing';
 export {
   parseRedisUrl,
