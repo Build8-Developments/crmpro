@@ -64,6 +64,10 @@ function build(options: { showLeaderboardToAgents?: boolean } = {}) {
     },
     interaction: {
       count: jest.fn().mockResolvedValue(42),
+      // History older than the account (imported or re-seeded data).
+      aggregate: jest.fn().mockResolvedValue({
+        _min: { occurredAt: new Date('2024-12-15T09:00:00Z') },
+      }),
       findMany: jest
         .fn()
         .mockResolvedValue([{ occurredAt: new Date('2026-11-16T10:00:00Z') }]),
@@ -135,7 +139,8 @@ describe('PerformanceService.getMyPerformance', () => {
       interactions: 42,
       visits: 1,
       clientsServed: 2,
-      since: '2025-03-01T00:00:00.000Z',
+      // The earliest interaction, not the account's creation.
+      since: '2024-12-15T09:00:00.000Z',
     });
     expect(data.months).toHaveLength(12);
     expect(data.months[0].period).toBe('2025-12');

@@ -227,6 +227,37 @@ describe('DailyStatsJobService', () => {
     expect(ticks).toBe(9);
   });
 
+  it('restarts a finished backfill when the rows were wiped (re-seed)', async () => {
+    const { job, prisma, cacheStore } = build();
+    cacheStore.set('stats:daily:backfill:tenant-1', { done: true });
+    // Only the final passes' recent rows exist: nothing older than 3 days.
+    prisma.userDailyStat.findFirst.mockResolvedValue(null);
+
+    const result = await job.runTenant(TENANT, NOW);
+
+    expect(prisma.userDailyStat.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId: 'tenant-1',
+          day: { lt: new Date('2026-11-14T00:00:00Z') },
+        },
+      }),
+    );
+    expect(result.backfilled).toBe(10);
+  });
+
+  it('keeps a finished backfill when older rows are still there', async () => {
+    const { job, cacheStore } = build();
+    cacheStore.set('stats:daily:backfill:tenant-1', { done: true });
+
+    const result = await job.runTenant(TENANT, NOW);
+
+    expect(result.backfilled).toBe(0);
+    expect(cacheStore.get('stats:daily:backfill:tenant-1')).toEqual({
+      done: true,
+    });
+  });
+
   it('never backfills before the tenant existed', async () => {
     const { job, prisma, cacheStore } = build();
     prisma.userDailyStat.findFirst.mockResolvedValue(null);

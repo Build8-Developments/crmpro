@@ -127,7 +127,7 @@ export class PerformanceService {
       scope,
     );
 
-    const [evaluation, interactions, visits, clients, month, rank] =
+    const [evaluation, interactions, visits, clients, month, rank, firstTouch] =
       await Promise.all([
         this.achievements.evaluate(tenantId, user.id, inputs, now),
         this.prisma.interaction.count({ where: touches }),
@@ -145,6 +145,10 @@ export class PerformanceService {
         showRank
           ? this.leaderboard(tenantId, user.id, period, timeZone)
           : Promise.resolve(null),
+        this.prisma.interaction.aggregate({
+          where: touches,
+          _min: { occurredAt: true },
+        }),
       ]);
 
     const { deals } = inputs;
@@ -165,7 +169,14 @@ export class PerformanceService {
         interactions,
         visits: visits.length,
         clientsServed: clients.length,
-        since: (me?.createdAt ?? now).toISOString(),
+        since: earliest(
+          [
+            me?.createdAt,
+            firstTouch._min.occurredAt,
+            ...deals.map((deal) => deal.reservedAt),
+          ],
+          now,
+        ).toISOString(),
       },
       month,
       months: monthlySeries(
@@ -232,4 +243,16 @@ export class PerformanceService {
     );
     return { period, ...ranked };
   }
+}
+
+/**
+ * Where "all time" starts: the account's creation, or earlier when the
+ * history is older (imported or re-seeded data, a re-created account).
+ */
+function earliest(dates: Array<Date | null | undefined>, fallback: Date): Date {
+  let first: Date | null = null;
+  for (const date of dates) {
+    if (date && (!first || date < first)) first = date;
+  }
+  return first ?? fallback;
 }

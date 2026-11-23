@@ -200,10 +200,15 @@ export class DailyStatsJobService implements OnModuleInit {
     firstDay: string,
   ): Promise<void> {
     const key = backfillStateKey(tenantId);
-    if (await this.cache.get<BackfillState>(key)) return;
+    const state = await this.cache.get<BackfillState>(key);
+    if (state && !state.done) return;
 
+    // "Done" lives in Redis for a year, but the rows can be wiped meanwhile
+    // (a re-seed, a restore). A finished backfill leaves rows older than the
+    // final passes write (yesterday, 3 days back); none means start over.
+    const before = state?.done ? addDays(today, -3) : today;
     const existing = await this.prisma.userDailyStat.findFirst({
-      where: { tenantId, day: { lt: dayToDbDate(today) } },
+      where: { tenantId, day: { lt: dayToDbDate(before) } },
       select: { day: true },
     });
     if (existing) return;

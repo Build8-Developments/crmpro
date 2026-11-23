@@ -458,7 +458,7 @@ export class TodayService {
   }
 
   private async allTimeNumbers(user: AuthenticatedUser, since: Date) {
-    const [won, interactions, visits, clients] = await Promise.all([
+    const [won, interactions, visits, clients, firstTouch] = await Promise.all([
       this.prisma.lead.count({
         where: {
           tenantId: user.tenantId,
@@ -484,8 +484,20 @@ export class TodayService {
         by: ['leadId'],
         where: { tenantId: user.tenantId, userId: user.id },
       }),
+      this.prisma.interaction.aggregate({
+        where: { tenantId: user.tenantId, userId: user.id },
+        _min: { occurredAt: true },
+      }),
     ]);
-    return { won, interactions, visits, clients: clients.length, since };
+    // History can be older than the account (imports, a re-created user).
+    const first = firstTouch._min.occurredAt;
+    return {
+      won,
+      interactions,
+      visits,
+      clients: clients.length,
+      since: first && first < since ? first : since,
+    };
   }
 }
 
