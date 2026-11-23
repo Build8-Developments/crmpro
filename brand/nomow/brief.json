@@ -1,0 +1,52 @@
+{
+  "schema": "brand-identity/brief@1",
+  "brand": "Nomow",
+  "tagline": "Every lead, followed through.",
+  "site": null,
+  "languages": [
+    "en",
+    "ar"
+  ],
+  "doc_lang": "en",
+  "numbers": true,
+  "components": {
+    "logo": "new",
+    "type": "new",
+    "palette": "refresh"
+  },
+  "sources": {
+    "palette": "source/palette-kept.json"
+  },
+  "sets": 3,
+  "sector": "CRM for real-estate agencies in Egypt",
+  "audience": "Owners, sales managers and agents at Egyptian real-estate brokerages",
+  "attributes": [
+    "focused",
+    "ambitious",
+    "discreet"
+  ],
+  "competitors": [
+    "V Estate",
+    "ListaCRM",
+    "PropSpace",
+    "Behomes",
+    "LeadSquared",
+    "Bitrix24",
+    "Zoho CRM",
+    "HubSpot"
+  ],
+  "axes": [],
+  "copy": {
+    "sentence": {
+      "en": "Every lead followed up. Every target in sight.",
+      "ar": "كل عميل له متابعة، وكل هدف أمام عينيك."
+    },
+    "nav": [
+      "Leads",
+      "Deals",
+      "Today",
+      "Performance"
+    ],
+    "cta": "Book a demo"
+  }
+}
