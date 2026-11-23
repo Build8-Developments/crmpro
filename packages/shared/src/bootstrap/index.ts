@@ -7,6 +7,8 @@ export {
   DEFAULT_LEAD_SOURCES,
   DEFAULT_PIPELINE,
   DEFAULT_PIPELINE_STAGES,
+  DEFAULT_LOST_REASONS,
+  type LostReasonDefinition,
 } from './tenant-bootstrap.constants';
 
 export type {

@@ -4,6 +4,29 @@ export const PERMISSIONS = {
   LEAD_UPDATE: 'lead.update',
   LEAD_DELETE: 'lead.delete',
   LEAD_ASSIGN: 'lead.assign',
+  /** Merge a duplicate lead into another (both must be in the user's scope). */
+  LEAD_MERGE: 'lead.merge',
+  /** Data scope: leads of the user's team(s) plus unassigned leads. */
+  LEAD_READ_TEAM: 'lead.read-team',
+  /** Data scope: every lead in the organization. Without a scope key a user sees their own leads plus unassigned ones. */
+  LEAD_READ_ALL: 'lead.read-all',
+
+  /** Deals on won leads (scoped like the lead). */
+  DEAL_READ: 'deal.read',
+  /** Record the deal when a lead is won, mark it contracted, fix its details. */
+  DEAL_WRITE: 'deal.write',
+  /** Cancel a deal; the lead re-opens. */
+  DEAL_CANCEL: 'deal.cancel',
+
+  /** Monthly targets: everyone sees their own; managers see all. */
+  TARGET_READ: 'target.read',
+  TARGET_MANAGE: 'target.manage',
+
+  /** Monthly marketing spend per lead source (cost per lead/visit/deal). */
+  SPEND_MANAGE: 'spend.manage',
+
+  TEAM_READ: 'team.read',
+  TEAM_MANAGE: 'team.manage',
 
   LEAD_NOTE_CREATE: 'lead-note.create',
   LEAD_NOTE_READ: 'lead-note.read',
@@ -45,6 +68,7 @@ export const PERMISSIONS = {
   FILE_UPLOAD: 'file.upload',
   FILE_READ: 'file.read',
   FILE_DELETE: 'file.delete',
+  FILE_MANAGE: 'file.manage',
 
   IMPORT_JOB_CREATE: 'import-job.create',
   IMPORT_JOB_READ: 'import-job.read',
@@ -66,6 +90,9 @@ export const PERMISSIONS = {
 
   TENANT_MANAGE: 'tenant.manage',
   BILLING_MANAGE: 'billing.manage',
+
+  SETTINGS_READ: 'settings.read',
+  SETTINGS_MANAGE: 'settings.manage',
 } as const;
 
 export const ADMIN_PERMISSIONS = {
@@ -104,6 +131,20 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.LEAD_UPDATE,
     PERMISSIONS.LEAD_DELETE,
     PERMISSIONS.LEAD_ASSIGN,
+    PERMISSIONS.LEAD_MERGE,
+    PERMISSIONS.LEAD_READ_TEAM,
+    PERMISSIONS.LEAD_READ_ALL,
+  ],
+  TEAMS: [PERMISSIONS.TEAM_READ, PERMISSIONS.TEAM_MANAGE],
+  DEALS: [
+    PERMISSIONS.DEAL_READ,
+    PERMISSIONS.DEAL_WRITE,
+    PERMISSIONS.DEAL_CANCEL,
+  ],
+  TARGETS: [
+    PERMISSIONS.TARGET_READ,
+    PERMISSIONS.TARGET_MANAGE,
+    PERMISSIONS.SPEND_MANAGE,
   ],
   LEAD_NOTES: [
     PERMISSIONS.LEAD_NOTE_CREATE,
@@ -153,6 +194,7 @@ export const PERMISSION_GROUPS = {
     PERMISSIONS.FILE_UPLOAD,
     PERMISSIONS.FILE_READ,
     PERMISSIONS.FILE_DELETE,
+    PERMISSIONS.FILE_MANAGE,
   ],
   IMPORT_JOBS: [
     PERMISSIONS.IMPORT_JOB_CREATE,
@@ -175,6 +217,7 @@ export const PERMISSION_GROUPS = {
   ],
   AUDIT: [PERMISSIONS.AUDIT_READ],
   TENANT: [PERMISSIONS.TENANT_MANAGE, PERMISSIONS.BILLING_MANAGE],
+  SETTINGS: [PERMISSIONS.SETTINGS_READ, PERMISSIONS.SETTINGS_MANAGE],
 } as const satisfies Record<string, readonly PermissionKey[]>;
 
 export const ADMIN_PERMISSION_GROUPS = {
@@ -212,6 +255,9 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   PIPELINES: 'Pipelines',
   USERS: 'Users',
   ROLES: 'Roles',
+  TEAMS: 'Teams',
+  DEALS: 'Deals',
+  TARGETS: 'Targets & spend',
   FILES: 'Files',
   IMPORT_JOBS: 'Import Jobs',
   EXPORT_JOBS: 'Export Jobs',
@@ -220,6 +266,7 @@ export const PERMISSION_GROUP_LABELS: Record<PermissionGroupKey, string> = {
   SUPPORT: 'Support',
   AUDIT: 'Audit',
   TENANT: 'Organization',
+  SETTINGS: 'Organization Settings',
 };
 
 export type AdminPermissionGroupKey = keyof typeof ADMIN_PERMISSION_GROUPS;
@@ -249,6 +296,7 @@ export const PERMISSION_GROUP_ORDER = [
   'PIPELINES',
   'USERS',
   'ROLES',
+  'TEAMS',
   'FILES',
   'IMPORT_JOBS',
   'EXPORT_JOBS',

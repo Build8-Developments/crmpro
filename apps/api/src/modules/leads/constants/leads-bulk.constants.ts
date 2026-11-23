@@ -1,14 +1,19 @@
 export const MAX_BULK_ACTION_SIZE = 500;
 
+/** Upper bound for "all leads matching the filters" bulk actions. */
+export const MAX_BULK_MATCHING = 2000;
+
 export const BULK_ACTION_VALIDATION_MESSAGE =
   'Bulk actions support up to 500 leads.';
 
 export const BULK_LEAD_AUDIT_ACTIONS = {
   ASSIGNED: 'BULK_LEAD_ASSIGNED',
   STAGE_CHANGED: 'BULK_LEAD_STAGE_CHANGED',
+  TRANSFERRED: 'BULK_LEAD_TRANSFERRED',
 } as const;
 
 export const BULK_LEAD_ACTION_TYPES = {
   ASSIGN: 'ASSIGN',
   MOVE_STAGE: 'MOVE_STAGE',
+  TRANSFER: 'TRANSFER',
 } as const;

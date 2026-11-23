@@ -14,7 +14,7 @@ import { CreateExportDialog } from "@/features/exports/components/create-export-
 import { ExportJobDetailDrawer } from "@/features/exports/components/export-job-detail-drawer";
 import { ExportsEmptyState } from "@/features/exports/components/exports-empty-state";
 import { ExportsHeader } from "@/features/exports/components/exports-header";
-import { ExportsPagination } from "@/features/exports/components/exports-pagination";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { ExportsSkeleton } from "@/features/exports/components/exports-skeleton";
 import { ExportsTable } from "@/features/exports/components/exports-table";
 import { ExportsToolbar } from "@/features/exports/components/exports-toolbar";
@@ -89,9 +89,11 @@ export function ExportsPage() {
           <>
             <ExportsTable jobs={jobs} onSelectJob={openJobDetail} />
             {pagination ? (
-              <ExportsPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="exports"
+                hideOnSinglePage
               />
             ) : null}
           </>

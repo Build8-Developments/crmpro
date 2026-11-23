@@ -196,13 +196,10 @@ function ThreadPane({
     useSupportConversation(conversationId);
   const reply = useReplySupportConversation(conversationId);
   const resolve = useResolveSupportConversation();
-  const draftKey = `crmpro_support_draft_`;
-  const [draft, setDraft] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(draftKey) || "";
-    }
-    return "";
-  });
+  const draftKey = `crmpro_support_draft_${conversationId}`;
+  // Drafts are per conversation; the pane is keyed by conversation, so this
+  // initializer runs again whenever the user switches threads.
+  const [draft, setDraft] = useState(() => readDraft(draftKey));
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const socket = useRealtimeStore((state) => state.socket);
@@ -210,17 +207,7 @@ function ThreadPane({
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(draftKey);
-    if (saved) setDraft(saved);
-    else setDraft("");
-  }, [conversationId]);
-
-  useEffect(() => {
-    if (draft.trim()) {
-      localStorage.setItem(draftKey, draft);
-    } else {
-      localStorage.removeItem(draftKey);
-    }
+    writeDraft(draftKey, draft);
   }, [draft, draftKey]);
 
   useEffect(() => {
@@ -259,7 +246,7 @@ function ThreadPane({
     if (!body) return;
     await reply.mutateAsync({ body });
     setDraft("");
-    localStorage.removeItem(draftKey);
+    writeDraft(draftKey, "");
   };
 
   if (isLoading && !data) {
@@ -491,4 +478,22 @@ function CreateConversationDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function readDraft(key: string): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(key) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeDraft(key: string, value: string): void {
+  try {
+    if (value.trim()) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch {
+    // Storage can be unavailable (private mode, quota); drafts are best-effort.
+  }
 }

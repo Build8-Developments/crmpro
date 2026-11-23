@@ -34,17 +34,6 @@ export const DEFAULT_TREND_MONTHS = 12;
 export const DEFAULT_RECENT_ACTIVITY_LIMIT = 20;
 export const UNKNOWN_SOURCE_LABEL = 'Unknown';
 
-/** Activity types that count as an agent response after lead creation */
-export const AGENT_RESPONSE_EVENT_TYPES = [
-  'ASSIGNED',
-  'REASSIGNED',
-  'STAGE_CHANGED',
-  'NOTE_ADDED',
-  'CALL_LOGGED',
-  'EMAIL_LOGGED',
-  'WHATSAPP_LOGGED',
-] as const;
-
 export const RECENT_ACTIVITY_EVENT_TYPES = [
   'LEAD_CREATED',
   'LEAD_ASSIGNED',

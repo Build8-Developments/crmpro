@@ -1,0 +1,58 @@
+import type { TargetMetric } from "@/features/targets/types";
+import { formatCompactMoney, formatNumber } from "@/lib/format";
+
+export const METRIC_LABELS: Record<TargetMetric, string> = {
+  DEALS: "Deals",
+  REVENUE: "Revenue",
+  COMMISSION: "Commission",
+  INTERACTIONS: "Interactions",
+  VISITS: "Visits",
+};
+
+export const MONEY_METRICS: ReadonlySet<TargetMetric> = new Set(["REVENUE", "COMMISSION"]);
+
+export function isMoneyMetric(metric: TargetMetric): boolean {
+  return MONEY_METRICS.has(metric);
+}
+
+/** A metric value for display: compact money or a whole number. */
+export function formatMetricValue(metric: TargetMetric, value: number, currency: string): string {
+  return isMoneyMetric(metric) ? formatCompactMoney(value, currency) : formatNumber(value);
+}
+
+/** "November 2026" from "2026-11" (no time zone shift: it is a label). */
+export function formatPeriodLabel(period: string): string {
+  const [year, month] = period.split("-").map(Number);
+  return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, 1)),
+  );
+}
+
+/** "Nov" or "Nov 25" from "2025-11". */
+export function formatPeriodShort(period: string, withYear = false): string {
+  const [year, month] = period.split("-").map(Number);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    // "Nov 2026" — a 2-digit year ("Nov 26") reads like a day.
+    ...(withYear ? { year: "numeric" } : {}),
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/** `period` moved by `delta` months. */
+export function shiftPeriod(period: string, delta: number): string {
+  const [year, month] = period.split("-").map(Number);
+  const index = year * 12 + (month - 1) + delta;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+/** Parses a typed target: "" → null, invalid → undefined. */
+export function parseTargetInput(metric: TargetMetric, raw: string): number | null | undefined {
+  const cleaned = raw.replace(/[,\s]/g, "");
+  if (cleaned === "") return null;
+  const value = Number(cleaned);
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  if (!isMoneyMetric(metric) && !Number.isInteger(value)) return undefined;
+  if (isMoneyMetric(metric) && Math.round(value * 100) !== value * 100) return undefined;
+  return value;
+}

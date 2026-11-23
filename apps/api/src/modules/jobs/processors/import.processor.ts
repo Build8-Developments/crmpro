@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import { WorkerLoggingService } from '../../../common/logging/worker-logging.service';
@@ -86,7 +82,11 @@ export class ImportProcessor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleJob(job: Job<BackgroundJobPayload>): Promise<void> {
-    await this.importJobsService.processImportJob(job.data.jobId);
+    // A retry after a crash finds the job still PROCESSING; rows the failed
+    // attempt imported are recognised by (importJobId, importRowNumber).
+    await this.importJobsService.processImportJob(job.data.jobId, {
+      isRetry: (job.attemptsMade ?? 0) > 0,
+    });
   }
 
   private buildContext(job: Job<BackgroundJobPayload>) {

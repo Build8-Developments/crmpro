@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFileDownloadUrl } from "@/features/files/api";
 import { useImportJob } from "@/features/imports/hooks";
+import type { ImportJobErrorEntry } from "@/features/imports/types";
 import { useImportUiStore } from "@/features/imports/stores/import-ui-store";
 import {
   formatImportStatus,
@@ -23,6 +24,52 @@ import {
 } from "@/features/imports/utils/import-formatters";
 import { formatNumber, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const MAX_LISTED_ENTRIES = 100;
+
+function RowEntries({
+  title,
+  description,
+  entries,
+  tone,
+}: {
+  title: string;
+  description?: string;
+  entries: ImportJobErrorEntry[];
+  tone: "error" | "duplicate";
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-xs font-medium text-foreground">
+          {title}
+          {entries.length >= MAX_LISTED_ENTRIES
+            ? ` (showing first ${MAX_LISTED_ENTRIES})`
+            : ""}
+        </p>
+        {description ? (
+          <p className="text-[11px] text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      <ul className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border/60 p-2">
+        {entries.map((entry, index) => (
+          <li
+            key={`${entry.row}-${index}`}
+            className={cn(
+              "rounded-md px-2.5 py-2 text-xs",
+              tone === "duplicate" ? "bg-amber-500/10" : "bg-muted/40",
+            )}
+          >
+            <span className="font-medium text-foreground">
+              {entry.row > 0 ? `Row ${entry.row}` : "File"}
+            </span>
+            <span className="text-muted-foreground"> — {entry.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function DetailRow({
   label,
@@ -50,7 +97,9 @@ export function ImportJobDetailDrawer() {
   const open = Boolean(selectedJobId);
   const progress = job ? getImportProgressPercent(job) : null;
   const active = job ? isActiveImportStatus(job.status) : false;
-  const errors = job?.errorSummary ?? [];
+  const entries = job?.errorSummary ?? [];
+  const errors = entries.filter((entry) => entry.kind !== "duplicate");
+  const duplicates = entries.filter((entry) => entry.kind === "duplicate");
 
   const handleDownloadSource = async () => {
     if (!job) return;
@@ -166,6 +215,28 @@ export function ImportJobDetailDrawer() {
                   }
                 />
                 <DetailRow
+                  label="Skipped (already exist)"
+                  value={
+                    <span
+                      className={
+                        job.skippedRows > 0
+                          ? "text-amber-700 dark:text-amber-300"
+                          : undefined
+                      }
+                    >
+                      {formatNumber(job.skippedRows ?? 0)}
+                    </span>
+                  }
+                />
+                <DetailRow
+                  label="Existing phones"
+                  value={
+                    job.duplicatePolicy === "CREATE"
+                      ? "Imported anyway"
+                      : "Skipped"
+                  }
+                />
+                <DetailRow
                   label="Total rows"
                   value={formatNumber(job.totalRows)}
                 />
@@ -197,35 +268,29 @@ export function ImportJobDetailDrawer() {
                 ) : (
                   <>
                     <AppIcons.exports className="size-3.5" />
-                    Download source CSV
+                    Download source file
                   </>
                 )}
               </Button>
 
               {errors.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-foreground">
-                    Row errors
-                    {errors.length >= 100 ? " (showing first 100)" : ""}
-                  </p>
-                  <ul className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border/60 p-2">
-                    {errors.map((entry, index) => (
-                      <li
-                        key={`${entry.row}-${index}`}
-                        className="rounded-md bg-muted/40 px-2.5 py-2 text-xs"
-                      >
-                        <span className="font-medium text-foreground">
-                          Row {entry.row}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {" "}
-                          — {entry.reason}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : job.status === "COMPLETED" ? (
+                <RowEntries
+                  title="Row errors"
+                  entries={errors}
+                  tone="error"
+                />
+              ) : null}
+
+              {duplicates.length > 0 ? (
+                <RowEntries
+                  title="Skipped duplicates"
+                  description="These rows' phone numbers already belong to a lead."
+                  entries={duplicates}
+                  tone="duplicate"
+                />
+              ) : null}
+
+              {entries.length === 0 && job.status === "COMPLETED" ? (
                 <p className="text-xs text-muted-foreground">
                   All rows imported successfully.
                 </p>

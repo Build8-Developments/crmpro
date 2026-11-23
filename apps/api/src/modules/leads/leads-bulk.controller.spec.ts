@@ -1,3 +1,5 @@
+import { LeadScopeService } from '../../common/auth';
+import { SYSTEM_LEAD_SCOPE } from '../../common/auth';
 import { CanActivate, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -9,6 +11,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { LeadsBulkController } from './leads-bulk.controller';
 import { LeadsBulkService } from './leads-bulk.service';
+import { LeadWorkloadService } from './services/lead-workload.service';
 
 const mockGuard: CanActivate = { canActivate: jest.fn().mockReturnValue(true) };
 
@@ -29,7 +32,7 @@ describe('LeadsBulkController RBAC', () => {
       switchToHttp: () => ({
         getRequest: () => ({ user }),
       }),
-    }) as Parameters<PermissionsGuard['canActivate']>[0];
+    }) as unknown as Parameters<PermissionsGuard['canActivate']>[0];
 
   beforeEach(async () => {
     permissionsService = {
@@ -38,9 +41,11 @@ describe('LeadsBulkController RBAC', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: LeadScopeService, useValue: { resolve: jest.fn() } },
         PermissionsGuard,
         Reflector,
         { provide: PermissionsService, useValue: permissionsService },
+        { provide: LeadWorkloadService, useValue: { getWorkload: jest.fn() } },
       ],
     }).compile();
 
@@ -106,7 +111,15 @@ describe('LeadsBulkController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LeadsBulkController],
-      providers: [{ provide: LeadsBulkService, useValue: leadsBulkService }],
+      providers: [
+        {
+          provide: PermissionsService,
+          useValue: { getPermissionKeysForUser: jest.fn() },
+        },
+        { provide: LeadScopeService, useValue: { resolve: jest.fn() } },
+        { provide: LeadsBulkService, useValue: leadsBulkService },
+        { provide: LeadWorkloadService, useValue: { getWorkload: jest.fn() } },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockGuard)
@@ -119,7 +132,7 @@ describe('LeadsBulkController', () => {
 
   it('delegates bulk assign to service', async () => {
     await expect(
-      controller.bulkAssignLeads(user, {
+      controller.bulkAssignLeads(user, SYSTEM_LEAD_SCOPE, {
         leadIds: ['lead-1', 'lead-2'],
         userId: 'agent-1',
       }),
@@ -139,6 +152,7 @@ describe('LeadsBulkController', () => {
         leadIds: ['lead-1', 'lead-2'],
         userId: 'agent-1',
       },
+      SYSTEM_LEAD_SCOPE,
     );
   });
 });

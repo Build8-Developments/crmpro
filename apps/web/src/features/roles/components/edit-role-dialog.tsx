@@ -102,7 +102,7 @@ function EditRoleForm({
           autoFocus
         />
         {duplicate ? (
-          <p className="text-xs text-amber-600 dark:text-amber-500">
+          <p className="text-xs text-amber-700 dark:text-amber-500">
             A role named &quot;{duplicate.name}&quot; already exists.
           </p>
         ) : null}

@@ -45,9 +45,5 @@ export function usePermissions() {
     canAny,
     canAll,
     canAccessRoute,
-    /** @deprecated Use `can` */
-    hasPermission: can,
-    /** @deprecated Use `canAll` */
-    hasAllPermissions: canAll,
   };
 }

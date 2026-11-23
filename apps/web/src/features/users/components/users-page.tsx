@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,13 +12,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ChangeUserRoleDialog } from "@/features/users/components/change-user-role-dialog";
+import { ConfirmUserActionDialog } from "@/features/users/components/confirm-user-action-dialog";
+import { InviteUserDialog } from "@/features/users/components/invite-user-dialog";
 import { CreateUserDialog } from "@/features/users/components/create-user-dialog";
 import { EditUserDialog } from "@/features/users/components/edit-user-dialog";
 import { ResetPasswordDialog } from "@/features/users/components/reset-password-dialog";
 import { UserDetailDrawer } from "@/features/users/components/user-detail-drawer";
 import { UsersEmptyState } from "@/features/users/components/users-empty-state";
 import { UsersHeader } from "@/features/users/components/users-header";
-import { UsersPagination } from "@/features/users/components/users-pagination";
 import { UsersSkeleton } from "@/features/users/components/users-skeleton";
 import { UsersTable } from "@/features/users/components/users-table";
 import { UsersToolbar } from "@/features/users/components/users-toolbar";
@@ -110,10 +112,6 @@ export function UsersPage() {
     setPage(1);
   };
 
-  const handleOpenUser = (userId: string) => {
-    openDrawer(userId);
-  };
-
   if (isLoading && !data) {
     return <UsersSkeleton />;
   }
@@ -173,12 +171,13 @@ export function UsersPage() {
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
               highlightedUserId={highlightedUserId}
-              onOpenUser={handleOpenUser}
             />
             {pagination ? (
-              <UsersPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="users"
+                hideOnSinglePage
               />
             ) : null}
           </>
@@ -189,6 +188,8 @@ export function UsersPage() {
       <EditUserDialog />
       <ChangeUserRoleDialog />
       <ResetPasswordDialog />
+      <ConfirmUserActionDialog />
+      <InviteUserDialog />
       <UserDetailDrawer />
     </div>
   );

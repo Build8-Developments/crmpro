@@ -39,13 +39,9 @@ const USER_SORT_CONFIG = {
   defaultOrder: SortOrder.DESC,
 };
 
-const userWithRoleAndTenant = Prisma.validator<Prisma.UserDefaultArgs>()({
-  include: { role: true, tenant: true },
-});
-
-export type UserWithRoleAndTenant = Prisma.UserGetPayload<
-  typeof userWithRoleAndTenant
->;
+export type UserWithRoleAndTenant = Prisma.UserGetPayload<{
+  include: { role: true; tenant: true };
+}>;
 
 @Injectable()
 export class UsersService {
@@ -131,11 +127,7 @@ export class UsersService {
     const activeSessionCount =
       await this.userSessionService.countActiveSessions(id);
 
-    return toUserDetail(
-      user,
-      authorization.permissions,
-      activeSessionCount,
-    );
+    return toUserDetail(user, authorization.permissions, activeSessionCount);
   }
 
   async createUser(
@@ -149,6 +141,9 @@ export class UsersService {
       actorUserId,
       dto.roleId,
     );
+    if (dto.teamId) {
+      await this.assertTeamExists(tenantId, dto.teamId);
+    }
 
     const passwordHash = await this.passwordService.hash(dto.password);
     const fullName = normalizeDisplayName(dto.fullName);
@@ -160,6 +155,7 @@ export class UsersService {
         data: {
           tenantId,
           roleId: dto.roleId,
+          teamId: dto.teamId ?? null,
           name: fullName,
           email: dto.email,
           passwordHash,
@@ -291,6 +287,11 @@ export class UsersService {
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      // Pending reset and invitation links stop working too.
+      await tx.userToken.updateMany({
+        where: { userId: id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
 
       await this.auditService.logUserDeactivated(
         tenantId,
@@ -415,6 +416,7 @@ export class UsersService {
       tenantId,
       deletedAt: null,
       ...(query.roleId ? { roleId: query.roleId } : {}),
+      ...(query.teamId ? { teamId: query.teamId } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
       ...(search
         ? {
@@ -427,7 +429,9 @@ export class UsersService {
     };
   }
 
-  async getUserQuota(tenantId: string): Promise<{ maxUsers: number | null; currentUsers: number }> {
+  async getUserQuota(
+    tenantId: string,
+  ): Promise<{ maxUsers: number | null; currentUsers: number }> {
     const plan = await this.quotaService.getTenantPlanLimits(tenantId);
     const currentUsers = await this.prisma.user.count({
       where: { tenantId, deletedAt: null, isActive: true },
@@ -447,7 +451,21 @@ export class UsersService {
     return !existing;
   }
 
-  private async assertEmailAvailable(tenantId: string, email: string): Promise<void> {
+  private async assertTeamExists(
+    tenantId: string,
+    teamId: string,
+  ): Promise<void> {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, tenantId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!team) throw new BadRequestException('Team not found');
+  }
+
+  private async assertEmailAvailable(
+    tenantId: string,
+    email: string,
+  ): Promise<void> {
     const existing = await this.prisma.user.findFirst({
       where: {
         tenantId,

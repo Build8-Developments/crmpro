@@ -7,8 +7,13 @@ type PrismaTx = Prisma.TransactionClient;
 /**
  * Keeps tenant.subscriptionPlanId aligned with the active contract plan.
  *
+ * subscriptionPlanId only says which plan the tenant is on. What the tenant
+ * may do (quotas, flags) comes from the contract's planSnapshot, so editing
+ * the live plan never changes a signed tenant's entitlements; only flags the
+ * snapshot doesn't know reach it (see resolvePlanTerms in @crmpro/shared).
+ *
  * Terminated or expired contracts do not clear tenant.subscriptionPlanId.
- * CRM access continues until contractEndAt + gracePeriodDays (see shared billing util).
+ * Access then ends at the contract's accessEndsAt (see terminateContract).
  */
 @Injectable()
 export class ContractEntitlementSyncService {
@@ -51,7 +56,9 @@ export class ContractEntitlementSyncService {
     });
 
     if (!tenant) {
-      throw new InternalServerErrorException('Tenant not found for contract sync');
+      throw new InternalServerErrorException(
+        'Tenant not found for contract sync',
+      );
     }
 
     if (tenant.subscriptionPlanId !== activeContract.planId) {

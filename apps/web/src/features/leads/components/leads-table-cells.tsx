@@ -9,7 +9,7 @@ interface LeadAssigneeCellProps {
 export function LeadAssigneeCell({ assignee }: LeadAssigneeCellProps) {
   if (!assignee) {
     return (
-      <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+      <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
         Unassigned
       </span>
     );

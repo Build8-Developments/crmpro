@@ -38,7 +38,7 @@ export function TeamPerformance({ team }: TeamPerformanceProps) {
         {team.topPerformers.map((performer, index) => (
           <Link
             key={performer.userId}
-            href={`/users?userId=${performer.userId}&search=${encodeURIComponent(performer.name)}`}
+            href={`/settings/users?userId=${performer.userId}&search=${encodeURIComponent(performer.name)}`}
             className="flex items-center gap-2.5 px-3.5 py-2 transition-colors duration-150 hover:bg-muted/30"
             style={dashboardEnterStyle(index + 5)}
           >

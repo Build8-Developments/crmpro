@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { resolveTenantPlanTerms } from '../../../common/billing/tenant-plan-terms.util';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import type { TenantUsageResponse } from '../dto/tenant-usage-response.dto';
 
@@ -17,6 +18,7 @@ export class TenantUsageService {
             maxLeads: true,
             maxProjects: true,
             maxStorageBytes: true,
+            featureFlags: true,
           },
         },
       },
@@ -26,19 +28,26 @@ export class TenantUsageService {
       throw new NotFoundException('Tenant not found');
     }
 
-    const [usersUsed, leadsUsed, projectsUsed] = await this.prisma.$transaction([
-      this.prisma.user.count({
-        where: { tenantId, deletedAt: null, isActive: true },
-      }),
-      this.prisma.lead.count({
-        where: { tenantId, deletedAt: null },
-      }),
-      this.prisma.project.count({
-        where: { tenantId, deletedAt: null },
-      }),
-    ]);
+    const [usersUsed, leadsUsed, projectsUsed] = await this.prisma.$transaction(
+      [
+        this.prisma.user.count({
+          where: { tenantId, deletedAt: null, isActive: true },
+        }),
+        this.prisma.lead.count({
+          where: { tenantId, deletedAt: null },
+        }),
+        this.prisma.project.count({
+          where: { tenantId, deletedAt: null },
+        }),
+      ],
+    );
 
-    const plan = tenant.subscriptionPlan;
+    // Limits as enforced: the signed snapshot, not the live plan row.
+    const { quotas: plan } = await resolveTenantPlanTerms(
+      this.prisma,
+      tenantId,
+      tenant.subscriptionPlan,
+    );
 
     return {
       users: {
@@ -56,9 +65,7 @@ export class TenantUsageService {
       storage: {
         usedBytes: Number(tenant.storageUsedBytes),
         limitBytes:
-          plan.maxStorageBytes === null
-            ? null
-            : Number(plan.maxStorageBytes),
+          plan.maxStorageBytes === null ? null : Number(plan.maxStorageBytes),
       },
     };
   }

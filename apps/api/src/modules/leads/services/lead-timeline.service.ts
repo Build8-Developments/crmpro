@@ -9,6 +9,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { GetLeadActivitiesQueryDto } from '../dto/get-lead-activities-query.dto';
 import { LeadTimelineActivityResponse } from '../types/lead.types';
 import { LeadAccessService } from './lead-access.service';
+import { type LeadScope } from '../../../common/auth';
 
 const timelineActivitySelect = {
   id: true,
@@ -38,8 +39,9 @@ export class LeadTimelineService {
     leadId: string,
     tenantId: string,
     query: GetLeadActivitiesQueryDto,
+    scope: LeadScope,
   ): Promise<PaginatedResponse<LeadTimelineActivityResponse>> {
-    await this.leadAccessService.getLeadOrThrow(leadId, tenantId);
+    await this.leadAccessService.getLeadOrThrow(leadId, tenantId, scope);
 
     const { page, limit, skip, take } = getPaginationParams(query);
     const where: Prisma.LeadActivityWhereInput = {

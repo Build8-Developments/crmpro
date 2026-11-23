@@ -1,3 +1,4 @@
+import type { LeadSelectionFilters } from "@/features/leads/types";
 import type { ListQueryParams, PaginatedResponse } from "@/types/pagination";
 
 export type ExportJobStatus =
@@ -27,14 +28,8 @@ export interface ExportJobDownloadSummary {
   expiresInSeconds: number;
 }
 
-export interface ExportJobFilters {
-  pipelineId?: string;
-  stageId?: string;
-  assignedUserId?: string;
-  sourceId?: string;
-  status?: "OPEN" | "ARCHIVED";
-  search?: string;
-}
+/** Same filters as the leads list (the export uses the list's where-builder). */
+export type ExportJobFilters = LeadSelectionFilters;
 
 export interface ExportJob {
   id: string;

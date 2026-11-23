@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobStatus } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { TenantStatusService } from '../../common/tenant/tenant-status.service';
+import { TenantAccessService } from '../../common/tenant-access/tenant-access.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import { ImportJobsService } from './import-jobs.service';
 
 describe('ImportJobsService job claiming', () => {
@@ -52,6 +53,10 @@ describe('ImportJobsService job claiming', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ImportJobsService,
+        {
+          provide: CustomFieldsService,
+          useValue: { getLeadDefinitions: jest.fn().mockResolvedValue([]) },
+        },
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storageService },
         { provide: LeadsService, useValue: {} },
@@ -59,10 +64,18 @@ describe('ImportJobsService job claiming', () => {
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
         { provide: NotificationTriggerService, useValue: {} },
         {
-          provide: TenantStatusService,
-          useValue: { assertTenantActive: jest.fn().mockResolvedValue(undefined) },
+          provide: TenantAccessService,
+          useValue: {
+            assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
+            getTenantAccessState: jest
+              .fn()
+              .mockResolvedValue({ readOnly: false, accessEndsAt: null }),
+          },
         },
-        { provide: AuditWriterService, useValue: { createAuditLog: jest.fn() } },
+        {
+          provide: AuditWriterService,
+          useValue: { createAuditLog: jest.fn() },
+        },
       ],
     }).compile();
 

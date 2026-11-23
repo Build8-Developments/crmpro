@@ -8,6 +8,7 @@ export const DOMAIN_EVENT_TYPES = {
   EXPORT_COMPLETED: 'export.completed',
   NOTIFICATION_CREATED: 'notification.created',
   SUPPORT_MESSAGE_CREATED: 'support.message.created',
+  TASKS_CHANGED: 'tasks.changed',
 } as const;
 
 export type DomainEventType =
@@ -110,4 +111,11 @@ export class SupportMessageCreatedEvent implements DomainEvent {
     readonly userId: string,
     readonly actorId?: string,
   ) {}
+}
+
+/** Tasks were created or closed (rules engine, task actions) — refresh Today. */
+export class TasksChangedEvent implements DomainEvent {
+  readonly type = DOMAIN_EVENT_TYPES.TASKS_CHANGED;
+
+  constructor(readonly tenantId: string) {}
 }

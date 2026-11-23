@@ -49,20 +49,28 @@ export function getImportProgressPercent(job: {
 }
 
 export const IMPORT_CSV_TEMPLATE = [
-  "fullName,primaryPhone,secondaryPhone,email,sourceName,assignedUserEmail",
-  "Ahmed Hassan,+201000000001,,ahmed@example.com,Facebook,",
-  "Sara Mohamed,+201000000002,+201000000003,sara@example.com,Website,agent@example.com",
+  "fullName,primaryPhone,secondaryPhone,email,sourceName,assignedUserEmail,occupation,residenceArea,purchasePurpose,paymentPreference,budgetMin,budgetMax,contactChannel,contactTime",
+  "Ahmed Hassan,+201000000001,,ahmed@example.com,Facebook,,Engineer,Nasr City,Investment,Installments,3000000,5000000,WhatsApp,Evening",
+  "Sara Mohamed,+201000000002,+201000000003,sara@example.com,Website,agent@example.com,Doctor,Maadi,Living,Cash,8000000,12000000,Call,Morning",
 ].join("\n");
 
-export const IMPORT_REQUIRED_COLUMNS = ["fullName", "primaryPhone"] as const;
-export const IMPORT_OPTIONAL_COLUMNS = [
-  "secondaryPhone",
-  "email",
-  "sourceName",
-  "assignedUserEmail",
-] as const;
-
 export const MAX_IMPORT_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
+export const XLSX_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+export const IMPORT_FILE_ACCEPT = `.csv,.xlsx,text/csv,${XLSX_MIME_TYPE}`;
+
+export function isImportSpreadsheet(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith(".csv") || name.endsWith(".xlsx");
+}
+
+/** Browsers sometimes report "" (or an Excel type for .csv). */
+export function importFileContentType(file: File): string {
+  if (file.name.toLowerCase().endsWith(".xlsx")) return XLSX_MIME_TYPE;
+  return file.type || "text/csv";
+}
 
 export function downloadImportTemplate() {
   const blob = new Blob([IMPORT_CSV_TEMPLATE], {

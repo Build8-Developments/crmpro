@@ -10,7 +10,7 @@ const stats = [
   {
     key: "activePipelines" as const,
     label: "Pipelines",
-    href: "/pipelines",
+    href: "/settings/pipelines",
     format: (v: number) => formatNumber(v),
   },
   {

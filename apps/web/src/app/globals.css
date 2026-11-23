@@ -3,26 +3,26 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.9842 0.0034 247.8575);
+  --background: oklch(0.975 0.004 248);
   --foreground: oklch(0.2077 0.0398 265.7549);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2077 0.0398 265.7549);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2077 0.0398 265.7549);
-  --primary: oklch(0.6959 0.1491 162.4796);
+  --primary: oklch(0.54 0.12 164);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9683 0.0069 247.8956);
-  --secondary-foreground: oklch(0.2795 0.0368 260.031);
-  --muted: oklch(0.9683 0.0069 247.8956);
-  --muted-foreground: oklch(0.5544 0.0407 257.4166);
-  --accent: oklch(0.9793 0.0207 166.1129);
-  --accent-foreground: oklch(0.4318 0.0865 166.9128);
-  --destructive: oklch(0.6368 0.2078 25.3313);
+  --secondary: oklch(0.955 0.007 250);
+  --secondary-foreground: oklch(0.26 0.037 261);
+  --muted: oklch(0.955 0.007 250);
+  --muted-foreground: oklch(0.5 0.04 257);
+  --accent: oklch(0.945 0.009 250);
+  --accent-foreground: oklch(0.21 0.04 265.75);
+  --destructive: oklch(0.575 0.21 27);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9288 0.0126 255.5078);
-  --input: oklch(0.9288 0.0126 255.5078);
-  --ring: oklch(0.6959 0.1491 162.4796);
-  --chart-1: oklch(0.6959 0.1491 162.4796);
+  --border: oklch(0.9 0.012 255);
+  --input: oklch(0.855 0.014 255);
+  --ring: oklch(0.6 0.13 163);
+  --chart-1: oklch(0.62 0.13 163);
   --chart-2: oklch(0.6231 0.188 259.8145);
   --chart-3: oklch(0.5854 0.2041 277.1173);
   --chart-4: oklch(0.7686 0.1647 70.0804);
@@ -82,12 +82,12 @@
   --secondary-foreground: oklch(0.9683 0.0069 247.8956);
   --muted: oklch(0.2795 0.0368 260.031);
   --muted-foreground: oklch(0.7107 0.0351 256.7878);
-  --accent: oklch(0.378 0.073 168.9398);
-  --accent-foreground: oklch(0.9505 0.0507 163.0508);
-  --destructive: oklch(0.3958 0.1331 25.723);
-  --destructive-foreground: oklch(0.9842 0.0034 247.8575);
-  --border: oklch(0.2795 0.0368 260.031);
-  --input: oklch(0.2795 0.0368 260.031);
+  --accent: oklch(0.3 0.036 260);
+  --accent-foreground: oklch(0.9842 0.0034 247.8575);
+  --destructive: oklch(0.63 0.19 24);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.31 0.035 261);
+  --input: oklch(0.35 0.035 260);
   --ring: oklch(0.6959 0.1491 162.4796);
   --chart-1: oklch(0.6959 0.1491 162.4796);
   --chart-2: oklch(0.7137 0.1434 254.624);
@@ -227,6 +227,10 @@
     background: transparent;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
@@ -284,194 +288,103 @@ html.theme-transition *::after {
 }
 
 /*
- * Motion system
- * Rule: fast = 150ms, medium = 200ms, large = 300ms
- * Easing: spring-like cubic-bezier(0.16, 1, 0.3, 1)
+ * Motion system — calm, short, no bounce (same tokens as pinroom).
+ *   fast 120ms   hover / press / colour changes
+ *   base 200ms   menus, selects, popovers
+ *   slow 280ms   dialogs, sheets, sliding highlights
+ *   gentle 360ms folding things (sidebar, folder tree)
+ * Enter with ease-enter, leave with ease-exit, fold/settle with ease-smooth.
  */
 :root {
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 150ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Legacy names still used by a few components. */
+  --ease-spring: var(--ease-enter);
+  --duration-fast: 120ms;
   --duration-medium: 200ms;
-  --duration-large: 300ms;
+  --duration-large: 280ms;
 }
 
-@keyframes crm-fade-in {
+@theme inline {
+  --ease-enter: var(--ease-enter);
+  --ease-exit: var(--ease-exit);
+  --ease-smooth: var(--ease-smooth);
+  /* A panel arriving from where you came: set --slide to the distance and side. */
+  --animate-slide-in: slide-in 300ms var(--ease-smooth);
+}
+
+@utility duration-fast {
+  transition-duration: 120ms;
+}
+
+@utility duration-base {
+  transition-duration: 200ms;
+}
+
+@utility duration-slow {
+  transition-duration: 280ms;
+}
+
+@utility duration-gentle {
+  transition-duration: 360ms;
+}
+
+@keyframes slide-in {
   from {
     opacity: 0;
+    transform: translateX(var(--slide, 0));
   }
   to {
     opacity: 1;
+    transform: none;
   }
 }
 
-@keyframes crm-fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes crm-menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes crm-menu-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-}
-
-@keyframes crm-dialog-in {
-  from {
-    opacity: 0;
-    scale: 0.98;
-  }
-  to {
-    opacity: 1;
-    scale: 1;
-  }
-}
-
-@keyframes crm-dialog-out {
-  from {
-    opacity: 1;
-    scale: 1;
-  }
-  to {
-    opacity: 0;
-    scale: 0.98;
-  }
-}
-
-@keyframes crm-command-in {
-  from {
-    opacity: 0;
-    translate: -50% calc(-50% - 6px);
-    scale: 0.98;
-  }
-  to {
-    opacity: 1;
-    translate: -50% -50%;
-    scale: 1;
-  }
-}
-
-@keyframes crm-command-out {
-  from {
-    opacity: 1;
-    translate: -50% -50%;
-    scale: 1;
-  }
-  to {
-    opacity: 0;
-    translate: -50% calc(-50% - 6px);
-    scale: 0.98;
-  }
-}
-
+/*
+ * Dialogs, sheets, menus, selects, context menus and tooltips run on Base UI
+ * and animate with CSS transitions declared on the components themselves
+ * (data-starting-style / data-ending-style), so an interrupted open/close
+ * reverses smoothly. Only the custom mobile notification panel still uses a
+ * keyframe here.
+ */
 @keyframes crm-mobile-panel-in {
   from {
     opacity: 0;
     translate: 0 -4px;
     scale: 0.985;
   }
-  to {
-    opacity: 1;
-    translate: 0 0;
-    scale: 1;
-  }
-}
-
-@keyframes crm-mobile-panel-out {
-  from {
-    opacity: 1;
-    translate: 0 0;
-    scale: 1;
-  }
-  to {
-    opacity: 0;
-    translate: 0 -4px;
-    scale: 0.985;
-  }
-}
-
-/* ── Dropdowns & menus — 200ms spring ── */
-[data-slot="dropdown-menu-content"][data-state="open"],
-[data-slot="dropdown-menu-sub-content"][data-state="open"] {
-  animation: crm-menu-in var(--duration-medium) var(--ease-spring) both;
-}
-
-[data-slot="dropdown-menu-content"][data-state="closed"],
-[data-slot="dropdown-menu-sub-content"][data-state="closed"] {
-  animation: crm-menu-out 140ms ease-in both;
 }
 
 .mobile-notification-panel[data-state="open"] {
-  animation: crm-mobile-panel-in var(--duration-medium) var(--ease-spring) both;
-}
-
-.mobile-notification-panel[data-state="closed"] {
-  animation: crm-mobile-panel-out 140ms ease-in both;
-}
-
-/* ── Tooltips — quick fade ── */
-[data-slot="tooltip-content"][data-state="delayed-open"],
-[data-slot="tooltip-content"][data-state="instant-open"] {
-  animation: crm-menu-in var(--duration-fast) var(--ease-spring) both;
-}
-
-/* ── Dialogs & sheets — 300ms spring ── */
-[data-slot="dialog-overlay"][data-state="open"] {
-  animation: crm-fade-in var(--duration-large) var(--ease-spring) both;
-}
-
-[data-slot="dialog-overlay"][data-state="closed"] {
-  animation: crm-fade-out 180ms ease-in both;
-}
-
-[data-slot="dialog-content"][data-state="open"]:not(.cmd-palette-content),
-[data-slot="sheet-content"][data-state="open"] {
-  animation: crm-dialog-in var(--duration-large) var(--ease-spring) both;
-}
-
-[data-slot="dialog-content"][data-state="closed"]:not(.cmd-palette-content),
-[data-slot="sheet-content"][data-state="closed"] {
-  animation: crm-dialog-out 180ms ease-in both;
+  animation: crm-mobile-panel-in 200ms var(--ease-enter) both;
 }
 
 /*
- * Command palette dialog override.
- * Keeps the palette exactly centered while allowing the animation to use
- * translate/scale without fighting the Dialog primitive transform classes.
+ * Command palette: sits near the top on every screen size (not docked to the
+ * bottom like other dialogs on phones), and only fades/scales.
  */
 .cmd-palette-content {
-  top: 50% !important;
-  left: 50% !important;
-  translate: -50% -50%;
-  transform: none !important;
+  inset: 12dvh 0 auto 0 !important;
+  margin: 0 auto !important;
+  width: calc(100vw - 2rem) !important;
   max-width: min(640px, calc(100vw - 2rem)) !important;
+  border-radius: var(--radius-lg) !important;
+  border-bottom-width: 1px !important;
+  padding-bottom: 0 !important;
+  translate: none !important;
 }
 
-.cmd-palette-content[data-state="open"] {
-  animation: crm-command-in var(--duration-large) var(--ease-spring) both;
-}
-
-.cmd-palette-content[data-state="closed"] {
-  animation: crm-command-out 180ms ease-in both;
+/* Reduced motion: no movement and no long fades. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @keyframes dashboard-fade-up {

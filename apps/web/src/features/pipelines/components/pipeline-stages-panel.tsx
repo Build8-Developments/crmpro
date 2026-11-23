@@ -10,13 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Pipeline, PipelineStage } from "@/features/pipelines/types";
-import { SortablePipelineStages } from "@/features/pipelines/components/sortable-pipeline-stages";
+import { PipelineBoard } from "@/features/pipelines/components/pipeline-board";
 import { usePipelineUiStore } from "@/features/pipelines/stores/pipeline-ui-store";
-import {
-  isTerminalSystemStage,
-  sortStages,
-} from "@/features/pipelines/utils/pipeline-stage";
-import { getStageColorStyles } from "@/features/leads/utils/stage-color";
 import { usePermissions } from "@/hooks/use-permissions";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -35,7 +30,7 @@ export function PipelineStagesPanel({
   const openCreateStage = usePipelineUiStore((s) => s.openCreateStage);
   const { can } = usePermissions();
 
-  const stages = sortStages(pipeline.stages);
+  const stages = pipeline.stages;
   const leadTotal = formatPipelineLeadTotal(stages);
 
   return (
@@ -112,53 +107,11 @@ export function PipelineStagesPanel({
         </div>
       </div>
 
-      <div className="border-b border-border/40 px-4 py-3">
-        <PipelineFlowStrip stages={stages} />
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <SortablePipelineStages pipeline={pipeline} />
-      </div>
+      <PipelineBoard pipeline={pipeline} />
     </div>
   );
 }
 
 function formatPipelineLeadTotal(stages: PipelineStage[]): number {
   return stages.reduce((sum, stage) => sum + (stage.leadCount ?? 0), 0);
-}
-
-function PipelineFlowStrip({ stages }: { stages: PipelineStage[] }) {
-  return (
-    <div className="flex items-center gap-0 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {stages.map((stage, index) => {
-        const styles = getStageColorStyles(stage.color);
-        const terminal = isTerminalSystemStage(stage);
-        return (
-          <div key={stage.id} className="flex shrink-0 items-center">
-            {index > 0 ? (
-              <span className="mx-1.5 h-px w-3 bg-border" aria-hidden />
-            ) : null}
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 text-[11px]",
-                terminal ? "font-medium text-foreground" : "text-muted-foreground",
-              )}
-              title={
-                stage.leadCount > 0
-                  ? `${stage.name} · ${stage.leadCount} leads`
-                  : stage.name
-              }
-            >
-              <span
-                className="size-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: styles.backgroundColor }}
-                aria-hidden
-              />
-              <span className="max-w-[6.5rem] truncate">{stage.name}</span>
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
 }

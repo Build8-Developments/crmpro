@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import type { StringValue } from 'ms';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
+import { RateLimitModule } from '../../common/rate-limit/rate-limit.module';
 import { SecurityModule } from '../../common/security/security.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -16,6 +17,7 @@ import { AuthAuditService } from './services/auth-audit.service';
 @Module({
   imports: [
     AuthRbacModule,
+    RateLimitModule,
     SecurityModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({

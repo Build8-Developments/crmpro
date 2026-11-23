@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,11 +73,13 @@ function RoleDetailContent({
   const actorPermissions = useAuthStore((s) => s.permissions);
   const updatePermissions = useUpdateRolePermissions();
   
-  // Re-initialize state if role changes
+  // Re-initialize when the saved permissions change (during render).
   const [selectedKeys, setSelectedKeys] = useState(role.permissionKeys);
-  useEffect(() => {
+  const [syncedKeys, setSyncedKeys] = useState(role.permissionKeys);
+  if (syncedKeys !== role.permissionKeys) {
+    setSyncedKeys(role.permissionKeys);
     setSelectedKeys(role.permissionKeys);
-  }, [role.permissionKeys]);
+  }
 
   const [permissionSearch, setPermissionSearch] = useState("");
   const [showGrantedOnly, setShowGrantedOnly] = useState(false);
@@ -280,7 +282,7 @@ function PermissionGroupSection({
             checked={allSelected ? true : someSelected ? "indeterminate" : false}
             onCheckedChange={onToggleGroup} 
             disabled={isReadOnly}
-            className="data-[state=checked]:bg-primary"
+            className="data-[checked]:bg-primary"
           />
           <Label 
             htmlFor={`group-${groupKey}`} 

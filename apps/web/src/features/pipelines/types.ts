@@ -7,9 +7,14 @@ export interface PipelineStage {
   name: string;
   sortOrder: number;
   color: string | null;
+  icon: string | null;
   isSystem: boolean;
   isClosed: boolean;
   closeType: PipelineCloseType | null;
+  /** R8: revive call after this many days without contact; null = off. */
+  staleAfterDays: number | null;
+  /** R9: manager review after this many days in the stage; null = off. */
+  stuckAfterDays: number | null;
   leadCount: number;
 }
 
@@ -36,16 +41,23 @@ export interface CreateStageInput {
   name: string;
   sortOrder: number;
   color?: string;
+  icon?: string | null;
   isClosed?: boolean;
   closeType?: PipelineCloseType;
+  /** Omitted = 7 days; null = off. */
+  staleAfterDays?: number | null;
+  stuckAfterDays?: number | null;
 }
 
 export interface UpdateStageInput {
   name?: string;
   sortOrder?: number;
   color?: string | null;
+  icon?: string | null;
   isClosed?: boolean;
   closeType?: PipelineCloseType | null;
+  staleAfterDays?: number | null;
+  stuckAfterDays?: number | null;
 }
 
 export type PipelinesListParams = ListQueryParams;

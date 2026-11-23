@@ -8,6 +8,24 @@ export function notifyDuplicateWarning(
     return;
   }
 
-  const names = duplicateWarning.matches.map((match) => match.fullName).join(", ");
-  toast.info(`Possible duplicate lead: ${names}`);
+  const visible = duplicateWarning.matches
+    .filter((match) => match.visible && match.fullName)
+    .map((match) => match.fullName as string);
+  // Leads you can't see only reveal who is handling them.
+  const handlers = [
+    ...new Set(
+      duplicateWarning.matches
+        .filter((match) => !match.visible)
+        .map((match) => match.assigneeName ?? "another colleague"),
+    ),
+  ];
+
+  const parts: string[] = [];
+  if (visible.length > 0) parts.push(`Possible duplicate lead: ${visible.join(", ")}`);
+  if (handlers.length > 0) {
+    parts.push(
+      `This phone already belongs to a lead handled by ${handlers.join(", ")}`,
+    );
+  }
+  toast.info(parts.join(". "));
 }

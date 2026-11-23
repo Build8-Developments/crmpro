@@ -1,8 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { PERMISSIONS } from '@crmpro/shared/auth';
-import { PermissionsGuard, RequirePermission } from '../../common/auth';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InternalMonitoringGuard } from './guards/internal-monitoring.guard';
 import { MonitoringService } from './monitoring.service';
 
@@ -19,9 +16,10 @@ export class MonitoringController {
     return { success: true, data };
   }
 
+  // Platform-wide data: never expose to tenant users (tenant.manage is held by
+  // every agency Owner/Manager). Internal key only, like the snapshot below.
   @Get('jobs/health')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission(PERMISSIONS.TENANT_MANAGE)
+  @UseGuards(InternalMonitoringGuard)
   @ApiOperation({ summary: 'Background jobs and worker health' })
   @ApiResponse({ status: 200, description: 'Jobs health snapshot' })
   async getJobsHealth() {
@@ -30,8 +28,7 @@ export class MonitoringController {
   }
 
   @Get('metrics')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermission(PERMISSIONS.TENANT_MANAGE)
+  @UseGuards(InternalMonitoringGuard)
   @ApiOperation({ summary: 'Runtime HTTP and queue metrics' })
   @ApiResponse({ status: 200, description: 'Runtime metrics snapshot' })
   async getMetrics() {
@@ -42,7 +39,8 @@ export class MonitoringController {
   @Get('internal/monitoring/snapshot')
   @UseGuards(InternalMonitoringGuard)
   @ApiOperation({
-    summary: 'Internal ops snapshot for platform admin (health + jobs + metrics)',
+    summary:
+      'Internal ops snapshot for platform admin (health + jobs + metrics)',
   })
   @ApiResponse({ status: 200, description: 'Combined monitoring snapshot' })
   async getInternalSnapshot() {

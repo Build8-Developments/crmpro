@@ -13,13 +13,15 @@ import {
 import { CreateProjectDialog } from "@/features/projects/components/create-project-dialog";
 import { DeleteProjectDialog } from "@/features/projects/components/delete-project-dialog";
 import { EditProjectDialog } from "@/features/projects/components/edit-project-dialog";
+import { ProjectDetailDrawer } from "@/features/projects/components/project-detail-drawer";
 import { ProjectsEmptyState } from "@/features/projects/components/projects-empty-state";
 import { ProjectsHeader } from "@/features/projects/components/projects-header";
-import { ProjectsPagination } from "@/features/projects/components/projects-pagination";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { ProjectsSkeleton } from "@/features/projects/components/projects-skeleton";
 import { ProjectsTable } from "@/features/projects/components/projects-table";
 import { ProjectsToolbar } from "@/features/projects/components/projects-toolbar";
 import { useProjectDeveloperOptions } from "@/features/projects/hooks/use-project-developer-options";
+import { useProjectDetailUrl } from "@/features/projects/hooks/use-project-detail-url";
 import { useProjectsUrlState } from "@/features/projects/hooks/use-projects-url-state";
 import { useProjects } from "@/features/projects/hooks";
 import { useProjectUiStore } from "@/features/projects/stores/project-ui-store";
@@ -55,6 +57,12 @@ export function ProjectsPage() {
     highlightedProjectId,
     setHighlightedProjectId,
   });
+
+  const {
+    projectId: detailProjectId,
+    openProject,
+    closeProject,
+  } = useProjectDetailUrl();
 
   const { data: developersData, isLoading: developersLoading } =
     useProjectDeveloperOptions();
@@ -171,13 +179,15 @@ export function ProjectsPage() {
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
-              highlightedProjectId={highlightedProjectId}
-              onHighlightProject={setHighlightedProjectId}
+              highlightedProjectId={detailProjectId ?? highlightedProjectId}
+              onOpenProject={openProject}
             />
             {pagination ? (
-              <ProjectsPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="projects"
+                hideOnSinglePage
               />
             ) : null}
           </>
@@ -187,6 +197,7 @@ export function ProjectsPage() {
       <CreateProjectDialog defaultDeveloperId={developerId} />
       <EditProjectDialog />
       <DeleteProjectDialog />
+      <ProjectDetailDrawer projectId={detailProjectId} onClose={closeProject} />
     </div>
   );
 }

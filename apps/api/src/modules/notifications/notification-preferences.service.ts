@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import {
   NotificationPreferenceCategory,
   NotificationType,
-  Prisma,
 } from '@crmpro/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
@@ -33,7 +32,11 @@ export class NotificationPreferencesService {
   async updatePreferences(
     tenantId: string,
     userId: string,
-    updates: Array<{ category: NotificationPreferenceCategory; enabled: boolean }>,
+    updates: Array<{
+      category: NotificationPreferenceCategory;
+      enabled: boolean;
+      emailEnabled?: boolean;
+    }>,
   ): Promise<NotificationPreferenceResponse[]> {
     await this.ensureDefaults(tenantId, userId);
 
@@ -46,7 +49,12 @@ export class NotificationPreferencesService {
               category: update.category,
             },
           },
-          data: { enabled: update.enabled },
+          data: {
+            enabled: update.enabled,
+            ...(update.emailEnabled !== undefined
+              ? { emailEnabled: update.emailEnabled }
+              : {}),
+          },
         }),
       ),
     );

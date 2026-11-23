@@ -99,7 +99,10 @@ describe('ContractEntitlementSyncService', () => {
     };
 
     await expect(
-      service.assertTenantContractPlanConsistency('tenant-1', txClient as never),
+      service.assertTenantContractPlanConsistency(
+        'tenant-1',
+        txClient as never,
+      ),
     ).resolves.toBeUndefined();
 
     expect(txClient.tenantContract.findFirst).toHaveBeenCalledWith(

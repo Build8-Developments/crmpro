@@ -23,6 +23,9 @@ describe('TenantProvisioningService contract concurrency', () => {
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
     fingerprint: 'fp',
+    deviceName: null,
+    country: null,
+    city: null,
   };
 
   const lockedContractRow = {
@@ -44,13 +47,16 @@ describe('TenantProvisioningService contract concurrency', () => {
   let tx: {
     $queryRaw: jest.Mock;
     tenant: { create: jest.Mock };
+    tenantSettings: { create: jest.Mock };
     tenantContract: { updateMany: jest.Mock };
     role: { createMany: jest.Mock };
     permission: { findMany: jest.Mock };
     rolePermission: { createMany: jest.Mock };
     leadSource: { createMany: jest.Mock };
+    lostReason: { createMany: jest.Mock };
     pipeline: { create: jest.Mock };
     pipelineStage: { createMany: jest.Mock };
+    user: { create: jest.Mock };
   };
 
   const allPermissions = Object.values(PERMISSIONS).map((key, index) => ({
@@ -68,6 +74,7 @@ describe('TenantProvisioningService contract concurrency', () => {
           slug: dto.slug,
         }),
       },
+      tenantSettings: { create: jest.fn().mockResolvedValue({}) },
       tenantContract: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -77,6 +84,7 @@ describe('TenantProvisioningService contract concurrency', () => {
       },
       rolePermission: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
       leadSource: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      lostReason: { createMany: jest.fn().mockResolvedValue({ count: 8 }) },
       pipeline: {
         create: jest.fn().mockResolvedValue({ id: 'pipeline-1' }),
       },
@@ -114,7 +122,9 @@ describe('TenantProvisioningService contract concurrency', () => {
         },
         {
           provide: TenantsAuditService,
-          useValue: { logTenantCreated: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            logTenantCreated: jest.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
@@ -141,6 +151,14 @@ describe('TenantProvisioningService contract concurrency', () => {
         deletedAt: null,
         status: ContractStatus.ACTIVE,
       },
+      data: { tenantId: 'tenant-1' },
+    });
+  });
+
+  it('creates default organization settings for the new tenant', async () => {
+    await service.provisionTenant(dto, 'admin-1', metadata);
+
+    expect(tx.tenantSettings.create).toHaveBeenCalledWith({
       data: { tenantId: 'tenant-1' },
     });
   });

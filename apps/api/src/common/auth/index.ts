@@ -6,3 +6,4 @@ export {
   PermissionsService,
   type UserAuthorization,
 } from './services/permissions.service';
+export * from './lead-scope';

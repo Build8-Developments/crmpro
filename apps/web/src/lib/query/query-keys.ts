@@ -14,6 +14,12 @@ export const queryKeys = {
     sessions: () => ["auth", "sessions"] as const,
   },
 
+  organization: {
+    all: () => ["organization"] as const,
+    detail: () => ["organization", "detail"] as const,
+    usage: () => ["organization", "usage"] as const,
+  },
+
   settings: {
     all: () => ["settings"] as const,
     notificationPreferences: () =>
@@ -28,10 +34,34 @@ export const queryKeys = {
       ["dashboard", "analytics", scope, params ?? {}] as const,
   },
 
+  today: () => ["today"] as const,
+
+  targets: {
+    all: () => ["targets"] as const,
+    grid: (period: string | null) => ["targets", "grid", period ?? "current"] as const,
+    mine: () => ["targets", "mine"] as const,
+  },
+
+  sourceSpend: {
+    all: () => ["source-spend"] as const,
+    grid: (to: string | null) => ["source-spend", "grid", to ?? "current"] as const,
+  },
+
   leads: {
     all: () => ["leads"] as const,
     list: (params?: LeadsListParams) => ["leads", "list", params ?? {}] as const,
     detail: (id: string) => ["leads", "detail", id] as const,
+  },
+
+  /**
+   * Deals live under the "leads" root on purpose: every lead mutation and
+   * realtime "leads" hint (a move to Won creates a deal, a cancel re-opens the
+   * lead) also refreshes deal lists and cards.
+   */
+  deals: {
+    all: () => ["leads", "deals"] as const,
+    list: (params?: object) => ["leads", "deals", "list", params ?? {}] as const,
+    forLead: (leadId: string) => ["leads", "deals", "lead", leadId] as const,
   },
 
   pipelines: {
@@ -81,6 +111,8 @@ export const queryKeys = {
     all: () => ["files"] as const,
     list: (params?: ListQueryParams) =>
       ["files", "list", params ?? {}] as const,
+    folders: () => ["files", "folders"] as const,
+    stats: (params?: object) => ["files", "stats", params ?? {}] as const,
   },
 
   imports: {

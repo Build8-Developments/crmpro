@@ -1,8 +1,4 @@
-import {
-  ExportFormat,
-  ExportType,
-  JobStatus,
-} from '@crmpro/database';
+import { ExportFormat, ExportType, JobStatus } from '@crmpro/database';
 import { LeadExportParams } from '../../leads/types/lead.types';
 
 export interface ExportJobFileSummary {
@@ -56,4 +52,17 @@ export interface LeadExportRow {
   interestedProjects: string;
   status: string;
   createdAt: string;
+  occupation?: string;
+  residenceArea?: string;
+  paymentPreference?: string;
+  contactChannel?: string;
+  contactTime?: string;
+  purchasePurpose?: string;
+  budgetMin?: string;
+  budgetMax?: string;
+  heat?: string;
+  lastContactedAt?: string;
+  lostReason?: string;
+  /** Stored Lead.customFields (rendered by the custom field columns). */
+  customFields?: Record<string, unknown>;
 }

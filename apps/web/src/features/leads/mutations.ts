@@ -4,19 +4,46 @@ import {
   assignLead,
   bulkAssignLeads,
   bulkMoveLeadsStage,
+  bulkTransferLeads,
+  completeTask,
   createLead,
   createLeadNote,
+  logLeadInteraction,
+  mergeLeads,
   moveLeadStage,
+  rescheduleTask,
+  skipTask,
   updateLead,
+  type LeadSelection,
+  type TransferInput,
+  type LostReasonInput,
 } from "@/features/leads/api";
-import type { CreateLeadInput, UpdateLeadInput } from "@/features/leads/types";
+import type {
+  CreateLeadInput,
+  LeadSelectionFilters,
+  LogInteractionInput,
+  MergeLeadsInput,
+  UpdateLeadInput,
+} from "@/features/leads/types";
 import { notifyDuplicateWarning } from "@/features/leads/utils/duplicate-warning";
+import type { DealDetailsInput } from "@/features/deals/types";
+import { ApiError } from "@/lib/api/client";
+import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/query/query-keys";
 import { useApiMutation } from "@/lib/query/use-api-mutation";
+
+function bulkResultMessage(
+  verb: string,
+  result: { successCount: number; failureCount: number },
+): string {
+  const done = `${result.successCount} lead${result.successCount === 1 ? "" : "s"} ${verb}`;
+  return result.failureCount > 0 ? `${done}, ${result.failureCount} skipped` : done;
+}
 
 const leadInvalidateKeys = [
   queryKeys.leads.all(),
   queryKeys.dashboard.all(),
+  queryKeys.today(),
 ] as const;
 
 async function bulkUpdateLeadStatus(
@@ -65,6 +92,15 @@ export function useUpdateLead() {
   });
 }
 
+/** Lead, lists, Today and dashboard all refresh (tasks may have moved). */
+export function useMergeLeads() {
+  return useApiMutation({
+    mutationFn: (input: MergeLeadsInput) => mergeLeads(input),
+    successMessage: "Leads merged",
+    invalidateKeys: [...leadInvalidateKeys],
+  });
+}
+
 export function useAssignLead() {
   return useApiMutation({
     mutationFn: ({
@@ -79,17 +115,41 @@ export function useAssignLead() {
   });
 }
 
+/** Clear wording for the stage-move rules the API enforces. */
+function stageMoveErrorMessage(error: Error): string {
+  if (!(error instanceof ApiError)) return "Could not move the lead.";
+  switch (error.code) {
+    case "DEAL_ACTIVE":
+      return "This lead has an active deal. Cancel the deal from the lead first — that re-opens it.";
+    case "DEAL_REQUIRED":
+      return "Add the deal details (unit type and price) to win this lead.";
+    case "LOST_REASON_REQUIRED":
+      return "Choose why this lead was lost.";
+    default:
+      return error.message;
+  }
+}
+
 export function useMoveLeadStage() {
   return useApiMutation({
     mutationFn: ({
       leadId,
       pipelineStageId,
+      lost,
+      deal,
     }: {
       leadId: string;
       pipelineStageId: string;
-    }) => moveLeadStage(leadId, pipelineStageId),
-    successMessage: "Stage updated",
+      lost?: LostReasonInput;
+      /** Required when the target is a Won stage. */
+      deal?: DealDetailsInput;
+    }) => moveLeadStage(leadId, pipelineStageId, lost, deal),
     invalidateKeys: [...leadInvalidateKeys],
+    onSuccess: (_data, variables) => {
+      toast.success(variables.deal ? "Lead won — deal recorded" : "Stage updated");
+    },
+    showErrorToast: false,
+    onError: (error) => toast.error(stageMoveErrorMessage(error)),
   });
 }
 
@@ -130,13 +190,13 @@ export function useBulkRestoreLeads() {
 export function useBulkAssignLeads() {
   return useApiMutation({
     mutationFn: ({
-      leadIds,
+      selection,
       userId,
     }: {
-      leadIds: string[];
+      selection: LeadSelection;
       userId: string | null;
-    }) => bulkAssignLeads(leadIds, userId),
-    successMessage: "Bulk assign completed",
+    }) => bulkAssignLeads(selection, userId),
+    successMessage: (result) => bulkResultMessage("assigned", result),
     invalidateKeys: [...leadInvalidateKeys],
   });
 }
@@ -144,13 +204,15 @@ export function useBulkAssignLeads() {
 export function useBulkMoveLeadsStage() {
   return useApiMutation({
     mutationFn: ({
-      leadIds,
+      selection,
       targetStageId,
+      lost,
     }: {
-      leadIds: string[];
+      selection: LeadSelection;
       targetStageId: string;
-    }) => bulkMoveLeadsStage(leadIds, targetStageId),
-    successMessage: "Bulk stage move completed",
+      lost?: LostReasonInput;
+    }) => bulkMoveLeadsStage(selection, targetStageId, lost),
+    successMessage: (result) => bulkResultMessage("moved", result),
     invalidateKeys: [...leadInvalidateKeys],
   });
 }
@@ -161,6 +223,59 @@ export function useCreateLeadNote(leadId: string) {
     successMessage: "Note added",
     invalidateKeys: [
       queryKeys.leads.detail(leadId),
+      ...leadInvalidateKeys,
+    ],
+  });
+}
+
+export function useBulkTransferLeads() {
+  return useApiMutation({
+    mutationFn: (input: TransferInput) => bulkTransferLeads(input),
+    successMessage: (result) => bulkResultMessage("transferred", result),
+    invalidateKeys: [...leadInvalidateKeys],
+  });
+}
+
+export function useLogInteraction(leadId: string) {
+  return useApiMutation({
+    mutationFn: (input: LogInteractionInput) => logLeadInteraction(leadId, input),
+    successMessage: (result) =>
+      result.nextTask ? "Logged — next step scheduled" : "Interaction logged",
+    invalidateKeys: [queryKeys.leads.detail(leadId), ...leadInvalidateKeys],
+  });
+}
+
+export function useRescheduleTask(leadId?: string) {
+  return useApiMutation({
+    mutationFn: ({ taskId, dueAt, reason }: { taskId: string; dueAt: string; reason?: string }) =>
+      rescheduleTask(taskId, { dueAt, reason }),
+    successMessage: "Task moved",
+    invalidateKeys: [
+      ...(leadId ? [queryKeys.leads.detail(leadId)] : []),
+      ...leadInvalidateKeys,
+    ],
+  });
+}
+
+export function useSkipTask(leadId?: string) {
+  return useApiMutation({
+    mutationFn: ({ taskId, reason }: { taskId: string; reason: string }) =>
+      skipTask(taskId, reason),
+    successMessage: "Task skipped",
+    invalidateKeys: [
+      ...(leadId ? [queryKeys.leads.detail(leadId)] : []),
+      ...leadInvalidateKeys,
+    ],
+  });
+}
+
+export function useCompleteTask(leadId?: string) {
+  return useApiMutation({
+    mutationFn: ({ taskId, note }: { taskId: string; note?: string }) =>
+      completeTask(taskId, note),
+    successMessage: "Task done",
+    invalidateKeys: [
+      ...(leadId ? [queryKeys.leads.detail(leadId)] : []),
       ...leadInvalidateKeys,
     ],
   });

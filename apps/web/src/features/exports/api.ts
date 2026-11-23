@@ -24,7 +24,7 @@ export function getExportJob(id: string) {
 
 export function createLeadExportJob(input: CreateLeadExportInput) {
   return apiClient.post<CreateExportJobResponse>("/export-jobs/leads", {
-    format: "CSV",
+    format: "XLSX",
     ...input,
   });
 }

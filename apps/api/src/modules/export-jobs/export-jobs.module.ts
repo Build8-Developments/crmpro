@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { EntitlementsModule } from '../../common/entitlements/entitlements.module';
-import { TenantModule } from '../../common/tenant/tenant.module';
+import { TenantAccessModule } from '../../common/tenant-access/tenant-access.module';
 import { AuditModule } from '../audit/audit.module';
+import { CustomFieldsModule } from '../custom-fields/custom-fields.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FilesModule } from '../files/files.module';
 import { LeadsModule } from '../leads/leads.module';
@@ -11,20 +12,27 @@ import { ExportJobsController } from './controllers/export-jobs.controller';
 import { CsvExportService } from './services/csv-export.service';
 import { ExportJobsService } from './services/export-jobs.service';
 import { LeadExportService } from './services/lead-export.service';
+import { XlsxExportService } from './services/xlsx-export.service';
 
 @Module({
   imports: [
     AuthRbacModule,
     EntitlementsModule,
-    TenantModule,
+    TenantAccessModule,
     AuditModule,
+    CustomFieldsModule,
     NotificationsModule,
     LeadsModule,
     FilesModule,
     QueueModule,
   ],
   controllers: [ExportJobsController],
-  providers: [ExportJobsService, LeadExportService, CsvExportService],
+  providers: [
+    ExportJobsService,
+    LeadExportService,
+    CsvExportService,
+    XlsxExportService,
+  ],
   exports: [ExportJobsService],
 })
 export class ExportJobsModule {}

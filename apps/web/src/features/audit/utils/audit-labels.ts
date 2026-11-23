@@ -28,6 +28,22 @@ const ACTION_LABELS: Record<string, string> = {
   EXPORT_COMPLETED: "Export completed",
   BULK_LEAD_ASSIGNED: "Bulk assigned",
   BULK_LEAD_STAGE_CHANGED: "Bulk stage change",
+  LEAD_MERGED: "Leads merged",
+  DEAL_RESERVED: "Deal reserved",
+  DEAL_CONTRACTED: "Deal contracted",
+  DEAL_UPDATED: "Deal updated",
+  DEAL_CANCELLED: "Deal cancelled",
+  TARGETS_UPDATED: "Targets updated",
+  SOURCE_SPEND_UPDATED: "Marketing spend updated",
+  AGENT_NUDGED: "Agent nudged",
+  CUSTOM_FIELD_CREATED: "Custom field created",
+  CUSTOM_FIELD_UPDATED: "Custom field updated",
+  CUSTOM_FIELD_ARCHIVED: "Custom field archived",
+  CUSTOM_FIELD_RESTORED: "Custom field restored",
+  CUSTOM_FIELDS_REORDERED: "Custom fields reordered",
+  PROJECT_UPDATE_POSTED: "Project update posted",
+  PROJECT_UPDATE_EDITED: "Project update edited",
+  PROJECT_UPDATE_DELETED: "Project update deleted",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -39,6 +55,11 @@ const ENTITY_LABELS: Record<string, string> = {
   ImportJob: "Import",
   ExportJob: "Export",
   LeadBulkAction: "Lead bulk",
+  Deal: "Deal",
+  Target: "Target",
+  SourceSpend: "Marketing spend",
+  CustomFieldDefinition: "Custom field",
+  ProjectUpdate: "Project update",
 };
 
 const METADATA_LABELS: Record<string, string> = {
@@ -154,9 +175,9 @@ export function getAuditEntityHref(
 
   switch (entityType) {
     case "User":
-      return `/users?userId=${entityId}`;
+      return `/settings/users?userId=${entityId}`;
     case "Role":
-      return `/roles?roleId=${entityId}`;
+      return `/settings/roles?roleId=${entityId}`;
     case "Lead":
       return `/leads?id=${entityId}`;
     case "Project":

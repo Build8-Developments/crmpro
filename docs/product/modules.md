@@ -695,13 +695,26 @@ Manage platform-wide operations.
 
 Not included in MVP.
 
-Planned modules:
+Confirmed Phase 2 modules:
+
+- Meta Messaging, beginning with WhatsApp and extending to Messenger and Instagram Direct
+- Messaging Templates and conversation-window enforcement
+- Cross-Channel Identity Matching with audited merge/unmerge
+- Project Files for raw developer price lists and inventory sheets
+- Meta Ads Attribution, Campaigns, and outcome reporting
+
+The messaging domain must be channel-neutral even though WhatsApp ships first. Project Files stores
+raw source documents and does not introduce unit-level inventory or committed AI parsing.
+
+Other future candidates remain uncommitted:
 
 - AI Assistant
-- WhatsApp Integration
-- Meta Ads Integration
 - Google Ads Integration
 - Google Calendar / Outlook Sync
-- Recurring Tasks & Dependencies
-- Kanban / Gantt Task Views
 - Advanced Analytics (predictive)
+
+Recurring tasks, dependencies, and Kanban/Gantt views are not part of the confirmed Phase 2 scope.
+
+See [`phase-2-roadmap.md`](phase-2-roadmap.md) for product rules and
+[`../architecture/meta-platform-integrations.md`](../architecture/meta-platform-integrations.md)
+for integration boundaries and conceptual data.

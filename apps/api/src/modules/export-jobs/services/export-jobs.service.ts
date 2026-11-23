@@ -20,10 +20,8 @@ import {
 } from '../../../common/pagination';
 import { buildOrderBy, SortOrder } from '../../../common/query';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import {
-  TenantInactiveException,
-  TenantStatusService,
-} from '../../../common/tenant/tenant-status.service';
+import { TenantAccessService } from '../../../common/tenant-access/tenant-access.service';
+import { TenantInactiveException } from '../../../common/tenant-access/tenant-access.exception';
 import { FilesService } from '../../files/files.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { ExportCompletedEvent } from '../../../common/events/domain-event.types';
@@ -36,14 +34,36 @@ import {
 } from '../../audit/audit.constants';
 import { AuditWriterService } from '../../audit/audit-writer.service';
 import { CreateLeadExportDto } from '../dto/create-lead-export.dto';
+import { normalizeLeadExportFilters } from '../utils/lead-export-filters.util';
 import { GetExportJobsQueryDto } from '../dto/get-export-jobs-query.dto';
 import {
   CreateExportJobResponse,
   ExportJobResponse,
+  LeadExportRow,
 } from '../entities/export-job.types';
-import { EXPORT_CSV_MIME_TYPE, EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS } from '../export-jobs.constants';
+import {
+  EXPORT_CSV_MIME_TYPE,
+  EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS,
+  EXPORT_XLSX_MIME_TYPE,
+} from '../export-jobs.constants';
 import { CsvExportService } from './csv-export.service';
+import type { ExportColumn } from './export-columns';
 import { LeadExportService } from './lead-export.service';
+import { XlsxExportService } from './xlsx-export.service';
+import { SYSTEM_LEAD_SCOPE } from '../../../common/auth';
+import {
+  type LeadScope,
+  parseStoredLeadScope,
+  toStoredLeadScope,
+} from '../../../common/auth';
+
+/** File extension and MIME type for each format the worker can produce. */
+const EXPORT_FILE_TYPES: Partial<
+  Record<ExportFormat, { extension: string; mimeType: string }>
+> = {
+  [ExportFormat.CSV]: { extension: 'csv', mimeType: EXPORT_CSV_MIME_TYPE },
+  [ExportFormat.XLSX]: { extension: 'xlsx', mimeType: EXPORT_XLSX_MIME_TYPE },
+};
 
 const EXPORT_JOB_SORT_FIELDS = ['createdAt', 'updatedAt', 'status'] as const;
 
@@ -85,6 +105,13 @@ type ExportJobRecord = Prisma.ExportJobGetPayload<{
   select: typeof exportJobSelect;
 }>;
 
+/** Without whole-organization visibility, people only see their own jobs. */
+function jobOwnerWhere(scope: LeadScope): { createdByUserId?: string } {
+  return scope.kind === 'all' || scope.actorUserId === null
+    ? {}
+    : { createdByUserId: scope.actorUserId };
+}
+
 @Injectable()
 export class ExportJobsService {
   private readonly logger = new Logger(ExportJobsService.name);
@@ -94,10 +121,11 @@ export class ExportJobsService {
     private readonly filesService: FilesService,
     private readonly leadExportService: LeadExportService,
     private readonly csvExportService: CsvExportService,
+    private readonly xlsxExportService: XlsxExportService,
     private readonly queueService: QueueService,
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
-    private readonly tenantStatusService: TenantStatusService,
+    private readonly tenantAccessService: TenantAccessService,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
@@ -105,6 +133,7 @@ export class ExportJobsService {
     tenantId: string,
     userId: string,
     dto: CreateLeadExportDto,
+    scope: LeadScope,
   ): Promise<CreateExportJobResponse> {
     this.leadExportService.assertSupportedFormat(dto.format);
 
@@ -132,6 +161,8 @@ export class ExportJobsService {
         exportType: ExportType.LEADS,
         format: dto.format,
         filters: exportParams as unknown as Prisma.InputJsonValue,
+        // The worker exports exactly what the requester could see.
+        leadScope: toStoredLeadScope(scope),
         status: JobStatus.PENDING,
         progress: 0,
       },
@@ -166,15 +197,12 @@ export class ExportJobsService {
       throw new NotFoundException(`Export job ${jobId} not found`);
     }
 
-    if (
-      job.status === JobStatus.COMPLETED ||
-      job.status === JobStatus.FAILED
-    ) {
+    if (job.status === JobStatus.COMPLETED || job.status === JobStatus.FAILED) {
       return;
     }
 
     try {
-      await this.tenantStatusService.assertTenantActive(job.tenantId);
+      await this.tenantAccessService.assertTenantAccessible(job.tenantId);
     } catch (error) {
       if (error instanceof TenantInactiveException) {
         await this.failExportJobIfActive(job.id, error.message);
@@ -231,14 +259,16 @@ export class ExportJobsService {
   async getExportJob(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<ExportJobResponse> {
-    const job = await this.getExportJobOrThrow(id, tenantId);
+    const job = await this.getExportJobOrThrow(id, tenantId, scope);
     return this.toExportJobResponse(job, tenantId);
   }
 
   async listExportJobs(
     tenantId: string,
     query: GetExportJobsQueryDto,
+    scope: LeadScope,
   ): Promise<PaginatedResponse<ExportJobResponse>> {
     const { page, limit, skip, take } = getPaginationParams(query);
     const orderBy = buildOrderBy(
@@ -248,6 +278,7 @@ export class ExportJobsService {
     );
     const where: Prisma.ExportJobWhereInput = {
       tenantId,
+      ...jobOwnerWhere(scope),
       ...(query.status ? { status: query.status } : {}),
       ...(query.exportType ? { exportType: query.exportType } : {}),
     };
@@ -281,6 +312,7 @@ export class ExportJobsService {
         id: true,
         format: true,
         filters: true,
+        leadScope: true,
         exportType: true,
       },
     });
@@ -292,19 +324,18 @@ export class ExportJobsService {
     this.logger.log(`Export job ${jobId} started`);
 
     try {
+      const fileType = this.getExportFileType(job.format);
       const exportParams = this.parseExportParams(job.filters);
 
       const rows = await this.leadExportService.fetchAllForExport(
         tenantId,
         exportParams,
+        parseStoredLeadScope(job.leadScope),
         async (processedRows, totalRows) => {
           const progress =
             totalRows === 0
               ? 50
-              : Math.min(
-                  70,
-                  10 + Math.floor((processedRows / totalRows) * 60),
-                );
+              : Math.min(70, 10 + Math.floor((processedRows / totalRows) * 60));
 
           await this.prisma.exportJob.update({
             where: { id: jobId },
@@ -314,26 +345,30 @@ export class ExportJobsService {
       );
 
       this.logger.log(
-        `Export job ${jobId}: loaded ${rows.length} lead(s) for CSV generation`,
+        `Export job ${jobId}: loaded ${rows.length} lead(s) for ${job.format} generation`,
       );
 
-      const csvBuffer = this.generateExportBuffer(job.format, rows);
+      const columns = await this.leadExportService.loadColumns(tenantId);
+      const fileBuffer = await this.generateExportBuffer(
+        job.format,
+        rows,
+        columns,
+      );
 
-      this.logger.log(`Export job ${jobId}: CSV generated`);
+      this.logger.log(`Export job ${jobId}: ${job.format} generated`);
 
       await this.prisma.exportJob.update({
         where: { id: jobId },
         data: { progress: 80 },
       });
 
-      const fileName = this.buildExportFileName(jobId, job.format);
       const file = await this.filesService.createServerGeneratedFile({
         tenantId,
         userId,
         category: FileAssetCategory.EXPORT_FILE,
-        buffer: csvBuffer,
-        fileName,
-        mimeType: EXPORT_CSV_MIME_TYPE,
+        buffer: fileBuffer,
+        fileName: `leads-export-${jobId}.${fileType.extension}`,
+        mimeType: fileType.mimeType,
       });
 
       this.logger.log(
@@ -378,7 +413,7 @@ export class ExportJobsService {
     } catch (error: unknown) {
       const message =
         error instanceof BadRequestException
-          ? (error.message as string)
+          ? error.message
           : error instanceof Error
             ? error.message
             : 'Export failed';
@@ -396,50 +431,36 @@ export class ExportJobsService {
     }
   }
 
-  private generateExportBuffer(
+  private async generateExportBuffer(
     format: ExportFormat,
-    rows: Parameters<CsvExportService['generateCsv']>[0],
-  ): Buffer {
-    if (format === ExportFormat.CSV) {
-      return this.csvExportService.generateCsv(rows);
+    rows: LeadExportRow[],
+    columns: ExportColumn<LeadExportRow>[],
+  ): Promise<Buffer> {
+    if (format === ExportFormat.XLSX) {
+      return this.xlsxExportService.generateXlsx(rows, columns);
     }
 
-    throw new BadRequestException(
-      `Export format ${format} is not supported in Phase 1`,
-    );
+    return this.csvExportService.generateCsv(rows, columns);
   }
 
-  private buildExportFileName(jobId: string, format: ExportFormat): string {
-    const extension = format.toLowerCase();
-    return `leads-export-${jobId}.${extension}`;
+  private getExportFileType(format: ExportFormat): {
+    extension: string;
+    mimeType: string;
+  } {
+    const fileType = EXPORT_FILE_TYPES[format];
+
+    if (!fileType) {
+      throw new BadRequestException(`Export format ${format} is not supported`);
+    }
+
+    return fileType;
   }
 
   private normalizeExportParams(dto: CreateLeadExportDto): LeadExportParams {
-    const filters = this.normalizeFilters(dto.filters);
-
     return {
-      ...filters,
+      ...normalizeLeadExportFilters(dto.filters),
       sortBy: dto.sortBy,
       sortOrder: dto.sortOrder ?? SortOrder.DESC,
-    };
-  }
-
-  private normalizeFilters(
-    filters?: LeadExportParams,
-  ): LeadExportParams {
-    if (!filters) {
-      return {};
-    }
-
-    return {
-      ...(filters.pipelineId ? { pipelineId: filters.pipelineId } : {}),
-      ...(filters.stageId ? { stageId: filters.stageId } : {}),
-      ...(filters.assignedUserId
-        ? { assignedUserId: filters.assignedUserId }
-        : {}),
-      ...(filters.sourceId ? { sourceId: filters.sourceId } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.search ? { search: filters.search } : {}),
     };
   }
 
@@ -451,23 +472,8 @@ export class ExportJobsService {
     const record = value as Record<string, unknown>;
 
     return {
-      ...this.normalizeFilters({
-        pipelineId:
-          typeof record.pipelineId === 'string' ? record.pipelineId : undefined,
-        stageId:
-          typeof record.stageId === 'string' ? record.stageId : undefined,
-        assignedUserId:
-          typeof record.assignedUserId === 'string'
-            ? record.assignedUserId
-            : undefined,
-        sourceId:
-          typeof record.sourceId === 'string' ? record.sourceId : undefined,
-        status:
-          typeof record.status === 'string'
-            ? (record.status as LeadExportParams['status'])
-            : undefined,
-        search: typeof record.search === 'string' ? record.search : undefined,
-      }),
+      // Sort keys are not filters; the DTO whitelist leaves them out.
+      ...normalizeLeadExportFilters(record),
       sortBy: typeof record.sortBy === 'string' ? record.sortBy : undefined,
       sortOrder:
         record.sortOrder === SortOrder.ASC ||
@@ -480,9 +486,10 @@ export class ExportJobsService {
   private async getExportJobOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<ExportJobRecord> {
     const job = await this.prisma.exportJob.findFirst({
-      where: { id, tenantId },
+      where: { id, tenantId, ...jobOwnerWhere(scope) },
       select: exportJobSelect,
     });
 
@@ -499,9 +506,14 @@ export class ExportJobsService {
   ): Promise<ExportJobResponse> {
     const download =
       job.status === JobStatus.COMPLETED && job.fileAssetId
-        ? await this.filesService.getDownloadUrl(job.fileAssetId, tenantId, {
-            expiresInSeconds: EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS,
-          })
+        ? await this.filesService.getDownloadUrl(
+            job.fileAssetId,
+            tenantId,
+            SYSTEM_LEAD_SCOPE,
+            {
+              expiresInSeconds: EXPORT_DOWNLOAD_URL_EXPIRY_SECONDS,
+            },
+          )
         : null;
 
     return {

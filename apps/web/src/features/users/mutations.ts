@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  inviteUser,
+  resendInvite,
   createUser,
   deactivateUser,
   reactivateUser,
@@ -11,6 +13,7 @@ import {
 } from "@/features/users/api";
 import type {
   CreateUserInput,
+  InviteUserInput,
   ResetUserPasswordInput,
   UpdateUserInput,
   UpdateUserRoleInput,
@@ -94,6 +97,22 @@ export function useRevokeUserSessions() {
   return useApiMutation({
     mutationFn: (userId: string) => revokeUserSessions(userId),
     successMessage: "Sessions revoked",
+    invalidateKeys: [...userInvalidateKeys],
+  });
+}
+
+export function useInviteUser() {
+  return useApiMutation({
+    mutationFn: (input: InviteUserInput) => inviteUser(input),
+    successMessage: "Invitation sent",
+    invalidateKeys: [...userInvalidateKeys],
+  });
+}
+
+export function useResendInvite() {
+  return useApiMutation({
+    mutationFn: (userId: string) => resendInvite(userId),
+    successMessage: "Invitation sent again",
     invalidateKeys: [...userInvalidateKeys],
   });
 }

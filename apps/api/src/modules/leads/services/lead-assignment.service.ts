@@ -12,6 +12,8 @@ import { LeadActivityService } from './lead-activity.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { LeadAssignedEvent } from '../../../common/events/domain-event.types';
 import { NotificationTriggerService } from '../../notifications/notification-trigger.service';
+import { TaskLifecycleService } from '../../workflow/common/task-lifecycle.service';
+import { type LeadScope, leadScopeWhere } from '../../../common/auth';
 
 const workflowLeadSelect = {
   id: true,
@@ -37,6 +39,7 @@ export class LeadAssignmentService {
     private readonly leadActivityService: LeadActivityService,
     private readonly domainEventBus: DomainEventBus,
     private readonly notificationTrigger: NotificationTriggerService,
+    private readonly taskLifecycle: TaskLifecycleService,
   ) {}
 
   async assignLead(
@@ -44,8 +47,9 @@ export class LeadAssignmentService {
     tenantId: string,
     actorUserId: string,
     dto: AssignLeadDto,
+    scope: LeadScope,
   ): Promise<LeadWorkflowResult> {
-    const lead = await this.getWorkflowLeadOrThrow(leadId, tenantId);
+    const lead = await this.getWorkflowLeadOrThrow(leadId, tenantId, scope);
     this.ensureLeadIsOpen(lead.status);
 
     const previousUserId = lead.assignedUserId;
@@ -73,8 +77,20 @@ export class LeadAssignmentService {
     const activity = await this.prisma.$transaction(async (tx) => {
       await tx.lead.update({
         where: { id: lead.id },
-        data: { assignedUserId: newUserId },
+        // assignedAt starts the new owner's first-contact SLA clock.
+        data: {
+          assignedUserId: newUserId,
+          assignedAt: newUserId ? new Date() : null,
+        },
       });
+
+      // The open next steps follow the lead to its new owner.
+      const movedTaskCount = await this.taskLifecycle.followReassignment(
+        lead.id,
+        previousUserId,
+        newUserId,
+        tx,
+      );
 
       return this.leadActivityService.createActivity(
         {
@@ -82,7 +98,10 @@ export class LeadAssignmentService {
           leadId: lead.id,
           actorUserId,
           eventType,
-          metadata,
+          metadata: {
+            ...(metadata as Record<string, unknown>),
+            movedTaskCount,
+          },
         },
         tx,
       );
@@ -181,9 +200,11 @@ export class LeadAssignmentService {
   private async getWorkflowLeadOrThrow(
     id: string,
     tenantId: string,
+    scope: LeadScope,
   ): Promise<WorkflowLeadRecord> {
+    // Out of scope behaves exactly like missing.
     const lead = await this.prisma.lead.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, ...leadScopeWhere(scope) },
       select: workflowLeadSelect,
     });
 

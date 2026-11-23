@@ -2,12 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  getLeadAttachments,
+  getLeadInteractions,
+  getLeadTasks,
+  getLostReasons,
   getLeadActivities,
   getLeadFilterPipelines,
   getLeadFilterProjects,
   getLeadFilterSources,
   getLeadFilterUsers,
   getLeadById,
+  getLeadDuplicates,
   getLeadNotes,
   getLeads,
   mapUsersToFilterOptions,
@@ -18,6 +23,7 @@ import {
 } from "@/features/leads/stores/leads-table-store";
 import type { LeadsListParams } from "@/features/leads/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { ApiError } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query/query-keys";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -56,6 +62,20 @@ export function useLead(id: string | undefined) {
     queryKey: queryKeys.leads.detail(id ?? ""),
     queryFn: () => getLeadById(id!),
     enabled: status === "authenticated" && Boolean(id),
+    // A missing (or merged-away) lead won't appear on retry.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 404) && failureCount < 1,
+  });
+}
+
+/** Possible duplicates of a lead (only fetched when the caller can merge). */
+export function useLeadDuplicates(leadId: string | undefined, enabled = true) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: [...queryKeys.leads.detail(leadId ?? ""), "duplicates"],
+    queryFn: () => getLeadDuplicates(leadId!),
+    enabled: enabled && status === "authenticated" && Boolean(leadId),
   });
 }
 
@@ -76,6 +96,9 @@ export function useLeadFilterOptions() {
           name: stage.name,
           color: stage.color,
           sortOrder: stage.sortOrder,
+          icon: stage.icon,
+          isClosed: stage.isClosed,
+          closeType: stage.closeType,
         })),
       }));
     },
@@ -124,6 +147,47 @@ export function useLeadActivities(leadId: string | undefined) {
   return useQuery({
     queryKey: [...queryKeys.leads.detail(leadId ?? ""), "activities"],
     queryFn: async () => (await getLeadActivities(leadId!)).items,
+    enabled: status === "authenticated" && Boolean(leadId),
+  });
+}
+
+export function useLostReasons(includeInactive = false) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: ["lost-reasons", { includeInactive }],
+    queryFn: () => getLostReasons(includeInactive),
+    enabled: status === "authenticated",
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useLeadTasks(leadId: string | undefined) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: [...queryKeys.leads.detail(leadId ?? ""), "tasks"],
+    queryFn: async () => (await getLeadTasks(leadId!)).items,
+    enabled: status === "authenticated" && Boolean(leadId),
+  });
+}
+
+export function useLeadInteractions(leadId: string | undefined) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: [...queryKeys.leads.detail(leadId ?? ""), "interactions"],
+    queryFn: () => getLeadInteractions(leadId!),
+    enabled: status === "authenticated" && Boolean(leadId),
+  });
+}
+
+export function useLeadAttachments(leadId: string | undefined) {
+  const status = useAuthStore((state) => state.status);
+
+  return useQuery({
+    queryKey: [...queryKeys.leads.detail(leadId ?? ""), "attachments"],
+    queryFn: () => getLeadAttachments(leadId!),
     enabled: status === "authenticated" && Boolean(leadId),
   });
 }

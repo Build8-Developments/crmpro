@@ -7,12 +7,17 @@ import {
 export interface RefreshCookieRuntimeConfig {
   nodeEnv: string;
   refreshTokenExpiration: string;
+  refreshCookieCrossOrigin: boolean;
 }
 
 function resolveCookieOptions(
   config: RefreshCookieRuntimeConfig,
 ): ReturnType<typeof buildRefreshCookieOptions> {
-  return buildRefreshCookieOptions(config.nodeEnv, config.refreshTokenExpiration);
+  return buildRefreshCookieOptions(
+    config.nodeEnv,
+    config.refreshTokenExpiration,
+    config.refreshCookieCrossOrigin,
+  );
 }
 
 export function setRefreshCookie(

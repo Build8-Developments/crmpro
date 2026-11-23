@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditActorType, Prisma } from '@crmpro/database';
+import { Prisma } from '@crmpro/database';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { DomainEventBus } from '../../../common/events/domain-event-bus.service';
 import { NotificationCreatedEvent } from '../../../common/events/domain-event.types';
@@ -13,35 +13,30 @@ import { NotificationDeliveryContext } from '../entities/notification.types';
 export class InAppNotificationChannel implements NotificationDeliveryChannel {
   readonly channelId = IN_APP_NOTIFICATION_CHANNEL;
 
-  constructor(private readonly prisma: PrismaService, private readonly eventBus: DomainEventBus) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventBus: DomainEventBus,
+  ) {}
 
   async deliver(context: NotificationDeliveryContext): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const notificationId = await this.createNotificationIfAbsent(tx, context);
+    // No audit row per notification: notifications are a side effect of an
+    // already-audited action, and one row each flooded the tenant audit log.
+    const notificationId = await this.prisma.$transaction((tx) =>
+      this.createNotificationIfAbsent(tx, context),
+    );
 
-      if (!notificationId) {
-        return;
-      }
+    if (!notificationId) {
+      return;
+    }
 
-      await tx.auditLog.create({
-        data: {
-          tenantId: context.tenantId,
-          actorType: context.createdByUserId
-            ? AuditActorType.USER
-            : AuditActorType.SYSTEM,
-          actorUserId: context.createdByUserId ?? null,
-          entityType: 'Notification',
-          entityId: notificationId,
-          action: 'NOTIFICATION_CREATED',
-          metadata: {
-            type: context.type,
-            recipientUserId: context.recipientUserId,
-            channel: this.channelId,
-            dedupeKey: context.dedupeKey ?? null,
-          } satisfies Prisma.InputJsonValue,
-        },
-      });
-    });
+    // Published after commit so a rollback cannot emit a phantom invalidation.
+    void this.eventBus.publish(
+      new NotificationCreatedEvent(
+        context.tenantId,
+        context.recipientUserId,
+        context.createdByUserId ?? undefined,
+      ),
+    );
   }
 
   private async createNotificationIfAbsent(

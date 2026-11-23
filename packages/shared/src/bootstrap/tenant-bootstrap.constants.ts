@@ -34,16 +34,29 @@ export const MANAGER_PERMISSION_KEYS: readonly PermissionKey[] =
   ALL_TENANT_PERMISSION_KEYS.filter(
     (key) =>
       key !== PERMISSIONS.BILLING_MANAGE &&
+      key !== PERMISSIONS.SETTINGS_MANAGE &&
+      key !== PERMISSIONS.SPEND_MANAGE &&
       key !== PERMISSIONS.NOTIFICATION_DELETE &&
       key !== PERMISSIONS.USER_MANAGE &&
-      key !== PERMISSIONS.ROLE_MANAGE,
+      key !== PERMISSIONS.ROLE_MANAGE &&
+      // Managers distribute leads across the whole organization, so they keep
+      // lead.read-all; team scope is for custom roles such as a team leader.
+      key !== PERMISSIONS.LEAD_READ_TEAM,
   );
 
 export const AGENT_PERMISSION_KEYS: readonly PermissionKey[] = [
   PERMISSIONS.LEAD_READ,
   PERMISSIONS.LEAD_CREATE,
   PERMISSIONS.LEAD_UPDATE,
-  PERMISSIONS.LEAD_ASSIGN,
+  // No LEAD_ASSIGN / LEAD_MERGE: assignment, transfers and merging duplicates
+  // are the sales manager's job.
+  // No lead.read-team / lead.read-all: agents see their own leads plus the
+  // unassigned pool.
+  // Agents record the deal on the leads they win; cancelling is a manager's
+  // call (it re-opens the lead).
+  PERMISSIONS.DEAL_READ,
+  PERMISSIONS.DEAL_WRITE,
+  PERMISSIONS.TARGET_READ,
   PERMISSIONS.LEAD_NOTE_CREATE,
   PERMISSIONS.LEAD_NOTE_READ,
   PERMISSIONS.LEAD_NOTE_UPDATE,
@@ -71,27 +84,52 @@ export const DEFAULT_LEAD_SOURCES = [
   'Referral',
 ] as const;
 
+export interface LostReasonDefinition {
+  name: string;
+  /** Recyclable reasons bring the lead back as a re-engage task later. */
+  recyclable: boolean;
+  recycleAfterDays: number | null;
+}
+
+/** Same list as the backfill in migration 20261117100000_workflow_records. */
+export const DEFAULT_LOST_REASONS: readonly LostReasonDefinition[] = [
+  { name: 'Budget too low', recyclable: true, recycleAfterDays: 120 },
+  { name: 'Bought elsewhere', recyclable: false, recycleAfterDays: null },
+  { name: 'Postponed decision', recyclable: true, recycleAfterDays: 90 },
+  { name: 'Unreachable', recyclable: true, recycleAfterDays: 60 },
+  { name: 'Wants ready-to-move', recyclable: true, recycleAfterDays: 180 },
+  { name: 'Location not suitable', recyclable: false, recycleAfterDays: null },
+  { name: 'Payment plan not suitable', recyclable: true, recycleAfterDays: 120 },
+  { name: 'Fake or duplicate lead', recyclable: false, recycleAfterDays: null },
+] as const;
+
 export const DEFAULT_PIPELINE = {
   name: 'Default Sales Pipeline',
   isDefault: true,
 } as const;
 
 export const DEFAULT_PIPELINE_STAGES: readonly PipelineStageDefinition[] = [
-  { name: 'New Lead', color: '#94a3b8', isClosed: false, closeType: null },
-  { name: 'Contacted', color: '#60a5fa', isClosed: false, closeType: null },
-  { name: 'Qualified', color: '#818cf8', isClosed: false, closeType: null },
-  { name: 'Proposal', color: '#a78bfa', isClosed: false, closeType: null },
-  { name: 'Negotiation', color: '#f59e0b', isClosed: false, closeType: null },
+  { name: 'New Lead', color: '#94a3b8', icon: 'sparkles', isClosed: false, closeType: null, staleAfterDays: 3, stuckAfterDays: null },
+  { name: 'Contacted', color: '#60a5fa', icon: 'phone', isClosed: false, closeType: null, staleAfterDays: 7, stuckAfterDays: 14 },
+  { name: 'Qualified', color: '#818cf8', icon: 'circle-check', isClosed: false, closeType: null, staleAfterDays: 7, stuckAfterDays: 21 },
+  { name: 'Proposal', color: '#a78bfa', icon: 'file-text', isClosed: false, closeType: null, staleAfterDays: 5, stuckAfterDays: 14 },
+  { name: 'Negotiation', color: '#f59e0b', icon: 'handshake', isClosed: false, closeType: null, staleAfterDays: 5, stuckAfterDays: 21 },
   {
     name: 'Won',
     color: '#22c55e',
+    icon: 'trophy',
     isClosed: true,
     closeType: 'WON',
+    staleAfterDays: null,
+    stuckAfterDays: null,
   },
   {
     name: 'Lost',
     color: '#ef4444',
+    icon: 'circle-x',
     isClosed: true,
     closeType: 'LOST',
+    staleAfterDays: null,
+    stuckAfterDays: null,
   },
 ] as const;

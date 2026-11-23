@@ -44,7 +44,7 @@ export function ImportsToolbar({
         {can("import-job.create") ? (
           <Button size="sm" className="h-8" onClick={openCreateDialog}>
             <AppIcons.upload className="size-3.5" />
-            Import CSV
+            Import leads
           </Button>
         ) : null}
       </div>

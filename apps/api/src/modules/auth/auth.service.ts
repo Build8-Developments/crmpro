@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserSession } from '@crmpro/database';
 import { AuthLoggingService } from '../../common/logging/auth-logging.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -39,16 +36,22 @@ export class AuthService {
     const hashedRefreshToken =
       await this.tokenService.hashRefreshToken(rawRefreshSecret);
 
-    const session = await this.prisma.userSession.create({
-      data: {
-        userId: user.id,
-        hashedRefreshToken,
-        expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
-        deviceName: sessionMetadata.deviceName,
-        ipAddress: sessionMetadata.ipAddress,
-        userAgent: sessionMetadata.userAgent,
-      },
-    });
+    const [session] = await this.prisma.$transaction([
+      this.prisma.userSession.create({
+        data: {
+          userId: user.id,
+          hashedRefreshToken,
+          expiresAt: this.tokenService.getRefreshTokenExpiresAt(),
+          deviceName: sessionMetadata.deviceName,
+          ipAddress: sessionMetadata.ipAddress,
+          userAgent: sessionMetadata.userAgent,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
+    ]);
 
     const accessToken = this.tokenService.generateAccessToken(
       {
@@ -227,13 +230,31 @@ export class AuthService {
     }));
   }
 
+  /**
+   * The signed-in user, plus the workspace's access state so the web can show
+   * the read-only banner from startup.
+   */
   async getMe(authUser: AuthenticatedUser): Promise<SanitizedUser> {
     const user = await this.usersService.findById(authUser.id);
     if (!user) {
       throw new UnauthorizedException('Invalid authentication session');
     }
 
-    return this.sanitizeUser(user);
+    const access = await this.tenantAccessService.getCachedTenantAccessState(
+      user.tenantId,
+    );
+    const sanitized = this.sanitizeUser(user);
+
+    return {
+      ...sanitized,
+      tenant: {
+        ...sanitized.tenant,
+        access: {
+          readOnly: access.readOnly,
+          accessEndsAt: access.accessEndsAt?.toISOString() ?? null,
+        },
+      },
+    };
   }
 
   private assertSessionActive(session: UserSession): void {
@@ -282,7 +303,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const user = await this.usersService.findByTenantAndEmail(tenantSlug, email);
+    const user = await this.usersService.findByTenantAndEmail(
+      tenantSlug,
+      email,
+    );
     if (!user || user.deletedAt !== null || !user.isActive) {
       this.authLoggingService.loginFailure({
         email,
@@ -318,6 +342,7 @@ export class AuthService {
       phone: user.phone,
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
+      showOnLeaderboard: user.showOnLeaderboard,
       role: {
         id: user.role.id,
         name: user.role.name,

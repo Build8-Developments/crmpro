@@ -377,3 +377,35 @@ Each environment must have isolated infrastructure.
 
 Rule 4
 Production configuration must be treated as sensitive.
+
+---
+
+# Meta Integration Environments
+
+Phase 2 Meta integrations have a separate provider-readiness boundary from CRMPro's normal
+local/staging/production environments.
+
+## Development and Test
+
+The integration stack can be developed before company registration using:
+
+- a personal Meta developer account;
+- test WhatsApp Business Account numbers and Meta test assets;
+- the free Marketing API Sandbox Ad Account.
+
+Test assets and simulated ad data must remain isolated from production tenant data.
+
+## Production Readiness
+
+Before onboarding real tenants at scale, CRMPro requires legal company registration, Meta Business
+Verification, the necessary App Review/access approvals, and a production System User token
+strategy. Each tenant separately owns and verifies its Meta business assets.
+
+The current planning assumption is a limit of 10 new tenant onboardings per week before CRMPro
+Business Verification and 200 per week afterward. Revalidate this external limit before launch.
+
+Production tokens are secrets. They must be encrypted at rest, excluded from logs and browser
+clients, revocable, and isolated by tenant and environment.
+
+See [`meta-platform-integrations.md`](meta-platform-integrations.md) for the complete ownership,
+token, webhook, and release-gate design.

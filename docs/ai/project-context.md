@@ -325,6 +325,17 @@ Excluded from MVP:
 
 These are future modules.
 
+The confirmed post-MVP direction is documented in:
+
+- `/docs/product/phase-2-roadmap.md`
+- `/docs/product/competitive-positioning.md`
+- `/docs/architecture/meta-platform-integrations.md`
+
+In summary, Phase 2 begins with tenant-owned Meta messaging through a channel-neutral backend,
+launching WhatsApp before Messenger and Instagram Direct. Ads attribution follows messaging.
+Project Files stores raw developer documents and does not introduce live unit inventory or
+committed AI spreadsheet parsing. These decisions do not expand the MVP.
+
 ---
 
 # UI / UX Direction

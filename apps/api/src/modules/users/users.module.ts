@@ -7,6 +7,7 @@ import { UserSessionService } from './services/user-session.service';
 import { UsersAuditService } from './services/users-audit.service';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { UserInvitationsService } from './services/user-invitations.service';
 
 @Module({
   imports: [AuthRbacModule, QuotaModule, AuditModule],
@@ -16,6 +17,7 @@ import { UsersService } from './users.service';
     UsersAuditService,
     UserSessionService,
     UserGuardService,
+    UserInvitationsService,
   ],
   exports: [UsersService, UserGuardService],
 })

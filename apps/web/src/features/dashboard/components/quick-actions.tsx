@@ -16,7 +16,7 @@ const actions = [
   },
   {
     label: "Pipelines",
-    href: "/pipelines",
+    href: "/settings/pipelines",
     icon: AppIcons.pipelines,
   },
   {

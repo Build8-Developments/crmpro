@@ -1,15 +1,11 @@
 import { authApi } from "@/features/auth/api";
 import { useAuthStore } from "@/stores/auth-store";
-import { getStoredRefreshToken } from "@/lib/api/refresh-token";
 
 export async function hydrateAuthSession(): Promise<boolean> {
   const store = useAuthStore.getState();
 
-  if (!getStoredRefreshToken()) {
-    store.clearAuth();
-    return false;
-  }
-
+  // The refresh token is an httpOnly cookie; a 401 here means "not signed in"
+  // and is handled by the caller (AuthProvider clears the store).
   const { accessToken } = await authApi.refresh();
   store.setAccessToken(accessToken);
 

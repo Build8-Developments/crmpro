@@ -1,8 +1,10 @@
 export const PLAN_FEATURE_METADATA_KEY = 'planFeature';
+export const WAIVE_FEATURE_WHEN_READ_ONLY_KEY = 'waiveFeatureWhenReadOnly';
 
 export const PLAN_FEATURES = {
   ANALYTICS: 'analytics',
   IMPORT_EXPORT: 'importExport',
+  API_ACCESS: 'apiAccess',
 } as const;
 
 export const FEATURE_UNAVAILABLE_MESSAGE =

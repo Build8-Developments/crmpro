@@ -1,7 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobStatus, LeadStatus, PipelineCloseType } from '@crmpro/database';
+import type { LeadScope } from '../../../common/auth/lead-scope/lead-scope.types';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AnalyticsQueryService } from './analytics-query.service';
+
+const ALL: LeadScope = { kind: 'all', actorUserId: 'owner-1' };
+const OWN: LeadScope = { kind: 'own', actorUserId: 'agent-1' };
+const OWN_FILTER = {
+  OR: [{ assignedUserId: { in: ['agent-1'] } }, { assignedUserId: null }],
+};
 
 describe('AnalyticsQueryService', () => {
   let service: AnalyticsQueryService;
@@ -86,13 +93,16 @@ describe('AnalyticsQueryService', () => {
       .mockResolvedValueOnce([{ avg_hours: 4.5 }])
       .mockResolvedValueOnce([{ avg_days: 12.3 }]);
 
-    const result = await service.getOverview('tenant-a', {});
+    const result = await service.getOverview('tenant-a', {}, ALL);
 
     expect(result.avgResponseTimeHours).toBe(4.5);
     expect(result.avgLeadAgeDays).toBe(12.3);
     expect(prisma.lead.count).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ tenantId: 'tenant-a', deletedAt: null }),
+        where: expect.objectContaining({
+          tenantId: 'tenant-a',
+          deletedAt: null,
+        }),
       }),
     );
   });
@@ -116,7 +126,7 @@ describe('AnalyticsQueryService', () => {
       },
     ]);
 
-    const result = await service.getPipelineFunnel('tenant-a', {});
+    const result = await service.getPipelineFunnel('tenant-a', {}, ALL);
 
     expect(result[0].stages.map((stage) => stage.stageName)).toEqual([
       'New Lead',
@@ -145,17 +155,18 @@ describe('AnalyticsQueryService', () => {
         { sourceId: 'source-1', _count: { _all: 50 } },
         { sourceId: 'source-2', _count: { _all: 180 } },
       ])
-      .mockResolvedValueOnce([
-        { sourceId: 'source-2', _count: { _all: 52 } },
-      ]);
+      .mockResolvedValueOnce([{ sourceId: 'source-2', _count: { _all: 52 } }]);
     prisma.leadSource.findMany.mockResolvedValue([
       { id: 'source-1', name: 'Website' },
       { id: 'source-2', name: 'Facebook' },
     ]);
 
-    const result = await service.getLeadSources('tenant-a', {});
+    const result = await service.getLeadSources('tenant-a', {}, ALL);
 
-    expect(result.map((item) => item.sourceName)).toEqual(['Facebook', 'Website']);
+    expect(result.map((item) => item.sourceName)).toEqual([
+      'Facebook',
+      'Website',
+    ]);
     expect(result[0]).toEqual(
       expect.objectContaining({
         sourceName: 'Facebook',
@@ -186,7 +197,7 @@ describe('AnalyticsQueryService', () => {
       },
     ]);
 
-    const result = await service.getAgentPerformance('tenant-a', {});
+    const result = await service.getAgentPerformance('tenant-a', {}, ALL);
 
     expect(result[0]).toEqual({
       userId: 'user-1',
@@ -207,7 +218,7 @@ describe('AnalyticsQueryService', () => {
       .mockResolvedValueOnce(25)
       .mockResolvedValueOnce(9);
 
-    const result = await service.getStatusDistribution('tenant-a', {});
+    const result = await service.getStatusDistribution('tenant-a', {}, ALL);
 
     expect(result).toEqual({ open: 210, won: 81, lost: 25, archived: 9 });
     expect(prisma.lead.count).toHaveBeenCalledWith({
@@ -230,7 +241,7 @@ describe('AnalyticsQueryService', () => {
       { month: '2026-01', new_leads: 120n, won: 20n, lost: 11n },
     ]);
 
-    const result = await service.getLeadTrends('tenant-a', {});
+    const result = await service.getLeadTrends('tenant-a', {}, ALL);
 
     expect(prisma.$queryRaw).toHaveBeenCalled();
     expect(result).toEqual([
@@ -243,7 +254,7 @@ describe('AnalyticsQueryService', () => {
     prisma.importJob.findMany.mockResolvedValue([]);
     prisma.exportJob.findMany.mockResolvedValue([]);
 
-    await service.getRecentActivity('tenant-a', {}, 1, 20);
+    await service.getRecentActivity('tenant-a', {}, 1, 20, ALL);
 
     expect(prisma.leadActivity.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -258,5 +269,133 @@ describe('AnalyticsQueryService', () => {
         }),
       }),
     );
+  });
+
+  describe('lead scope', () => {
+    const leadWheres = (mock: jest.Mock) =>
+      mock.mock.calls.map(
+        ([args]: [{ where: Record<string, unknown> }]) => args.where,
+      );
+
+    it('adds no scope filter for an unrestricted scope', async () => {
+      await service.getStatusDistribution('tenant-a', {}, ALL);
+
+      for (const where of leadWheres(prisma.lead.count)) {
+        expect(where).not.toHaveProperty('AND');
+        expect(where).not.toHaveProperty('OR');
+      }
+    });
+
+    it('adds the assignee filter for an own scope', async () => {
+      await service.getStatusDistribution('tenant-a', {}, OWN);
+
+      expect(prisma.lead.count).toHaveBeenCalledTimes(4);
+      for (const where of leadWheres(prisma.lead.count)) {
+        expect(where).toEqual(
+          expect.objectContaining({ tenantId: 'tenant-a', AND: [OWN_FILTER] }),
+        );
+      }
+    });
+
+    it('scopes every overview lead count and raw query', async () => {
+      prisma.$queryRaw.mockResolvedValue([{}]);
+
+      await service.getOverview('tenant-a', {}, OWN);
+
+      const wheres = leadWheres(prisma.lead.count);
+      expect(wheres).toHaveLength(7);
+      for (const where of wheres) {
+        expect(where).toEqual(expect.objectContaining({ AND: [OWN_FILTER] }));
+      }
+      for (const call of prisma.$queryRaw.mock.calls as unknown[][]) {
+        expect(JSON.stringify(call.slice(1))).toContain('agent-1');
+      }
+    });
+
+    it('limits agent performance to users inside the scope', async () => {
+      await service.getAgentPerformance(
+        'tenant-a',
+        {},
+        {
+          kind: 'team',
+          actorUserId: 'lead-1',
+          userIds: ['lead-1', 'agent-2'],
+        },
+      );
+
+      for (const where of leadWheres(prisma.lead.groupBy)) {
+        expect(where).toEqual(
+          expect.objectContaining({
+            assignedUserId: { in: ['lead-1', 'agent-2'] },
+          }),
+        );
+      }
+    });
+
+    it('keeps all assignees for an unrestricted agent performance', async () => {
+      await service.getAgentPerformance('tenant-a', {}, ALL);
+
+      for (const where of leadWheres(prisma.lead.groupBy)) {
+        expect(where).toEqual(
+          expect.objectContaining({ assignedUserId: { not: null } }),
+        );
+      }
+    });
+
+    it('counts project interest only for in-scope leads', async () => {
+      await service.getProjectPerformance('tenant-a', {}, OWN);
+      await service.getProjectPerformance('tenant-a', {}, ALL);
+
+      const [scoped, unscoped] = leadWheres(prisma.leadProjectInterest.groupBy);
+      expect(scoped).toEqual(expect.objectContaining({ lead: OWN_FILTER }));
+      expect(unscoped).not.toHaveProperty('lead');
+    });
+
+    it('limits recent lead activity to in-scope leads', async () => {
+      await service.getRecentActivity('tenant-a', {}, 1, 20, OWN);
+
+      expect(prisma.leadActivity.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ lead: OWN_FILTER }),
+        }),
+      );
+    });
+
+    it('limits job counts and job feed items to the actor for scoped callers', async () => {
+      prisma.$queryRaw.mockResolvedValue([{}]);
+      await service.getOverview('tenant-a', {}, OWN);
+      await service.getRecentActivity('tenant-a', {}, 1, 20, OWN);
+
+      for (const mock of [
+        prisma.importJob.count,
+        prisma.exportJob.count,
+        prisma.importJob.findMany,
+        prisma.exportJob.findMany,
+      ]) {
+        expect(mock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              tenantId: 'tenant-a',
+              createdByUserId: 'agent-1',
+            }),
+          }),
+        );
+      }
+    });
+
+    it('does not filter jobs by creator for an unrestricted scope', async () => {
+      prisma.$queryRaw.mockResolvedValue([{}]);
+      await service.getOverview('tenant-a', {}, ALL);
+      await service.getRecentActivity('tenant-a', {}, 1, 20, ALL);
+
+      for (const mock of [
+        prisma.importJob.count,
+        prisma.exportJob.count,
+        prisma.importJob.findMany,
+        prisma.exportJob.findMany,
+      ]) {
+        expect(leadWheres(mock)[0]).not.toHaveProperty('createdByUserId');
+      }
+    });
   });
 });

@@ -1,11 +1,8 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FEATURE_UNAVAILABLE_MESSAGE } from './entitlement.constants';
 import type { PlanFeatureFlags, PlanFeatureKey } from './entitlement.types';
+import { loadTenantPlanTerms } from './tenant-plan-terms';
 
 @Injectable()
 export class PlanEntitlementService {
@@ -22,34 +19,12 @@ export class PlanEntitlementService {
     }
   }
 
+  /**
+   * Flags frozen in the contract's plan snapshot, plus flags added to the
+   * plan since signing (from the live plan). Live plan only without a snapshot.
+   */
   async getFeatureFlags(tenantId: string): Promise<PlanFeatureFlags> {
-    return this.loadFeatureFlags(tenantId);
-  }
-
-  private async loadFeatureFlags(tenantId: string): Promise<PlanFeatureFlags> {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { id: tenantId, deletedAt: null },
-      select: {
-        subscriptionPlan: {
-          select: {
-            featureFlags: true,
-          },
-        },
-      },
-    });
-
-    if (!tenant) {
-      throw new NotFoundException('Tenant not found');
-    }
-
-    return this.parseFeatureFlags(tenant.subscriptionPlan.featureFlags);
-  }
-
-  private parseFeatureFlags(raw: unknown): PlanFeatureFlags {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-      return {};
-    }
-
-    return raw as PlanFeatureFlags;
+    const terms = await loadTenantPlanTerms(this.prisma, tenantId);
+    return terms.featureFlags;
   }
 }

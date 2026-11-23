@@ -26,6 +26,36 @@ export function formatNumber(value: number): string {
   }).format(value);
 }
 
+const compactNumberFormat = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const moneyNumberFormat = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+});
+
+/** "4.5M", "120K", "950". */
+export function formatCompactNumber(value: number): string {
+  return compactNumberFormat.format(value);
+}
+
+/** "5,250,000 EGP", or "5.3M EGP" when compact. */
+export function formatMoney(
+  amount: number,
+  currency = "EGP",
+  options: { compact?: boolean } = {},
+): string {
+  const number = options.compact
+    ? compactNumberFormat.format(amount)
+    : moneyNumberFormat.format(amount);
+  return `${number} ${currency}`;
+}
+
+/** "4.5M EGP" — dashboards, targets and lead budgets. */
+export function formatCompactMoney(amount: number, currency: string): string {
+  return formatMoney(amount, currency, { compact: true });
+}
+
 export function formatChartDate(date: string): string {
   const parsed = new Date(`${date}T00:00:00`);
   return parsed.toLocaleDateString(undefined, {

@@ -29,15 +29,23 @@ function serializeTransactionQueryable<T extends object>(target: T): T {
 
   return new Proxy(target, {
     get(tx, prop, receiver) {
-      const value = Reflect.get(tx, prop, receiver);
+      const value: unknown = Reflect.get(tx, prop, receiver);
 
       if (prop === 'queryRaw' || prop === 'executeRaw') {
         return (...args: unknown[]) =>
-          enqueue(() => (value as (...a: unknown[]) => Promise<unknown>).apply(tx, args));
+          enqueue(
+            () =>
+              (value as (...a: unknown[]) => Promise<unknown>).apply(
+                tx,
+                args,
+              ) as Promise<unknown>,
+          );
       }
 
       if (typeof value === 'function') {
-        return (value as (...a: unknown[]) => unknown).bind(tx);
+        return (value as (...a: unknown[]) => unknown).bind(tx) as (
+          ...a: unknown[]
+        ) => unknown;
       }
 
       return value;
@@ -51,29 +59,34 @@ export function createPrismaPgAdapter(pool: Pool): PrismaPg {
   // there, not on the factory.
   return new Proxy(new PrismaPg(pool), {
     get(factory, prop, receiver) {
-      const value = Reflect.get(factory, prop, receiver);
+      const value: unknown = Reflect.get(factory, prop, receiver);
 
       if (prop === 'connect') {
         return async (...args: unknown[]) => {
-          const adapter = await (
+          const adapter = (await (
             value as (...a: unknown[]) => Promise<object>
-          ).apply(factory, args);
+          ).apply(factory, args)) as object;
           return new Proxy(adapter, {
             get(inner, innerProp, innerReceiver) {
-              const innerValue = Reflect.get(inner, innerProp, innerReceiver);
+              const innerValue: unknown = Reflect.get(
+                inner,
+                innerProp,
+                innerReceiver,
+              );
 
               if (innerProp === 'startTransaction') {
                 return async (...txArgs: unknown[]) =>
                   serializeTransactionQueryable(
-                    await (innerValue as (...a: unknown[]) => Promise<object>).apply(
-                      inner,
-                      txArgs,
-                    ),
+                    (await (
+                      innerValue as (...a: unknown[]) => Promise<object>
+                    ).apply(inner, txArgs)) as object,
                   );
               }
 
               if (typeof innerValue === 'function') {
-                return (innerValue as (...a: unknown[]) => unknown).bind(inner);
+                return (innerValue as (...a: unknown[]) => unknown).bind(
+                  inner,
+                ) as (...a: unknown[]) => unknown;
               }
 
               return innerValue;
@@ -83,7 +96,9 @@ export function createPrismaPgAdapter(pool: Pool): PrismaPg {
       }
 
       if (typeof value === 'function') {
-        return (value as (...a: unknown[]) => unknown).bind(factory);
+        return (value as (...a: unknown[]) => unknown).bind(factory) as (
+          ...a: unknown[]
+        ) => unknown;
       }
 
       return value;

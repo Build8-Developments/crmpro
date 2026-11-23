@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -10,9 +11,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { normalizeWhitespace } from '../../../common/utils/name-normalization.util';
+import { LeadProfileFieldsDto } from './lead-profile-fields.dto';
 import { ProjectInterestDto } from './project-interest.dto';
 
-export class CreateLeadDto {
+export class CreateLeadDto extends LeadProfileFieldsDto {
   @IsOptional()
   @IsUUID()
   sourceId?: string;
@@ -33,13 +35,15 @@ export class CreateLeadDto {
   @MaxLength(150)
   fullName: string;
 
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   primaryPhone: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === null || value === undefined) {
       return value;
     }
@@ -50,7 +54,7 @@ export class CreateLeadDto {
   secondaryPhone?: string | null;
 
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === null || value === undefined) {
       return value;
     }
@@ -68,4 +72,12 @@ export class CreateLeadDto {
   @ValidateNested({ each: true })
   @Type(() => ProjectInterestDto)
   projectInterests?: ProjectInterestDto[];
+
+  /**
+   * Custom field values keyed by definition key (see /custom-fields).
+   * Merged into the stored values; null or "" clears one.
+   */
+  @IsOptional()
+  @IsObject()
+  customFields?: Record<string, unknown>;
 }

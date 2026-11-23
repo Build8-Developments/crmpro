@@ -21,7 +21,7 @@ export function getActivityMeta(type: string): ActivityMeta {
       return {
         label: "Assigned",
         icon: AppIcons.userPlus,
-        iconClassName: "bg-sky-500/12 text-sky-600 dark:text-sky-400",
+        iconClassName: "bg-sky-500/12 text-sky-700 dark:text-sky-400",
         badgeClassName:
           "bg-sky-500/10 text-sky-700 border-transparent dark:text-sky-300",
       };
@@ -29,7 +29,7 @@ export function getActivityMeta(type: string): ActivityMeta {
       return {
         label: "Stage",
         icon: AppIcons.stageChange,
-        iconClassName: "bg-violet-500/12 text-violet-600 dark:text-violet-400",
+        iconClassName: "bg-violet-500/12 text-violet-700 dark:text-violet-400",
         badgeClassName:
           "bg-violet-500/10 text-violet-700 border-transparent dark:text-violet-300",
       };
@@ -37,7 +37,7 @@ export function getActivityMeta(type: string): ActivityMeta {
       return {
         label: "Import",
         icon: AppIcons.upload,
-        iconClassName: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+        iconClassName: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
         badgeClassName:
           "bg-emerald-500/10 text-emerald-700 border-transparent dark:text-emerald-300",
       };
@@ -45,7 +45,7 @@ export function getActivityMeta(type: string): ActivityMeta {
       return {
         label: "Export",
         icon: AppIcons.download,
-        iconClassName: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+        iconClassName: "bg-amber-500/12 text-amber-700 dark:text-amber-400",
         badgeClassName:
           "bg-amber-500/10 text-amber-700 border-transparent dark:text-amber-300",
       };
@@ -53,7 +53,7 @@ export function getActivityMeta(type: string): ActivityMeta {
       return {
         label: "Bulk assign",
         icon: AppIcons.team,
-        iconClassName: "bg-orange-500/12 text-orange-600 dark:text-orange-400",
+        iconClassName: "bg-orange-500/12 text-orange-700 dark:text-orange-400",
         badgeClassName:
           "bg-orange-500/10 text-orange-700 border-transparent dark:text-orange-300",
       };
@@ -61,7 +61,7 @@ export function getActivityMeta(type: string): ActivityMeta {
       return {
         label: "Bulk move",
         icon: AppIcons.stageChange,
-        iconClassName: "bg-orange-500/12 text-orange-600 dark:text-orange-400",
+        iconClassName: "bg-orange-500/12 text-orange-700 dark:text-orange-400",
         badgeClassName:
           "bg-orange-500/10 text-orange-700 border-transparent dark:text-orange-300",
       };

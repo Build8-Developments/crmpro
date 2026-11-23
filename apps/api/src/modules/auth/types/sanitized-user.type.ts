@@ -5,6 +5,8 @@ export interface SanitizedUser {
   phone: string | null;
   isActive: boolean;
   lastLoginAt: Date | null;
+  /** False: shown as "A teammate" on the leaderboard. */
+  showOnLeaderboard?: boolean;
   role: {
     id: string;
     name: string;
@@ -14,5 +16,14 @@ export interface SanitizedUser {
     name: string;
     slug: string;
     status: string;
+    /** Only on GET /auth/me. */
+    access?: TenantAccessSummary;
   };
+}
+
+/** readOnly while a contract terminated in READ_ONLY mode winds down. */
+export interface TenantAccessSummary {
+  readOnly: boolean;
+  /** ISO; when a terminated contract stops giving access, else null. */
+  accessEndsAt: string | null;
 }

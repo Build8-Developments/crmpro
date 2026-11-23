@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ADMIN_PERMISSIONS } from "@crmpro/shared";
@@ -51,7 +51,7 @@ export function CreateTenantForm() {
 
   const [contractId, setContractId] = useState<string>();
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
+  const [customSlug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [ownerFullName, setOwnerFullName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
@@ -61,13 +61,10 @@ export function CreateTenantForm() {
   const contracts = contractsData?.items ?? [];
   const passwordValid = isValidPassword(ownerPassword);
   const passwordsMatch = ownerPassword === confirmPassword;
+  // Follows the name until the user edits the slug themselves.
+  const slug = slugTouched ? customSlug : slugifyName(name);
   const slugValid = isValidSlug(slug);
 
-  useEffect(() => {
-    if (!slugTouched) {
-      setSlug(slugifyName(name));
-    }
-  }, [name, slugTouched]);
 
   if (!can(ADMIN_PERMISSIONS.TENANT_CREATE)) {
     return (

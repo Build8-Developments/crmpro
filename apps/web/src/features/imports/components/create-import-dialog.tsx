@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,219 +11,271 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCreateLeadImport } from "@/features/imports/mutations";
-import { useImportUiStore } from "@/features/imports/stores/import-ui-store";
 import {
-  downloadImportTemplate,
-  IMPORT_OPTIONAL_COLUMNS,
-  IMPORT_REQUIRED_COLUMNS,
+  ImportMappingStep,
+  ImportReviewStep,
+  ImportStepIndicator,
+  ImportUploadStep,
+  missingRequiredFields,
+  type ImportWizardStep,
+} from "@/features/imports/components/import-wizard-steps";
+import {
+  useCreateLeadImport,
+  usePreviewLeadImport,
+} from "@/features/imports/mutations";
+import { useImportUiStore } from "@/features/imports/stores/import-ui-store";
+import type {
+  ImportDefaults,
+  ImportDuplicatePolicy,
+  ImportMapping,
+  ImportPreview,
+} from "@/features/imports/types";
+import {
+  isImportSpreadsheet,
   MAX_IMPORT_FILE_SIZE_BYTES,
 } from "@/features/imports/utils/import-formatters";
-import { formatFileSize } from "@/features/files/utils/file-formatters";
 import { usePermissions } from "@/hooks/use-permissions";
-import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/api/client";
+import { formatNumber } from "@/lib/format";
 
-function isCsvFile(file: File): boolean {
-  const name = file.name.toLowerCase();
-  return (
-    name.endsWith(".csv") ||
-    file.type === "text/csv" ||
-    file.type === "application/vnd.ms-excel" ||
-    file.type === "application/csv"
+function errorText(error: unknown, fallback: string): string {
+  return error instanceof ApiError && error.message ? error.message : fallback;
+}
+
+/** Drops empty defaults so the request only carries real choices. */
+function compactDefaults(defaults: ImportDefaults): ImportDefaults | undefined {
+  const entries = Object.entries(defaults).filter(([, value]) =>
+    Boolean(value),
   );
+  return entries.length > 0
+    ? (Object.fromEntries(entries) as ImportDefaults)
+    : undefined;
 }
 
 export function CreateImportDialog() {
   const open = useImportUiStore((s) => s.createDialogOpen);
+  const session = useImportUiStore((s) => s.createDialogSession);
   const closeCreateDialog = useImportUiStore((s) => s.closeCreateDialog);
-  const openJobDetail = useImportUiStore((s) => s.openJobDetail);
+  const preview = usePreviewLeadImport();
   const createImport = useCreateLeadImport();
   const { can } = usePermissions();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const uploading = createImport.isPending;
-
-  const reset = () => {
-    setFile(null);
-    setError(null);
-    setDragging(false);
-    if (inputRef.current) inputRef.current.value = "";
-  };
+  const busy = preview.isPending || createImport.isPending;
 
   const handleClose = () => {
-    if (uploading) return;
+    if (busy) return;
     closeCreateDialog();
-    reset();
-  };
-
-  const selectFile = (next: File | null) => {
-    setError(null);
-    if (!next) {
-      setFile(null);
-      return;
-    }
-    if (!isCsvFile(next)) {
-      setError("Please choose a .csv file");
-      setFile(null);
-      return;
-    }
-    if (next.size > MAX_IMPORT_FILE_SIZE_BYTES) {
-      setError("File exceeds 25 MB");
-      setFile(null);
-      return;
-    }
-    setFile(next);
-  };
-
-  const handleSubmit = async () => {
-    if (!file) return;
-    try {
-      const job = await createImport.mutateAsync(file);
-      closeCreateDialog();
-      reset();
-      openJobDetail(job.id);
-    } catch {
-      setError("Import failed to start. Check the file and try again.");
-    }
   };
 
   if (!can("import-job.create")) return null;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => !next && handleClose()}
-    >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Import leads from CSV</DialogTitle>
-          <DialogDescription>
-            Upload a CSV to create leads. Processing runs in the background.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        {/* Keyed by session: every opening starts a fresh wizard. */}
+        <ImportWizard
+          key={session}
+          busy={busy}
+          canAssign={can("lead.assign")}
+          readFile={(file) => preview.mutateAsync(file)}
+          readingFile={preview.isPending}
+          startImport={(input) => createImport.mutateAsync(input)}
+          starting={createImport.isPending}
+          onCancel={handleClose}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-        <div className="space-y-3">
-          <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
-            <p>
-              <span className="font-medium text-foreground">Required:</span>{" "}
-              {IMPORT_REQUIRED_COLUMNS.join(", ")}
-            </p>
-            <p className="mt-1">
-              <span className="font-medium text-foreground">Optional:</span>{" "}
-              {IMPORT_OPTIONAL_COLUMNS.join(", ")}
-            </p>
-            <button
-              type="button"
-              className="mt-2 font-medium text-primary hover:underline"
-              onClick={downloadImportTemplate}
-            >
-              Download CSV template
-            </button>
-          </div>
+function ImportWizard({
+  busy,
+  canAssign,
+  readFile,
+  readingFile,
+  startImport,
+  starting,
+  onCancel,
+}: {
+  busy: boolean;
+  canAssign: boolean;
+  readFile: (file: File) => Promise<ImportPreview>;
+  readingFile: boolean;
+  startImport: ReturnType<typeof useCreateLeadImport>["mutateAsync"];
+  starting: boolean;
+  onCancel: () => void;
+}) {
+  const closeCreateDialog = useImportUiStore((s) => s.closeCreateDialog);
+  const openJobDetail = useImportUiStore((s) => s.openJobDetail);
 
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => !uploading && inputRef.current?.click()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                if (!uploading) inputRef.current?.click();
-              }
-            }}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={(event) => {
-              event.preventDefault();
-              setDragging(false);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragging(false);
-              if (!uploading) {
-                selectFile(event.dataTransfer.files?.[0] ?? null);
-              }
-            }}
-            className={cn(
-              "flex w-full flex-col items-center justify-center rounded-xl border border-dashed px-4 py-8 text-center transition-colors",
-              dragging
-                ? "border-primary bg-primary/5"
-                : "border-border/70 bg-muted/20 hover:bg-muted/30",
-              uploading && "pointer-events-none opacity-60",
-            )}
-          >
-            <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <AppIcons.upload className="size-5" />
-            </span>
-            <span className="mt-3 text-sm font-medium text-foreground">
-              {file ? file.name : "Drop CSV here or browse"}
-            </span>
-            <span className="mt-1 text-xs text-muted-foreground">
-              {file
-                ? formatFileSize(file.size)
-                : "Max 25 MB · .csv only"}
-            </span>
-          </div>
+  const [step, setStep] = useState<ImportWizardStep>("upload");
+  const [file, setFile] = useState<File | null>(null);
+  const [data, setData] = useState<ImportPreview | null>(null);
+  const [mapping, setMapping] = useState<ImportMapping>({});
+  const [defaults, setDefaults] = useState<ImportDefaults>({});
+  const [policy, setPolicy] = useState<ImportDuplicatePolicy>("SKIP");
+  const [error, setError] = useState<string | null>(null);
 
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            disabled={uploading}
-            onChange={(event) => {
-              selectFile(event.target.files?.[0] ?? null);
-              event.target.value = "";
-            }}
+  const fields = data?.fields ?? [];
+  const missing = missingRequiredFields(fields, mapping);
+
+  const selectFile = (next: File | null) => {
+    setError(null);
+    if (next && !isImportSpreadsheet(next)) {
+      setError("Choose a .csv or .xlsx file");
+      return;
+    }
+    if (next && next.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+      setError("The file is larger than 25 MB");
+      return;
+    }
+    setFile(next);
+    // A different file means a different set of columns.
+    setData(null);
+  };
+
+  const handleRead = async () => {
+    if (!file) return;
+    if (data) {
+      setStep("map");
+      return;
+    }
+    setError(null);
+    try {
+      const result = await readFile(file);
+      setData(result);
+      setMapping({ ...result.suggestedMapping });
+      setStep("map");
+    } catch (err) {
+      setError(
+        errorText(err, "We couldn't read this file. Check it and try again."),
+      );
+    }
+  };
+
+  const handleStart = async () => {
+    if (!data) return;
+    setError(null);
+    try {
+      const job = await startImport({
+        fileAssetId: data.fileAssetId,
+        mapping,
+        defaults: compactDefaults(defaults),
+        duplicatePolicy: policy,
+      });
+      closeCreateDialog();
+      openJobDetail(job.id);
+    } catch (err) {
+      setError(errorText(err, "The import couldn't start. Try again."));
+    }
+  };
+
+  const goBack = () => {
+    setError(null);
+    setStep(step === "review" ? "map" : "upload");
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Import leads</DialogTitle>
+        <DialogDescription>
+          Upload a CSV or Excel file, match its columns, then review and start.
+          Processing runs in the background.
+        </DialogDescription>
+      </DialogHeader>
+
+      <ImportStepIndicator step={step} />
+
+      <div className="min-w-0 space-y-3">
+        {step === "upload" ? (
+          <ImportUploadStep file={file} busy={busy} onSelect={selectFile} />
+        ) : null}
+
+        {step === "map" && data ? (
+          <ImportMappingStep
+            data={data}
+            mapping={mapping}
+            missing={missing}
+            onChange={setMapping}
           />
+        ) : null}
 
-          {file && !uploading ? (
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => selectFile(null)}
-            >
-              Remove file
-            </button>
-          ) : null}
+        {step === "review" && data ? (
+          <ImportReviewStep
+            data={data}
+            mapping={mapping}
+            defaults={defaults}
+            onDefaultsChange={setDefaults}
+            policy={policy}
+            onPolicyChange={setPolicy}
+            canAssign={canAssign}
+          />
+        ) : null}
 
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        </div>
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </div>
 
-        <DialogFooter>
+      <DialogFooter className="gap-2 sm:justify-between">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={step === "upload" ? onCancel : goBack}
+        >
+          {step === "upload" ? "Cancel" : "Back"}
+        </Button>
+
+        {step === "upload" ? (
           <Button
             type="button"
-            variant="outline"
-            disabled={uploading}
-            onClick={handleClose}
+            disabled={!file || busy}
+            onClick={() => void handleRead()}
           >
-            Cancel
+            {readingFile ? (
+              <>
+                <AppIcons.loader className="size-4 animate-spin" />
+                Reading file...
+              </>
+            ) : (
+              "Next: match columns"
+            )}
           </Button>
+        ) : null}
+
+        {step === "map" ? (
           <Button
             type="button"
-            disabled={!file || uploading}
-            onClick={() => void handleSubmit()}
+            disabled={missing.length > 0}
+            onClick={() => setStep("review")}
           >
-            {uploading ? (
+            Next: review
+          </Button>
+        ) : null}
+
+        {step === "review" ? (
+          <Button
+            type="button"
+            disabled={busy || missing.length > 0}
+            onClick={() => void handleStart()}
+          >
+            {starting ? (
               <>
                 <AppIcons.loader className="size-4 animate-spin" />
                 Starting...
               </>
             ) : (
-              "Start import"
+              `Import ${formatNumber(data?.totalRows ?? 0)} ${
+                data?.totalRows === 1 ? "row" : "rows"
+              }`
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        ) : null}
+      </DialogFooter>
+    </>
   );
 }

@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTeams } from "@/features/teams/hooks";
 import { useCheckEmail, useRoles } from "@/features/users/hooks";
 import { useCreateUser } from "@/features/users/mutations";
 import { useUserUiStore } from "@/features/users/stores/user-ui-store";
@@ -65,6 +66,8 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [roleId, setRoleId] = useState<string>("");
+  const { data: teams } = useTeams();
+  const [teamId, setTeamId] = useState<string>("none");
   const [showPassword, setShowPassword] = useState(false);
 
   const generatePassword = () => {
@@ -109,6 +112,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
       email: email.trim(),
       password,
       roleId,
+      ...(teamId !== "none" ? { teamId } : {}),
     });
     onClose();
   };
@@ -144,7 +148,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
               <AppIcons.alertCircle className="size-3" /> Email already in use
             </span>
           ) : emailAvailable && email === debouncedEmail && debouncedEmailValid ? (
-            <span className="text-[10px] text-emerald-500 flex items-center gap-1">
+            <span className="text-[10px] text-emerald-600 flex items-center gap-1">
               <AppIcons.check className="size-3" /> Available
             </span>
           ) : null}
@@ -175,6 +179,25 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
           </SelectContent>
         </Select>
       </div>
+
+      {teams && teams.length > 0 ? (
+        <div className="space-y-2">
+          <Label htmlFor="user-team">Team</Label>
+          <Select value={teamId} onValueChange={setTeamId}>
+            <SelectTrigger id="user-team">
+              <SelectValue placeholder="No team" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No team</SelectItem>
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="user-password">Password</Label>

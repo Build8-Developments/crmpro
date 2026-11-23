@@ -22,8 +22,13 @@ import { TenantOwnerService } from './services/tenant-owner.service';
 import { TenantProvisioningService } from './services/tenant-provisioning.service';
 import { TenantUsageService } from './services/tenant-usage.service';
 import { TenantsAuditService } from './services/tenants-audit.service';
-import type { ProvisionTenantResult, TenantDetail, TenantListItem } from './types/tenant.types';
+import type {
+  ProvisionTenantResult,
+  TenantDetail,
+  TenantListItem,
+} from './types/tenant.types';
 import { toTenantDetail, toTenantListItem } from './utils/tenant.mapper';
+import { revokeTenantUserSessionsInTx } from './utils/tenant-sessions.util';
 
 const tenantListInclude = {
   subscriptionPlan: { select: { id: true, name: true } },
@@ -212,7 +217,11 @@ export class TenantsService {
     id: string,
     actorAdminId: string,
     metadata: RequestSecurityMetadata,
-  ): Promise<{ tenantId: string; status: TenantStatus; revokedSessions: number }> {
+  ): Promise<{
+    tenantId: string;
+    status: TenantStatus;
+    revokedSessions: number;
+  }> {
     const tenant = await this.findTenantOrThrow(id);
 
     if (tenant.status === TenantStatus.SUSPENDED) {
@@ -227,28 +236,17 @@ export class TenantsService {
         data: { status: TenantStatus.SUSPENDED },
       });
 
-      const userIds = await tx.user.findMany({
-        where: { tenantId: id, deletedAt: null },
-        select: { id: true },
-      });
-
-      const result = await tx.userSession.updateMany({
-        where: {
-          userId: { in: userIds.map((user) => user.id) },
-          revokedAt: null,
-        },
-        data: { revokedAt: new Date() },
-      });
+      const revoked = await revokeTenantUserSessionsInTx(tx, id);
 
       await this.auditService.logTenantSuspended(
         actorAdminId,
         id,
         metadata,
-        result.count,
+        revoked,
         tx,
       );
 
-      return result.count;
+      return revoked;
     });
 
     return {

@@ -1,4 +1,5 @@
 "use client";
+import { getHomeRoute } from "@/lib/home-route";
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -52,7 +53,7 @@ export function useLogin() {
         });
         await hydrateAuthAfterLogin(result.accessToken);
         authToast.signInSuccess(result.user.name);
-        router.replace("/dashboard");
+        router.replace(getHomeRoute());
       } catch (error) {
         const message =
           error instanceof ApiError

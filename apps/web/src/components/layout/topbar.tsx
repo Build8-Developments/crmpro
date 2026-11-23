@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
+import { useClientValue } from "@/hooks/use-client-value";
 import { usePathname, useRouter } from "next/navigation";
+import { PRODUCT_NAME } from "@/components/brand/product-logo";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -11,27 +14,32 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  applyThemePreference,
+  readThemePreference,
+  type ThemePreference,
+} from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { findRouteByPath } from "@/config/routes";
+import { getRouteBreadcrumbs } from "@/config/routes";
 import { quickActions } from "@/config/quick-actions";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useLogout } from "@/features/auth/hooks/use-auth-actions";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import { useOrganizationSettingsNav } from "@/features/organization/hooks/use-organization-settings-nav";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useBreadcrumbStore } from "@/stores/breadcrumb-store";
 
 /* ─── Command trigger ─────────────────────────────────────────────────────── */
 
 function CommandTrigger({ onOpen }: { onOpen?: () => void }) {
   const openCommandPalette = useUIStore((s) => s.openCommandPalette);
-  const [isMac, setIsMac] = useState(false);
-
-  useEffect(() => {
-    setIsMac(/mac/i.test(navigator.platform));
-  }, []);
+  const isMac = useClientValue(() => /mac/i.test(navigator.platform), false);
 
   return (
     <button
@@ -138,48 +146,101 @@ function QuickActions({
   );
 }
 
-/* ─── Theme toggle ────────────────────────────────────────────────────────── */
+/* ─── Breadcrumbs ─────────────────────────────────────────────────────────── */
 
-function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+function Breadcrumbs() {
+  const pathname = usePathname();
+  const trail = useBreadcrumbStore((state) => state.trail);
+  const crumbs = [...getRouteBreadcrumbs(pathname), ...trail];
 
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    const root = document.documentElement;
-
-    root.classList.add("theme-transition");
-    // Force the browser to apply the transition class before color variables swap.
-    void root.offsetWidth;
-
-    root.classList.toggle("dark", nextTheme === "dark");
-    root.style.colorScheme = nextTheme;
-    localStorage.setItem("crmpro-theme", nextTheme);
-    setTheme(nextTheme);
-
-    window.setTimeout(() => {
-      root.classList.remove("theme-transition");
-    }, 280);
-  };
-
-  const Icon = theme === "dark" ? AppIcons.lightMode : AppIcons.darkMode;
+  if (crumbs.length === 0) {
+    return <span className="text-[13px] font-semibold">{PRODUCT_NAME}</span>;
+  }
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className="h-8 w-8 shrink-0 rounded-lg transition-all duration-150"
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      onClick={toggleTheme}
-    >
-      <Icon className="size-[18px]" stroke={1.75} />
-    </Button>
+    <nav aria-label="Breadcrumb" className="min-w-0">
+      <ol className="flex min-w-0 items-center gap-1 text-[13px]">
+        {crumbs.map((crumb, index) => {
+          const last = index === crumbs.length - 1;
+          return (
+            <li
+              key={`${crumb.label}-${index}`}
+              className={cn(
+                "flex min-w-0 items-center gap-1",
+                // On phones show only the current page and its parent.
+                index < crumbs.length - 2 && "hidden sm:flex",
+              )}
+            >
+              {index > 0 ? (
+                <AppIcons.chevronRight
+                  className="size-3.5 shrink-0 text-muted-foreground/60"
+                  stroke={2}
+                  aria-hidden
+                />
+              ) : null}
+              {last || !crumb.href ? (
+                <span
+                  aria-current={last ? "page" : undefined}
+                  className={cn(
+                    "truncate",
+                    last
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {crumb.label}
+                </span>
+              ) : (
+                <Link
+                  href={crumb.href}
+                  className="truncate text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {crumb.label}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+/* ─── Theme (inside the user menu) ────────────────────────────────────────── */
+
+function ThemeMenu() {
+  // Menu content only renders client-side (when opened), so reading
+  // localStorage during the first render is safe here.
+  const [preference, setPreference] =
+    useState<ThemePreference>(readThemePreference);
+
+  return (
+    <>
+      <DropdownMenuLabel className="pb-0.5 pt-1.5 text-[11px] font-medium text-muted-foreground">
+        Theme
+      </DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        value={preference}
+        onValueChange={(value) => {
+          const next = value as ThemePreference;
+          setPreference(next);
+          applyThemePreference(next);
+        }}
+      >
+        <DropdownMenuRadioItem value="light" onSelect={(e) => e.preventDefault()}>
+          <AppIcons.lightMode className="size-4" stroke={1.75} />
+          Light
+        </DropdownMenuRadioItem>
+        <DropdownMenuRadioItem value="dark" onSelect={(e) => e.preventDefault()}>
+          <AppIcons.darkMode className="size-4" stroke={1.75} />
+          Dark
+        </DropdownMenuRadioItem>
+        <DropdownMenuRadioItem value="system" onSelect={(e) => e.preventDefault()}>
+          <AppIcons.monitor className="size-4" stroke={1.75} />
+          System
+        </DropdownMenuRadioItem>
+      </DropdownMenuRadioGroup>
+    </>
   );
 }
 
@@ -195,6 +256,7 @@ function UserMenu({
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { logout, isLoggingOut } = useLogout();
+  const { firstHref: settingsHref } = useOrganizationSettingsNav();
 
   const name = user?.name ?? "CRM User";
   const roleName = user?.role.name ?? "Member";
@@ -239,30 +301,25 @@ function UserMenu({
         <DropdownMenuItem
           onSelect={() => {
             onOpenChange?.(false);
-            router.push("/settings");
+            router.push("/account");
           }}
         >
           <AppIcons.profile className="size-4" stroke={1.75} />
-          Profile
+          My account
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            onOpenChange?.(false);
-            router.push("/support");
-          }}
-        >
-          <AppIcons.lifeBuoy className="size-4" stroke={1.75} />
-          Support
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            onOpenChange?.(false);
-            router.push("/settings");
-          }}
-        >
-          <AppIcons.settings className="size-4" stroke={1.75} />
-          Settings
-        </DropdownMenuItem>
+        {settingsHref ? (
+          <DropdownMenuItem
+            onSelect={() => {
+              onOpenChange?.(false);
+              router.push(settingsHref);
+            }}
+          >
+            <AppIcons.settings className="size-4" stroke={1.75} />
+            Organization settings
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuSeparator />
+        <ThemeMenu />
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
@@ -283,21 +340,19 @@ function UserMenu({
 /* ─── Topbar ──────────────────────────────────────────────────────────────── */
 
 export function Topbar() {
-  const pathname = usePathname();
-  const route = findRouteByPath(pathname);
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const openMobileSidebar = useUIStore((s) => s.openMobileSidebar);
-  const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const commandPaletteOpen = useUIStore((s) => s.commandPaletteOpen);
   const [mobileOverlay, setMobileOverlay] = useState<
     "notifications" | "create" | "user" | null
   >(null);
 
-  useEffect(() => {
-    if (commandPaletteOpen) {
-      setMobileOverlay(null);
-    }
-  }, [commandPaletteOpen]);
+  // Opening the command palette closes any mobile overlay (adjusted during
+  // render rather than in an effect).
+  const [paletteWasOpen, setPaletteWasOpen] = useState(commandPaletteOpen);
+  if (commandPaletteOpen !== paletteWasOpen) {
+    setPaletteWasOpen(commandPaletteOpen);
+    if (commandPaletteOpen) setMobileOverlay(null);
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:gap-2 sm:px-3 md:px-4">
@@ -312,31 +367,9 @@ export function Topbar() {
         <AppIcons.menu className="size-4" stroke={2} />
       </Button>
 
-      {/* Desktop collapse toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="hidden h-8 w-8 rounded-lg transition-all duration-150 md:inline-flex"
-        aria-label="Toggle sidebar"
-        onClick={toggleSidebar}
-      >
-        {collapsed ? (
-          <AppIcons.sidebarExpand className="size-4" stroke={2} />
-        ) : (
-          <AppIcons.sidebarCollapse className="size-4" stroke={2} />
-        )}
-      </Button>
-
-      {/* Left: page title + subtitle */}
-      <div className="flex min-w-0 flex-1 flex-col justify-center xl:flex-none">
-        <h1 className="truncate text-[13px] font-semibold leading-tight text-foreground">
-          {route?.label ?? "CRMPro"}
-        </h1>
-        {route?.subtitle && (
-          <p className="hidden truncate text-[11px] leading-tight text-muted-foreground sm:block">
-            {route.subtitle}
-          </p>
-        )}
+      {/* Left: where am I */}
+      <div className="flex min-w-0 flex-1 items-center xl:flex-none">
+        <Breadcrumbs />
       </div>
 
       {/* Center: command palette trigger */}
@@ -353,7 +386,6 @@ export function Topbar() {
             setMobileOverlay(open ? "notifications" : null)
           }
         />
-        <ThemeToggle />
         <QuickActions
           open={mobileOverlay === "create"}
           onOpenChange={(open) => setMobileOverlay(open ? "create" : null)}

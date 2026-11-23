@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type OnChangeFn,
-  type RowSelectionState,
-  type SortingState,
+import type {
+  OnChangeFn,
+  RowSelectionState,
+  SortingState,
+  VisibilityState,
 } from "@tanstack/react-table";
+import { useDataTable } from "@/components/data-table/use-data-table";
 import type { Lead } from "@/features/leads/types";
 import type { LeadsSortField } from "@/features/leads/stores/leads-table-store";
 import { createLeadColumns } from "./columns";
@@ -21,6 +20,8 @@ interface UseLeadsTableOptions {
   sortBy: LeadsSortField;
   sortOrder: "asc" | "desc";
   onSortChange: (sortBy: LeadsSortField, sortOrder: "asc" | "desc") => void;
+  columnVisibility: VisibilityState;
+  onColumnVisibilityChange: OnChangeFn<VisibilityState>;
 }
 
 export function useLeadsTable({
@@ -31,6 +32,8 @@ export function useLeadsTable({
   sortBy,
   sortOrder,
   onSortChange,
+  columnVisibility,
+  onColumnVisibilityChange,
 }: UseLeadsTableOptions) {
   const columns = useMemo(() => createLeadColumns(), []);
 
@@ -39,31 +42,24 @@ export function useLeadsTable({
     [sortBy, sortOrder],
   );
 
-  const table = useReactTable({
+  return useDataTable({
     data,
     columns,
     pageCount,
     state: {
       sorting,
       rowSelection,
+      columnVisibility,
       pagination: { pageIndex: 0, pageSize: data.length || 1 },
     },
+    onColumnVisibilityChange,
     enableRowSelection: true,
     onRowSelectionChange,
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       const first = next[0];
       if (!first) return;
-      const field = first.id as LeadsSortField;
-      onSortChange(field, first.desc ? "desc" : "asc");
+      onSortChange(first.id as LeadsSortField, first.desc ? "desc" : "asc");
     },
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-    manualSorting: true,
-    getRowId: (row) => row.id,
   });
-
-  return table;
 }
-
-export { flexRender };

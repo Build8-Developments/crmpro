@@ -24,6 +24,8 @@ import {
   type RefreshCookieRuntimeConfig,
 } from './utils/auth-cookie.util';
 import { extractLoginSessionMetadata } from './utils/request-metadata.util';
+import { AuthRateLimit } from '../../common/rate-limit/rate-limit.decorator';
+import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -39,10 +41,15 @@ export class AuthController {
       refreshTokenExpiration: this.configService.getOrThrow<string>(
         'auth.refreshTokenExpiration',
       ),
+      refreshCookieCrossOrigin:
+        this.configService.get<boolean>('auth.refreshCookieCrossOrigin') ??
+        false,
     };
   }
 
   @Post('login')
+  @UseGuards(RateLimitGuard)
+  @AuthRateLimit('login')
   async login(
     @Body() loginDto: LoginDto,
     @Req() req: Request,
@@ -66,11 +73,13 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @UseGuards(RateLimitGuard)
+  @AuthRateLimit('refresh')
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.[REFRESH_COOKIE_NAME];
+    const refreshToken: unknown = req.cookies?.[REFRESH_COOKIE_NAME];
     if (!refreshToken || typeof refreshToken !== 'string') {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -132,7 +141,10 @@ export class AuthController {
 
   @Get('permissions')
   @UseGuards(JwtAuthGuard)
-  async getPermissions(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+  async getPermissions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+  ) {
     const authorization = await this.permissionsService.getUserAuthorization(
       user.id,
       user.tenantId,

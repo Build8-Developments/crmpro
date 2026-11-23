@@ -2,6 +2,7 @@ import { CanActivate } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermissionsGuard } from '../../common/auth/guards/permissions.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InternalMonitoringGuard } from './guards/internal-monitoring.guard';
 import { MonitoringController } from './monitoring.controller';
 import { MonitoringService } from './monitoring.service';
 
@@ -60,13 +61,13 @@ describe('MonitoringController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MonitoringController],
-      providers: [
-        { provide: MonitoringService, useValue: monitoringService },
-      ],
+      providers: [{ provide: MonitoringService, useValue: monitoringService }],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockGuard)
       .overrideGuard(PermissionsGuard)
+      .useValue(mockGuard)
+      .overrideGuard(InternalMonitoringGuard)
       .useValue(mockGuard)
       .compile();
 
@@ -97,4 +98,15 @@ describe('MonitoringController', () => {
       }),
     });
   });
+
+  it.each(['getJobsHealth', 'getMetrics'] as const)(
+    '%s is only reachable with the internal monitoring key',
+    (handler) => {
+      const guards = Reflect.getMetadata(
+        '__guards__',
+        MonitoringController.prototype[handler],
+      ) as unknown[];
+      expect(guards).toEqual([InternalMonitoringGuard]);
+    },
+  );
 });

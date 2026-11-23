@@ -31,11 +31,11 @@ export const quickActions: QuickAction[] = [
     label: "Import CSV",
     href: "/imports",
     icon: AppIcons.imports,
-    requiredPermissions: ["import.create"],
+    requiredPermissions: ["import-job.create"],
   },
   {
     label: "New User",
-    href: "/users",
+    href: "/settings/users",
     icon: AppIcons.users,
     requiredPermissions: ["user.create"],
   },

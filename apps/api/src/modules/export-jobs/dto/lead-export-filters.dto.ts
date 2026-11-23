@@ -1,32 +1,8 @@
-import { LeadStatus } from '@crmpro/database';
-import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-import { normalizeSearchInput } from '../../../common/query/utils/search.util';
+import { LeadSelectionFiltersDto } from '../../leads/dto/get-leads-query.dto';
 
-export class LeadExportFiltersDto {
-  @IsOptional()
-  @IsUUID()
-  pipelineId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  stageId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  assignedUserId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  sourceId?: string;
-
-  @IsOptional()
-  @IsEnum(LeadStatus)
-  status?: LeadStatus;
-
-  @IsOptional()
-  @Transform(({ value }) => normalizeSearchInput(value))
-  @IsString()
-  @MaxLength(200)
-  search?: string;
-}
+/**
+ * Lead export filters: exactly the leads list's (search + every
+ * GetLeadsQueryDto filter), so "export what I see" holds. The export runs
+ * them through the list's where-builder (see LeadExportService).
+ */
+export class LeadExportFiltersDto extends LeadSelectionFiltersDto {}

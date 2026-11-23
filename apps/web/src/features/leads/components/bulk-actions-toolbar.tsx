@@ -8,7 +8,9 @@ import {
   useBulkArchiveLeads,
   useBulkRestoreLeads,
 } from "@/features/leads/mutations";
+import { useLeadsTableStore } from "@/features/leads/stores/leads-table-store";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
+import type { LeadSelectionFilters } from "@/features/leads/types";
 import { usePermissions } from "@/hooks/use-permissions";
 
 interface BulkActionsToolbarProps {
@@ -19,6 +21,11 @@ interface BulkActionsToolbarProps {
   archivableLeadIds: string[];
   restorableLeadIds: string[];
   bulkPipelineId?: string;
+  /** Every row on the current page is selected. */
+  pageFullySelected: boolean;
+  /** Leads matching the current filters (all pages). */
+  totalMatching: number;
+  matchingFilters: LeadSelectionFilters;
   onClearSelection: () => void;
 }
 
@@ -30,48 +37,56 @@ export function BulkActionsToolbar({
   archivableLeadIds,
   restorableLeadIds,
   bulkPipelineId,
+  pageFullySelected,
+  totalMatching,
+  matchingFilters,
   onClearSelection,
 }: BulkActionsToolbarProps) {
   const openAssignDialog = useLeadUiStore((s) => s.openAssignDialog);
   const openMoveStageDialog = useLeadUiStore((s) => s.openMoveStageDialog);
+  const selectAllMatching = useLeadsTableStore((s) => s.selectAllMatching);
+  const setSelectAllMatching = useLeadsTableStore((s) => s.setSelectAllMatching);
   const bulkArchive = useBulkArchiveLeads();
   const bulkRestore = useBulkRestoreLeads();
   const { can } = usePermissions();
 
-  const skippedArchivedForAssign =
-    selectedLeadIds.length - assignableLeadIds.length;
-  const skippedArchivedForMove = selectedLeadIds.length - movableLeadIds.length;
+  const matching = selectAllMatching
+    ? { filters: matchingFilters, count: totalMatching }
+    : undefined;
+  const effectiveCount = matching ? totalMatching : selectedCount;
+  const matchingPipelineId = matchingFilters.pipelineId;
   const pending = bulkArchive.isPending || bulkRestore.isPending;
 
   const handleBulkAssign = () => {
+    if (matching) {
+      openAssignDialog([], matching);
+      return;
+    }
     if (assignableLeadIds.length === 0) {
       toast.error("Archived leads cannot be assigned");
       return;
     }
-
-    if (skippedArchivedForAssign > 0) {
-      toast.info(
-        `${skippedArchivedForAssign} archived lead(s) will be skipped`,
-      );
-    }
-
+    const skipped = selectedLeadIds.length - assignableLeadIds.length;
+    if (skipped > 0) toast.info(`${skipped} archived lead(s) will be skipped`);
     openAssignDialog(assignableLeadIds);
   };
 
   const handleBulkMove = () => {
+    if (matching) {
+      if (!matchingPipelineId) {
+        toast.info("Filter by a pipeline first to move every matching lead");
+        return;
+      }
+      openMoveStageDialog([], matchingPipelineId, matching);
+      return;
+    }
     if (movableLeadIds.length === 0) {
       toast.error("Archived leads cannot be moved");
       return;
     }
-
     if (!bulkPipelineId) return;
-
-    if (skippedArchivedForMove > 0) {
-      toast.info(
-        `${skippedArchivedForMove} archived lead(s) will be skipped`,
-      );
-    }
-
+    const skipped = selectedLeadIds.length - movableLeadIds.length;
+    if (skipped > 0) toast.info(`${skipped} archived lead(s) will be skipped`);
     openMoveStageDialog(movableLeadIds, bulkPipelineId);
   };
 
@@ -89,82 +104,90 @@ export function BulkActionsToolbar({
 
   if (selectedCount === 0) return null;
 
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border/50 bg-muted/30 px-4 py-2">
-      <p className="text-xs font-medium text-foreground">
-        {formatNumber(selectedCount)} selected
-      </p>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-7 px-2 text-xs"
-        onClick={onClearSelection}
-      >
-        Clear
-      </Button>
+  const canOfferAllMatching =
+    pageFullySelected && totalMatching > selectedCount && !selectAllMatching;
 
-      <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        {can("lead.assign") && assignableLeadIds.length > 0 ? (
+  return (
+    <div className="border-b border-border/50 bg-primary/[0.04] motion-safe:animate-slide-in [--slide:0]">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+        <p className="text-xs font-medium text-foreground">
+          {matching
+            ? `All ${formatNumber(totalMatching)} matching leads selected`
+            : `${formatNumber(selectedCount)} selected`}
+        </p>
+        {canOfferAllMatching ? (
           <Button
             type="button"
-            variant="secondary"
+            variant="link"
             size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={handleBulkAssign}
+            className="h-7 px-1 text-xs"
+            onClick={() => setSelectAllMatching(true)}
           >
-            <AppIcons.userPlus className="size-3.5" />
-            Assign
-            {assignableLeadIds.length < selectedCount
-              ? ` (${assignableLeadIds.length})`
-              : ""}
+            Select all {formatNumber(totalMatching)} matching
           </Button>
         ) : null}
-        {can("lead.update") && movableLeadIds.length > 0 && bulkPipelineId ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={handleBulkMove}
-          >
-            <AppIcons.stageChange className="size-3.5" />
-            Move
-            {movableLeadIds.length < selectedCount
-              ? ` (${movableLeadIds.length})`
-              : ""}
-          </Button>
-        ) : null}
-        {can("lead.update") && archivableLeadIds.length > 0 ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={pending}
-            onClick={() => void handleBulkArchive()}
-          >
-            Archive
-            {archivableLeadIds.length < selectedCount
-              ? ` (${archivableLeadIds.length})`
-              : ""}
-          </Button>
-        ) : null}
-        {can("lead.update") && restorableLeadIds.length > 0 ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={pending}
-            onClick={() => void handleBulkRestore()}
-          >
-            Restore
-            {restorableLeadIds.length < selectedCount
-              ? ` (${restorableLeadIds.length})`
-              : ""}
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={onClearSelection}
+        >
+          Clear
+        </Button>
+
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {can("lead.assign") && (matching || assignableLeadIds.length > 0) ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={handleBulkAssign}
+            >
+              <AppIcons.userPlus className="size-3.5" />
+              Assign {matching ? formatNumber(effectiveCount) : ""}
+            </Button>
+          ) : null}
+          {can("lead.update") &&
+          (matching ? true : movableLeadIds.length > 0 && bulkPipelineId) ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={handleBulkMove}
+            >
+              <AppIcons.stageChange className="size-3.5" />
+              Move stage
+            </Button>
+          ) : null}
+          {!matching && can("lead.update") && archivableLeadIds.length > 0 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={pending}
+              onClick={() => void handleBulkArchive()}
+            >
+              <AppIcons.archive className="size-3.5" />
+              Archive
+            </Button>
+          ) : null}
+          {!matching && can("lead.update") && restorableLeadIds.length > 0 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={pending}
+              onClick={() => void handleBulkRestore()}
+            >
+              Restore
+            </Button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

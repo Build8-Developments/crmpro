@@ -1,8 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LeadActivityService } from './services/lead-activity.service';
 import { DomainEventBus } from '../../common/events/domain-event-bus.service';
+import { TaskLifecycleService } from '../workflow/common/task-lifecycle.service';
 import { QuotaService } from '../../common/quota/quota.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
+import { mergeCustomFieldValues } from '../custom-fields/custom-field-values';
 import { LeadsService } from './leads.service';
 
 describe('LeadsService quota enforcement', () => {
@@ -35,12 +38,23 @@ describe('LeadsService quota enforcement', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeadsService,
+        {
+          provide: CustomFieldsService,
+          useValue: {
+            getLeadDefinitions: jest.fn().mockResolvedValue([]),
+            resolveLeadValues: mergeCustomFieldValues,
+          },
+        },
         { provide: PrismaService, useValue: prisma },
         {
           provide: LeadActivityService,
           useValue: { createActivity: jest.fn() },
         },
         { provide: DomainEventBus, useValue: { publish: jest.fn() } },
+        {
+          provide: TaskLifecycleService,
+          useValue: { cancelOpenTasks: jest.fn().mockResolvedValue(0) },
+        },
         { provide: QuotaService, useValue: quotaService },
       ],
     }).compile();

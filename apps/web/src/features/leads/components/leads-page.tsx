@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -20,23 +20,39 @@ import {
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { LeadsEmptyState } from "./leads-empty-state";
 import { LeadsHeader } from "./leads-header";
-import { LeadsPagination } from "./leads-pagination";
 import { LeadsSkeleton } from "./leads-skeleton";
 import { LeadsTable } from "./leads-table";
 import { LeadsToolbar } from "./leads-toolbar";
 import { useLeadsTable } from "@/features/leads/table/use-leads-table";
+import { LEADS_DEFAULT_HIDDEN } from "@/features/leads/table/columns";
+import { TableViewMenu } from "@/components/crm/table-view-menu";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
+import { useTablePreferences, type TablePreferences } from "@/hooks/use-table-preferences";
 import { countActiveLeadFilters } from "@/features/leads/utils/lead-filters";
 import { LeadDetailDrawer } from "./lead-detail-drawer";
 import { CreateLeadDialog } from "./create-lead-dialog";
 import { AssignLeadDialog } from "./assign-lead-dialog";
 import { EditLeadDialog } from "./edit-lead-dialog";
 import { MoveStageDialog } from "./move-stage-dialog";
+import { LogInteractionDialog } from "./log-interaction-dialog";
+import { TransferLeadsDialog } from "./transfer-leads-dialog";
+import { LeadsBoard } from "./leads-board";
+import { LeadsLayoutToggle } from "./leads-layout-toggle";
+import { SavedViewsMenu } from "@/features/saved-views/components/saved-views-menu";
+
+const LEADS_VIEW_DEFAULTS: TablePreferences = {
+  columnVisibility: LEADS_DEFAULT_HIDDEN,
+  density: "comfortable",
+};
 
 export function LeadsPage() {
-  const [search, setSearch] = useState("");
+  // Filters, search, sort and layout live in the store, mirrored in the URL.
   useLeadsUrlFilters();
+  const search = useLeadsTableStore((s) => s.search);
+  const setSearch = useLeadsTableStore((s) => s.setSearch);
   const listParams = useLeadsListParams(search);
 
+  const layout = useLeadsTableStore((s) => s.layout);
   const sortBy = useLeadsTableStore((s) => s.sortBy);
   const sortOrder = useLeadsTableStore((s) => s.sortOrder);
   const filters = useLeadsTableStore((s) => s.filters);
@@ -52,6 +68,7 @@ export function LeadsPage() {
   const resetPage = useLeadsTableStore((s) => s.resetPage);
 
   const { data, isLoading, isError, isFetching, refetch } = useLeads(listParams);
+  const view = useTablePreferences("leads", LEADS_VIEW_DEFAULTS);
 
   useEffect(() => {
     resetPage();
@@ -88,6 +105,16 @@ export function LeadsPage() {
   )?.pipeline.id;
   const hasFilters =
     countActiveLeadFilters(filters) > 0 || search.trim().length > 0;
+  const pageFullySelected =
+    leads.length > 0 && leads.every((lead) => selectedLeadIds.includes(lead.id));
+  // Same filters as the list, without paging — for "all matching" actions.
+  const {
+    page: _page,
+    limit: _limit,
+    sortBy: _sortBy,
+    sortOrder: _sortOrder,
+    ...matchingFilters
+  } = listParams;
 
   const table = useLeadsTable({
     data: leads,
@@ -97,6 +124,8 @@ export function LeadsPage() {
     sortBy,
     sortOrder,
     onSortChange: setSort,
+    columnVisibility: view.columnVisibility,
+    onColumnVisibilityChange: view.setColumnVisibility,
   });
 
   if (isLoading && !data) {
@@ -105,7 +134,7 @@ export function LeadsPage() {
 
   if (isError) {
     return (
-      <div className="space-y-4 px-6 py-5 md:px-8">
+      <div className="space-y-4 px-4 py-5 sm:px-6 md:px-8">
         <LeadsHeader />
         <Card className="border-destructive/30">
           <CardHeader>
@@ -132,7 +161,7 @@ export function LeadsPage() {
     leads.length === 0 && !hasFilters && pagination?.totalItems === 0;
 
   return (
-    <div className="space-y-4 px-6 py-5 md:px-8">
+    <div className="space-y-4 px-4 py-5 sm:px-6 md:px-8">
       <LeadsHeader />
 
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
@@ -149,8 +178,33 @@ export function LeadsPage() {
             setSearch("");
           }}
           isFetching={isFetching}
+          viewMenu={
+            <>
+              <SavedViewsMenu
+                columnVisibility={view.columnVisibility}
+                density={view.density}
+                onApplyDisplay={view.apply}
+              />
+              <LeadsLayoutToggle />
+              {layout === "list" ? (
+                // Columns and density only apply to the table, not the phone cards.
+                <span className="hidden md:contents">
+                  <TableViewMenu
+                    table={table}
+                    density={view.density}
+                    onDensityChange={view.setDensity}
+                    onReset={view.reset}
+                  />
+                </span>
+              ) : null}
+            </>
+          }
         />
 
+        {layout === "board" ? (
+          <LeadsBoard filters={matchingFilters} />
+        ) : (
+        <>
         <BulkActionsToolbar
           selectedCount={selectedCount}
           selectedLeadIds={selectedLeadIds}
@@ -159,6 +213,9 @@ export function LeadsPage() {
           archivableLeadIds={archivableLeadIds}
           restorableLeadIds={restorableLeadIds}
           bulkPipelineId={bulkPipelineId}
+          pageFullySelected={pageFullySelected}
+          totalMatching={pagination?.totalItems ?? 0}
+          matchingFilters={matchingFilters}
           onClearSelection={clearRowSelection}
         />
 
@@ -166,26 +223,24 @@ export function LeadsPage() {
           <LeadsEmptyState />
         ) : (
           <>
-            {leads.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-                No leads match your search or filters.
-              </div>
-            ) : (
-              <LeadsTable
-                table={table}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-                onSortChange={setSort}
-              />
-            )}
+            <LeadsTable
+              table={table}
+              density={view.density}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={setSort}
+            />
 
             {pagination ? (
-              <LeadsPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="leads"
               />
             ) : null}
           </>
+        )}
+        </>
         )}
       </div>
 
@@ -194,6 +249,8 @@ export function LeadsPage() {
       <EditLeadDialog />
       <AssignLeadDialog />
       <MoveStageDialog />
+      <LogInteractionDialog />
+      <TransferLeadsDialog />
     </div>
   );
 }

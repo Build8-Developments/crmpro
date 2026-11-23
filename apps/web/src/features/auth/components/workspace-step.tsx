@@ -72,7 +72,7 @@ export function WorkspaceStep({
             </span>
           )}
           {showExists && (
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-emerald-600 dark:text-emerald-400">
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-emerald-700 dark:text-emerald-400">
               <AppIcons.check className="size-4" stroke={2.5} />
             </span>
           )}
@@ -85,7 +85,7 @@ export function WorkspaceStep({
 
         {showExists && (
           <div className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5">
-            <AppIcons.check className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" stroke={2.5} />
+            <AppIcons.check className="size-3.5 shrink-0 text-emerald-700 dark:text-emerald-400" stroke={2.5} />
             <span className="truncate text-sm font-medium text-emerald-800 dark:text-emerald-300">
               {workspace.name}
             </span>

@@ -13,7 +13,9 @@ export interface RefreshCookieOptions {
   maxAge: number;
 }
 
-export function getRefreshCookieMaxAgeMs(refreshTokenExpiration: string): number {
+export function getRefreshCookieMaxAgeMs(
+  refreshTokenExpiration: string,
+): number {
   const duration = ms(refreshTokenExpiration as StringValue);
 
   if (duration === undefined) {
@@ -29,13 +31,14 @@ export function getRefreshCookieMaxAgeMs(refreshTokenExpiration: string): number
  * Default (same-origin / proxied web): SameSite=Lax — works for localhost proxy and
  * production when the browser talks to one origin.
  *
- * Set REFRESH_COOKIE_CROSS_ORIGIN=true when the SPA calls the API on a different
- * site in production (HTTPS required: SameSite=None; Secure).
+ * Pass crossOrigin from `auth.refreshCookieCrossOrigin` (env REFRESH_COOKIE_CROSS_ORIGIN)
+ * when the SPA calls the API on a different site in production
+ * (HTTPS required: SameSite=None; Secure).
  */
 export function buildRefreshCookieOptions(
   nodeEnv: string,
   refreshTokenExpiration: string,
-  crossOrigin = process.env.REFRESH_COOKIE_CROSS_ORIGIN === 'true',
+  crossOrigin: boolean,
 ): RefreshCookieOptions {
   const isProduction = nodeEnv === 'production';
   const useCrossOrigin = isProduction && crossOrigin;

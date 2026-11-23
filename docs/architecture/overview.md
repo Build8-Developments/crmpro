@@ -491,13 +491,20 @@ Architecture should support future additions without major rewrites.
 Planned future systems:
 
 - AI services
-- WhatsApp integration
-- Meta Ads integration
+- channel-neutral Meta messaging, beginning with WhatsApp
+- Messenger and Instagram Direct channel adapters
+- Meta Ads attribution and conversion feedback
+- Project Files backed by object storage
 - Google Ads integration
 - analytics pipelines
 - workflow automations
 
 Current architecture should remain extensible for these features.
+
+Meta messaging is not three independent integrations. Shared window policy, templates, identity
+matching, Lead timeline persistence, and audit behavior belong to a common messaging domain with
+channel-specific adapters. See
+[`meta-platform-integrations.md`](meta-platform-integrations.md).
 
 ---
 
@@ -509,5 +516,6 @@ Additional architecture documents:
 - auth.md
 - permissions.md
 - events.md
+- meta-platform-integrations.md
 
 These documents define subsystem details beyond this overview.

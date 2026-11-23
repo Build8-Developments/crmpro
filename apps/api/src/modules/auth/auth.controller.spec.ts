@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request, Response } from 'express';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
+import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
 import { REFRESH_COOKIE_NAME } from './constants/auth-cookie.constants';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -71,7 +72,12 @@ describe('AuthController cookie transport', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RateLimitGuard)
+      .useValue({
+        canActivate: jest.fn().mockResolvedValue(true),
+      })
+      .compile();
 
     controller = module.get(AuthController);
   });

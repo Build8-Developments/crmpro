@@ -20,49 +20,35 @@ export type WorkspaceLookupStatus =
 
 const DEBOUNCE_MS = 500;
 
+interface LookupOutcome {
+  slug: string;
+  status: "exists" | "missing" | "error";
+  workspace: WorkspaceLookupResult | null;
+}
+
 export function useWorkspaceLookup(rawSlug: string) {
   const slug = normalizeWorkspaceSlug(rawSlug);
-  const [status, setStatus] = useState<WorkspaceLookupStatus>("idle");
-  const [workspace, setWorkspace] = useState<WorkspaceLookupResult | null>(null);
+  const checkable = slug.length >= 2 && isValidWorkspaceSlug(slug);
+  // Only the async answer is state; everything else derives from the slug, so
+  // a stale answer for a previous slug is simply ignored.
+  const [outcome, setOutcome] = useState<LookupOutcome | null>(null);
 
   useEffect(() => {
     authToast.dismissWorkspace();
-
-    if (!slug) {
-      setStatus("idle");
-      setWorkspace(null);
-      return;
-    }
-
-    if (slug.length < 2) {
-      setStatus("typing");
-      setWorkspace(null);
-      return;
-    }
-
-    if (!isValidWorkspaceSlug(slug)) {
-      setStatus("typing");
-      setWorkspace(null);
-      return;
-    }
-
-    setStatus("checking");
-    setWorkspace(null);
+    if (!checkable) return;
 
     const timer = window.setTimeout(async () => {
       try {
         const result = await authApi.lookupWorkspace(slug);
-        setWorkspace(result);
-        setStatus("exists");
+        setOutcome({ slug, status: "exists", workspace: result });
       } catch (error) {
-        setWorkspace(null);
         if (error instanceof ApiError && error.status === 404) {
-          setStatus("missing");
+          setOutcome({ slug, status: "missing", workspace: null });
           authToast.workspaceNotFound();
           return;
         }
 
-        setStatus("error");
+        setOutcome({ slug, status: "error", workspace: null });
         authToast.workspaceLookupFailed(
           error instanceof ApiError
             ? error.message
@@ -72,11 +58,18 @@ export function useWorkspaceLookup(rawSlug: string) {
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [slug]);
+  }, [slug, checkable]);
+
+  const current = outcome?.slug === slug ? outcome : null;
+  const status: WorkspaceLookupStatus = !slug
+    ? "idle"
+    : !checkable
+      ? "typing"
+      : (current?.status ?? "checking");
 
   return {
     slug,
     status,
-    workspace,
+    workspace: current?.workspace ?? null,
   };
 }

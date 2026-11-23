@@ -9,11 +9,21 @@ export interface AuthUserRole {
   name: string;
 }
 
+/** Workspace access, from GET /auth/me. */
+export interface TenantAccessState {
+  /** True while a contract terminated in read-only mode winds down. */
+  readOnly: boolean;
+  /** ISO; when a terminated contract stops giving access. */
+  accessEndsAt: string | null;
+}
+
 export interface AuthUserTenant {
   id: string;
   name: string;
   slug: string;
   status: string;
+  /** Present on GET /auth/me (not on the login response). */
+  access?: TenantAccessState;
 }
 
 /** GET /auth/me */
@@ -24,6 +34,8 @@ export interface AuthUser {
   phone: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
+  /** False: shown as "A teammate" on the leaderboard. */
+  showOnLeaderboard?: boolean;
   role: AuthUserRole;
   tenant: AuthUserTenant;
 }

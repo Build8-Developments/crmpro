@@ -16,11 +16,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
-import {
-  useDeactivateUser,
-  useReactivateUser,
-  useRevokeUserSessions,
-} from "@/features/users/mutations";
+import { useReactivateUser, useResendInvite } from "@/features/users/mutations";
 import { useUserUiStore } from "@/features/users/stores/user-ui-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -35,9 +31,9 @@ export function UserRowActions({ user }: UserRowActionsProps) {
   const openEditDialog = useUserUiStore((s) => s.openEditDialog);
   const openChangeRoleDialog = useUserUiStore((s) => s.openChangeRoleDialog);
   const openResetPasswordDialog = useUserUiStore((s) => s.openResetPasswordDialog);
-  const deactivateUser = useDeactivateUser();
+  const openConfirmAction = useUserUiStore((s) => s.openConfirmAction);
   const reactivateUser = useReactivateUser();
-  const revokeSessions = useRevokeUserSessions();
+  const resendInvite = useResendInvite();
   const { can } = usePermissions();
 
   const isSelf = currentUserId === user.id;
@@ -68,6 +64,11 @@ export function UserRowActions({ user }: UserRowActionsProps) {
         <DropdownMenuItem asChild>
           <Link href={`/leads?assignedUserId=${user.id}`}>View leads</Link>
         </DropdownMenuItem>
+        {can("user.create") && user.invitationPending && user.isActive ? (
+          <DropdownMenuItem onClick={() => resendInvite.mutate(user.id)}>
+            Resend invitation
+          </DropdownMenuItem>
+        ) : null}
         {canUpdate ? (
           <DropdownMenuItem onClick={() => openEditDialog(user.id)}>
             Edit name
@@ -81,7 +82,13 @@ export function UserRowActions({ user }: UserRowActionsProps) {
         {canUpdate && !isSelf ? (
           user.isActive ? (
             <DropdownMenuItem
-              onClick={() => void deactivateUser.mutateAsync(user.id)}
+              onClick={() =>
+                openConfirmAction({
+                  kind: "deactivate",
+                  userId: user.id,
+                  userName: user.fullName,
+                })
+              }
             >
               Deactivate
             </DropdownMenuItem>
@@ -101,7 +108,13 @@ export function UserRowActions({ user }: UserRowActionsProps) {
             </DropdownMenuItem>
             {!isSelf ? (
               <DropdownMenuItem
-                onClick={() => void revokeSessions.mutateAsync(user.id)}
+                onClick={() =>
+                  openConfirmAction({
+                    kind: "revoke-sessions",
+                    userId: user.id,
+                    userName: user.fullName,
+                  })
+                }
               >
                 Revoke sessions
               </DropdownMenuItem>
@@ -119,9 +132,9 @@ export function UserRowContextMenu({ user }: UserRowActionsProps) {
   const openEditDialog = useUserUiStore((s) => s.openEditDialog);
   const openChangeRoleDialog = useUserUiStore((s) => s.openChangeRoleDialog);
   const openResetPasswordDialog = useUserUiStore((s) => s.openResetPasswordDialog);
-  const deactivateUser = useDeactivateUser();
+  const openConfirmAction = useUserUiStore((s) => s.openConfirmAction);
   const reactivateUser = useReactivateUser();
-  const revokeSessions = useRevokeUserSessions();
+  const resendInvite = useResendInvite();
   const { can } = usePermissions();
 
   const isSelf = currentUserId === user.id;
@@ -138,6 +151,11 @@ export function UserRowContextMenu({ user }: UserRowActionsProps) {
       <ContextMenuItem asChild>
         <Link href={`/leads?assignedUserId=${user.id}`}>View leads</Link>
       </ContextMenuItem>
+      {can("user.create") && user.invitationPending && user.isActive ? (
+        <ContextMenuItem onClick={() => resendInvite.mutate(user.id)}>
+          Resend invitation
+        </ContextMenuItem>
+      ) : null}
       {canUpdate ? (
         <ContextMenuItem onClick={() => openEditDialog(user.id)}>
           Edit name
@@ -151,7 +169,13 @@ export function UserRowContextMenu({ user }: UserRowActionsProps) {
       {canUpdate && !isSelf ? (
         user.isActive ? (
           <ContextMenuItem
-            onClick={() => void deactivateUser.mutateAsync(user.id)}
+            onClick={() =>
+                openConfirmAction({
+                  kind: "deactivate",
+                  userId: user.id,
+                  userName: user.fullName,
+                })
+              }
           >
             Deactivate
           </ContextMenuItem>
@@ -171,7 +195,13 @@ export function UserRowContextMenu({ user }: UserRowActionsProps) {
           </ContextMenuItem>
           {!isSelf ? (
             <ContextMenuItem
-              onClick={() => void revokeSessions.mutateAsync(user.id)}
+              onClick={() =>
+                  openConfirmAction({
+                    kind: "revoke-sessions",
+                    userId: user.id,
+                    userName: user.fullName,
+                  })
+                }
             >
               Revoke sessions
             </ContextMenuItem>

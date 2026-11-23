@@ -11,6 +11,9 @@ describe('TenantOwnerService resetOwnerPassword', () => {
     ipAddress: '127.0.0.1',
     userAgent: 'jest',
     fingerprint: 'fp',
+    deviceName: null,
+    country: null,
+    city: null,
   };
 
   let tx: {
@@ -39,9 +42,11 @@ describe('TenantOwnerService resetOwnerPassword', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'tenant-1' }),
       },
       user: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'owner-1', name: 'Owner', email: 'owner@test.com' },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { id: 'owner-1', name: 'Owner', email: 'owner@test.com' },
+          ]),
       },
       $transaction: jest.fn(async (callback) => callback(tx)),
     };

@@ -45,6 +45,7 @@ export interface ContractListItem {
   id: string;
   contractName: string | null;
   status: ContractStatus;
+  tenantId: string | null;
   planName: string;
   agreedPrice: number;
   currency: string;
@@ -52,7 +53,56 @@ export interface ContractListItem {
   paymentFrequency: PaymentFrequency;
   contractStartAt: string;
   contractEndAt: string | null;
+  gracePeriodDays: number | null;
   autoRenew: boolean;
+}
+
+export const CONTRACT_TERMINATION_MODES = [
+  "FULL_ACCESS",
+  "READ_ONLY",
+  "IMMEDIATE",
+] as const;
+
+export type ContractTerminationMode =
+  (typeof CONTRACT_TERMINATION_MODES)[number];
+
+export interface PlanQuotas {
+  maxUsers: number | null;
+  maxLeads: number | null;
+  maxProjects: number | null;
+  /** Decimal string (bytes). null = unlimited. */
+  maxStorageBytes: string | null;
+}
+
+/** The plan as signed, frozen at activation (a preview while DRAFT). */
+export interface ContractPlanSnapshot {
+  version: number;
+  planId: string;
+  name: string;
+  price: number | null;
+  currency: string | null;
+  quotas: PlanQuotas;
+  featureFlags: Record<string, boolean>;
+  capturedAt: string | null;
+}
+
+export interface ContractLivePlan {
+  id: string;
+  name: string;
+  isActive: boolean;
+  quotas: PlanQuotas;
+  featureFlags: Record<string, boolean>;
+}
+
+export interface ContractTermination {
+  terminatedAt: string | null;
+  mode: ContractTerminationMode | null;
+  accessEndsAt: string | null;
+}
+
+export interface TerminateContractInput {
+  mode: ContractTerminationMode;
+  reason?: string;
 }
 
 export interface ContractDetail {
@@ -72,6 +122,9 @@ export interface ContractDetail {
   contractStartAt: string;
   contractEndAt: string | null;
   createdByAdmin: ContractAdminSummary;
+  planSnapshot: ContractPlanSnapshot | null;
+  livePlan: ContractLivePlan;
+  termination: ContractTermination | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -139,4 +192,10 @@ export const PAYMENT_FREQUENCY_LABELS: Record<PaymentFrequency, string> = {
   SEMI_ANNUAL: "Semi-annual",
   ANNUAL: "Annual",
   CUSTOM: "Custom",
+};
+
+export const TERMINATION_MODE_LABELS: Record<ContractTerminationMode, string> = {
+  FULL_ACCESS: "Full access",
+  READ_ONLY: "Read-only",
+  IMMEDIATE: "Immediate suspension",
 };

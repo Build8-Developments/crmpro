@@ -19,7 +19,9 @@ export type UseApiMutationOptions<
   UseMutationOptions<TData, Error, TVariables, TContext>,
   "onSuccess" | "onError"
 > &
-  ApiMutationContext & {
+  Omit<ApiMutationContext, "successMessage"> & {
+    /** A fixed message, or one built from the result (e.g. counts). */
+    successMessage?: string | ((data: TData) => string);
     onSuccess?: UseMutationOptions<
       TData,
       Error,
@@ -56,7 +58,11 @@ export function useApiMutation<TData, TVariables, TContext = unknown>(
       }
 
       if (successMessage) {
-        toast.success(successMessage);
+        toast.success(
+          typeof successMessage === "function"
+            ? successMessage(args[0])
+            : successMessage,
+        );
       }
 
       onSuccess?.(...args);

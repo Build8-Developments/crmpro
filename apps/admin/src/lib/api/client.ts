@@ -2,10 +2,6 @@ import type { ApiResponse } from "@/types/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { getQueryClient } from "@/lib/query/query-client";
 import { resolveApiBaseUrl } from "@/lib/api/resolve-api-base-url";
-import {
-  getStoredRefreshToken,
-  setStoredRefreshToken,
-} from "@/lib/api/refresh-token";
 
 /**
  * Normalized API error thrown by the client for any non-success response.
@@ -65,21 +61,12 @@ async function refreshAccessToken(): Promise<string> {
 
   refreshPromise = (async () => {
     try {
-      const refreshToken = getStoredRefreshToken();
-      if (!refreshToken) {
-        throw new ApiError({
-          code: "NO_REFRESH_TOKEN",
-          message: "Session expired. Please sign in again.",
-          status: 401,
-        });
-      }
+      // The refresh token travels as an httpOnly cookie (credentials: "include").
+      const result = await executeAuthRequest<{ accessToken: string }>(
+        "POST",
+        "/auth/refresh",
+      );
 
-      const result = await executeAuthRequest<{
-        accessToken: string;
-        refreshToken: string;
-      }>("POST", "/auth/refresh", { refreshToken });
-
-      setStoredRefreshToken(result.refreshToken);
       useAuthStore.getState().setAccessToken(result.accessToken);
       return result.accessToken;
     } catch (error) {

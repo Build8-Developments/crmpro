@@ -1,6 +1,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -17,7 +18,7 @@ export class CreateUserDto {
   @MaxLength(120)
   fullName: string;
 
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsEmail()
@@ -34,4 +35,8 @@ export class CreateUserDto {
 
   @IsUUID()
   roleId: string;
+
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
 }

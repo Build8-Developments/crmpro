@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PERMISSIONS } from '@crmpro/shared/auth';
+import type { LeadScope } from '../../common/auth/lead-scope/lead-scope.types';
 import { PermissionsService } from '../../common/auth/services/permissions.service';
 import type { AnalyticsRangeKey } from './analytics.constants';
 import type { AnalyticsDashboardData } from './analytics.types';
@@ -28,6 +29,7 @@ export class AnalyticsAggregatorService {
     userId: string,
     tenantId: string,
     range: AnalyticsRangeKey,
+    scope: LeadScope,
   ): Promise<AnalyticsDashboardData> {
     const permissionKeys =
       await this.permissionsService.getPermissionKeysForUser(userId, tenantId);
@@ -40,7 +42,7 @@ export class AnalyticsAggregatorService {
     if (sections.overview) {
       tasks.push(
         this.overviewService
-          .getOverview(tenantId, dateRange)
+          .getOverview(tenantId, dateRange, scope)
           .then((overview) => {
             data.overview = overview;
           }),
@@ -49,7 +51,7 @@ export class AnalyticsAggregatorService {
 
     if (sections.pipeline) {
       tasks.push(
-        this.pipelineService.getPipeline(tenantId).then((pipeline) => {
+        this.pipelineService.getPipeline(tenantId, scope).then((pipeline) => {
           data.pipeline = pipeline;
         }),
       );
@@ -57,15 +59,17 @@ export class AnalyticsAggregatorService {
 
     if (sections.trends) {
       tasks.push(
-        this.trendService.getTrends(tenantId, dateRange).then((trends) => {
-          data.trends = trends;
-        }),
+        this.trendService
+          .getTrends(tenantId, dateRange, scope)
+          .then((trends) => {
+            data.trends = trends;
+          }),
       );
     }
 
     if (sections.team) {
       tasks.push(
-        this.teamService.getTeam(tenantId).then((team) => {
+        this.teamService.getTeam(tenantId, scope).then((team) => {
           data.team = team;
         }),
       );
@@ -74,9 +78,11 @@ export class AnalyticsAggregatorService {
     if (sections.activity) {
       tasks.push(
         this.activityService
-          .getActivity(tenantId, {
-            includeAudit: permissionKeys.has(PERMISSIONS.AUDIT_READ),
-          })
+          .getActivity(
+            tenantId,
+            { includeAudit: permissionKeys.has(PERMISSIONS.AUDIT_READ) },
+            scope,
+          )
           .then((activity) => {
             data.activity = activity;
           }),
@@ -86,7 +92,7 @@ export class AnalyticsAggregatorService {
     if (sections.sources) {
       tasks.push(
         this.queryService
-          .getLeadSources(tenantId, dateRange)
+          .getLeadSources(tenantId, dateRange, scope)
           .then((sources) => {
             data.sources = sources;
           }),
@@ -96,7 +102,7 @@ export class AnalyticsAggregatorService {
     if (sections.projects) {
       tasks.push(
         this.queryService
-          .getProjectPerformance(tenantId, dateRange)
+          .getProjectPerformance(tenantId, dateRange, scope)
           .then((projects) => {
             data.projects = projects;
           }),
@@ -106,7 +112,7 @@ export class AnalyticsAggregatorService {
     if (sections.developers) {
       tasks.push(
         this.queryService
-          .getDeveloperPerformance(tenantId, dateRange)
+          .getDeveloperPerformance(tenantId, dateRange, scope)
           .then((developers) => {
             data.developers = developers;
           }),
@@ -116,7 +122,7 @@ export class AnalyticsAggregatorService {
     if (sections.status) {
       tasks.push(
         this.queryService
-          .getStatusDistribution(tenantId, dateRange)
+          .getStatusDistribution(tenantId, dateRange, scope)
           .then((status) => {
             data.status = status;
           }),

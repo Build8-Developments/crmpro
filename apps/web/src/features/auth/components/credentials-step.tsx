@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,8 +55,18 @@ export function CredentialsStep({
 
         <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <AppIcons.building className="size-4" stroke={1.75} />
+            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary/10 text-primary">
+              {workspace.logoUrl ? (
+                // Signed storage URL from the workspace lookup.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={workspace.logoUrl}
+                  alt=""
+                  className="size-full bg-white object-contain"
+                />
+              ) : (
+                <AppIcons.building className="size-4" stroke={1.75} />
+              )}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{workspace.name}</p>
@@ -95,7 +106,15 @@ export function CredentialsStep({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link
+              href={`/forgot-password?workspace=${encodeURIComponent(workspace.slug)}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <AppIcons.lock
               className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"

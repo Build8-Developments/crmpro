@@ -10,7 +10,7 @@ export class CreateRoleDto {
   name: string;
 
   @IsOptional()
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() || undefined : value,
   )
   @IsString()

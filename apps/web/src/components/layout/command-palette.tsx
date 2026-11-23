@@ -11,7 +11,12 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { accountRoutes, navGroups } from "@/config/routes";
+import {
+  accountRoutes,
+  navGroups,
+  settingsNavGroups,
+  utilityRoutes,
+} from "@/config/routes";
 import { quickActions } from "@/config/quick-actions";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useUIStore } from "@/stores/ui-store";
@@ -50,7 +55,11 @@ export function CommandPalette() {
 
   const searchableGroups = [
     ...navGroups,
-    { label: "Account", routes: accountRoutes },
+    {
+      label: "Settings",
+      routes: settingsNavGroups.flatMap((group) => group.routes),
+    },
+    { label: "Account", routes: [...accountRoutes, ...utilityRoutes] },
   ]
     .map((group) => ({
       ...group,

@@ -20,6 +20,11 @@ export {
   type PipelineCloseType,
 } from './leads/lead-stage.util';
 export {
+  normalizePhone,
+  phoneSearchCore,
+  toAsciiDigits,
+} from './leads/phone-normalization.util';
+export {
   TENANT_ROLE_NAMES,
   DEFAULT_TENANT_ROLES,
   OWNER_PERMISSION_KEYS,
@@ -28,6 +33,8 @@ export {
   DEFAULT_LEAD_SOURCES,
   DEFAULT_PIPELINE,
   DEFAULT_PIPELINE_STAGES,
+  DEFAULT_LOST_REASONS,
+  type LostReasonDefinition,
   type TenantRoleDefinition,
   type PipelineStageDefinition,
   type TenantRolePermissionMap,
@@ -45,7 +52,33 @@ export {
   type ValidationErrorLike,
 } from './errors';
 export {
+  CONTRACT_TERMINATION_MODES,
+  PLAN_SNAPSHOT_VERSION,
+  buildPlanSnapshot,
   computeContractAccessEndAt,
+  computeTerminationAccessEndsAt,
   isWithinContractGrace,
+  parseFeatureFlagRecord,
+  parsePlanSnapshot,
+  resolvePlanTerms,
   type ContractGraceInput,
+  type ContractTerminationModeValue,
+  type PlanSnapshot,
+  type PlanSnapshotContractSource,
+  type PlanSnapshotFeatureFlags,
+  type PlanSnapshotIssueHandler,
+  type PlanSnapshotPlanSource,
+  type PlanSnapshotQuotas,
+  type PlanTermsLivePlan,
+  type ResolvedPlanTerms,
 } from './billing';
+export {
+  parseRedisUrl,
+  resolveRedisConnectionConfig,
+  type RedisConnectionConfig,
+} from './redis';
+export * from './workflow';
+export * from './leads/lead-profile';
+export * from './leads/stage-icons';
+export * from './leads/contact-mask';
+export * from './leads/lead-merge';

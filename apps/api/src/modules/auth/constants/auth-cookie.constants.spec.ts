@@ -17,7 +17,7 @@ describe('auth-cookie.constants', () => {
   });
 
   it('builds cookie options with production secure flag', () => {
-    const production = buildRefreshCookieOptions('production', '7d');
+    const production = buildRefreshCookieOptions('production', '7d', false);
     expect(production).toEqual({
       httpOnly: true,
       secure: true,
@@ -26,31 +26,26 @@ describe('auth-cookie.constants', () => {
       maxAge: getRefreshCookieMaxAgeMs('7d'),
     });
 
-    const development = buildRefreshCookieOptions('development', '7d');
+    const development = buildRefreshCookieOptions('development', '7d', false);
     expect(development.secure).toBe(false);
     expect(development.sameSite).toBe('lax');
   });
 
   it('builds cross-origin production cookie options when enabled', () => {
-    const previous = process.env.REFRESH_COOKIE_CROSS_ORIGIN;
-    process.env.REFRESH_COOKIE_CROSS_ORIGIN = 'true';
+    const crossOrigin = buildRefreshCookieOptions('production', '7d', true);
+    expect(crossOrigin).toEqual({
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: REFRESH_COOKIE_PATH,
+      maxAge: getRefreshCookieMaxAgeMs('7d'),
+    });
+  });
 
-    try {
-      const crossOrigin = buildRefreshCookieOptions('production', '7d', true);
-      expect(crossOrigin).toEqual({
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        path: REFRESH_COOKIE_PATH,
-        maxAge: getRefreshCookieMaxAgeMs('7d'),
-      });
-    } finally {
-      if (previous === undefined) {
-        delete process.env.REFRESH_COOKIE_CROSS_ORIGIN;
-      } else {
-        process.env.REFRESH_COOKIE_CROSS_ORIGIN = previous;
-      }
-    }
+  it('ignores cross-origin outside production', () => {
+    const development = buildRefreshCookieOptions('development', '7d', true);
+    expect(development.sameSite).toBe('lax');
+    expect(development.secure).toBe(false);
   });
 });
 
@@ -58,6 +53,7 @@ describe('auth-cookie.util', () => {
   const config = {
     nodeEnv: 'development',
     refreshTokenExpiration: '7d',
+    refreshCookieCrossOrigin: false,
   };
 
   let response: {
@@ -78,14 +74,14 @@ describe('auth-cookie.util', () => {
     expect(response.cookie).toHaveBeenCalledWith(
       REFRESH_COOKIE_NAME,
       'session.secret',
-      buildRefreshCookieOptions('development', '7d'),
+      buildRefreshCookieOptions('development', '7d', false),
     );
   });
 
   it('clearRefreshCookie clears cookie with matching path and flags', () => {
     clearRefreshCookie(response as unknown as Response, config);
 
-    const options = buildRefreshCookieOptions('development', '7d');
+    const options = buildRefreshCookieOptions('development', '7d', false);
     expect(response.clearCookie).toHaveBeenCalledWith(REFRESH_COOKIE_NAME, {
       httpOnly: options.httpOnly,
       secure: options.secure,

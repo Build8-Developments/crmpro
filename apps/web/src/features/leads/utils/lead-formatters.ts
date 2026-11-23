@@ -1,25 +1,10 @@
-import type { InterestLevel, Lead, PipelineCloseType } from "@/features/leads/types";
-import { formatRelativeTime } from "@/lib/format";
+import type { Lead } from "@/features/leads/types";
+import { formatCompactNumber, formatRelativeTime } from "@/lib/format";
 
 const STALE_CONTACT_DAYS = 7;
 
-export function formatLeadContact(lead: Lead): {
-  phone: string;
-  email: string | null;
-} {
-  return {
-    phone: lead.primaryPhone,
-    email: lead.email,
-  };
-}
-
 export function getPrimaryProjectInterest(lead: Lead) {
   return lead.projectInterests[0] ?? null;
-}
-
-export function formatInterestLevel(level: InterestLevel): string | null {
-  if (!level) return null;
-  return level.charAt(0) + level.slice(1).toLowerCase();
 }
 
 export function isStaleContact(lastContactedAt: string | null): boolean {
@@ -37,26 +22,17 @@ export function formatLastContacted(lastContactedAt: string | null): string {
   return formatRelativeTime(lastContactedAt);
 }
 
-export type StageBadgeTone = "default" | "success" | "destructive" | "secondary";
-
-export function getStageBadgeTone(
-  closeType: PipelineCloseType,
-  isClosed: boolean,
-): StageBadgeTone {
-  if (closeType === "WON") return "success";
-  if (closeType === "LOST") return "destructive";
-  if (isClosed) return "secondary";
-  return "default";
-}
-
-export function paginationRangeLabel(
-  page: number,
-  limit: number,
-  totalItems: number,
-): string {
-  if (totalItems === 0) return "Showing 0 leads";
-
-  const start = (page - 1) * limit + 1;
-  const end = Math.min(page * limit, totalItems);
-  return `Showing ${start}–${end} of ${totalItems.toLocaleString()} leads`;
+/** "2M – 3.5M EGP", "From 2M EGP", "Up to 3M EGP", or null when unknown. */
+export function formatBudget(
+  min: number | null,
+  max: number | null,
+  currency = "EGP",
+): string | null {
+  if (min === null && max === null) return null;
+  if (min !== null && max !== null) {
+    return `${formatCompactNumber(min)} – ${formatCompactNumber(max)} ${currency}`;
+  }
+  return min !== null
+    ? `From ${formatCompactNumber(min)} ${currency}`
+    : `Up to ${formatCompactNumber(max!)} ${currency}`;
 }

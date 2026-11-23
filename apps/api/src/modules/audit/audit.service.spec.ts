@@ -49,9 +49,9 @@ describe('AuditService', () => {
         findFirst: jest.fn(),
       },
       user: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'user-2', name: 'Target User' },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 'user-2', name: 'Target User' }]),
       },
       role: { findMany: jest.fn().mockResolvedValue([]) },
       lead: { findMany: jest.fn().mockResolvedValue([]) },
@@ -96,8 +96,8 @@ describe('AuditService', () => {
   it('returns 404 when audit log belongs to another tenant', async () => {
     prisma.auditLog.findFirst.mockResolvedValue(null);
 
-    await expect(
-      service.getAuditLog('tenant-a', 'audit-1'),
-    ).rejects.toThrow(NotFoundException);
+    await expect(service.getAuditLog('tenant-a', 'audit-1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

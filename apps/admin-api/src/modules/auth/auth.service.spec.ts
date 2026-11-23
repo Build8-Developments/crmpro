@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
@@ -72,7 +69,9 @@ describe('AuthService', () => {
     verifyRefreshToken: jest.fn(),
     formatRefreshToken: jest.fn().mockReturnValue('session.raw-secret'),
     generateAccessToken: jest.fn().mockReturnValue('access-token'),
-    getRefreshTokenExpiresAt: jest.fn().mockReturnValue(new Date(Date.now() + 86_400_000)),
+    getRefreshTokenExpiresAt: jest
+      .fn()
+      .mockReturnValue(new Date(Date.now() + 86_400_000)),
     parseRefreshToken: jest.fn(),
   };
 
@@ -98,12 +97,13 @@ describe('AuthService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    prisma.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
-      callback({
-        adminSession: { create: jest.fn().mockResolvedValue(session) },
-        platformAdmin: { update: jest.fn() },
-        adminSession_updateMany: jest.fn(),
-      }),
+    prisma.$transaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) =>
+        callback({
+          adminSession: { create: jest.fn().mockResolvedValue(session) },
+          platformAdmin: { update: jest.fn() },
+          adminSession_updateMany: jest.fn(),
+        }),
     );
 
     const module: TestingModule = await Test.createTestingModule({
@@ -158,8 +158,8 @@ describe('AuthService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       },
     };
-    prisma.$transaction.mockImplementation(async (callback: (client: typeof tx) => unknown) =>
-      callback(tx),
+    prisma.$transaction.mockImplementation(
+      async (callback: (client: typeof tx) => unknown) => callback(tx),
     );
 
     await expect(
@@ -175,5 +175,67 @@ describe('AuthService', () => {
       where: { adminId: admin.id, revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
+  });
+
+  it('rotates the refresh token with a compare-and-swap on the previous hash', async () => {
+    tokenService.parseRefreshToken.mockReturnValue({
+      sessionId: session.id,
+      rawSecret: 'old-secret',
+    });
+    adminSessionService.findById.mockResolvedValue(session);
+    tokenService.verifyRefreshToken.mockResolvedValue(true);
+    prisma.platformAdmin.findFirst.mockResolvedValue(admin);
+
+    const tx = {
+      adminSession: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    };
+    prisma.$transaction.mockImplementation(
+      async (callback: (client: typeof tx) => unknown) => callback(tx),
+    );
+
+    const result = await service.refresh('session.old-secret', metadata);
+
+    expect(tx.adminSession.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: session.id,
+        hashedRefreshToken: session.hashedRefreshToken,
+        revokedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+      },
+      data: { hashedRefreshToken: 'hashed-secret' },
+    });
+    expect(adminSecurityService.logTokenRefresh).toHaveBeenCalledWith(
+      admin.id,
+      metadata,
+      tx,
+    );
+    expect(result.accessToken).toBe('access-token');
+    expect(result.refreshToken).toBe('session.raw-secret');
+  });
+
+  it('rejects a lost rotation race without revoking other sessions', async () => {
+    tokenService.parseRefreshToken.mockReturnValue({
+      sessionId: session.id,
+      rawSecret: 'old-secret',
+    });
+    adminSessionService.findById.mockResolvedValue(session);
+    tokenService.verifyRefreshToken.mockResolvedValue(true);
+    prisma.platformAdmin.findFirst.mockResolvedValue(admin);
+
+    const tx = {
+      adminSession: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    };
+    prisma.$transaction.mockImplementation(
+      async (callback: (client: typeof tx) => unknown) => callback(tx),
+    );
+
+    await expect(
+      service.refresh('session.old-secret', metadata),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(adminSecurityService.logTokenReuse).not.toHaveBeenCalled();
+    expect(adminSecurityService.logTokenRefresh).not.toHaveBeenCalled();
+    // The revoke-all path uses this same mock, so one call proves it never ran.
+    expect(tx.adminSession.updateMany).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  NotificationPriority,
-  NotificationType,
-} from '@crmpro/database';
+import { NotificationPriority, NotificationType } from '@crmpro/database';
 import {
   NotificationTemplateInput,
   NotificationTemplateResult,
@@ -72,6 +69,60 @@ export class NotificationTemplateService {
           ),
           priority: NotificationPriority.NORMAL,
         };
+      case NotificationType.TASK_ASSIGNED:
+        return {
+          title: 'New task',
+          message: `${this.asString(input.metadata.taskTitle, 'A task')}${this.leadSuffix(input.metadata)} was added to your day.`,
+          priority: NotificationPriority.NORMAL,
+        };
+      case NotificationType.TASK_DUE:
+        return {
+          title: 'Due soon',
+          message: `${this.asString(input.metadata.taskTitle, 'A task')}${this.leadSuffix(input.metadata)} is due soon.`,
+          priority: NotificationPriority.HIGH,
+        };
+      case NotificationType.TASK_OVERDUE:
+        return {
+          title: 'Overdue',
+          message: `${this.asString(input.metadata.taskTitle, 'A task')}${this.leadSuffix(input.metadata)} is overdue.`,
+          priority: NotificationPriority.HIGH,
+        };
+      case NotificationType.TASK_COMPLETED:
+        return {
+          title: 'Task completed',
+          message: `${this.asString(input.metadata.taskTitle, 'A task')}${this.leadSuffix(input.metadata)} was completed.`,
+          priority: NotificationPriority.LOW,
+        };
+      case NotificationType.ESCALATION:
+        return {
+          title: this.asString(input.metadata.title, 'Needs your attention'),
+          message: this.asString(
+            input.metadata.message,
+            'Something on your team needs attention.',
+          ),
+          priority: NotificationPriority.HIGH,
+        };
+      case NotificationType.ACHIEVEMENT:
+        return {
+          title: `Badge unlocked: ${this.asString(input.metadata.badgeName, 'New badge')}`,
+          message: `You reached "${this.asString(input.metadata.levelLabel, 'a new level')}". See all your badges on My performance.`,
+          priority: NotificationPriority.NORMAL,
+        };
+      case NotificationType.PROJECT_UPDATE: {
+        const updateType = this.asString(input.metadata.updateType, '');
+        return {
+          title: `${this.asString(input.metadata.projectName, 'Project')}: ${this.asString(input.metadata.title, 'New update')}`,
+          message: this.asString(
+            input.metadata.message,
+            'A project you are selling has a new update.',
+          ),
+          // Price and availability changes mean re-quoting clients today.
+          priority:
+            updateType === 'PRICE_CHANGE' || updateType === 'AVAILABILITY'
+              ? NotificationPriority.HIGH
+              : NotificationPriority.NORMAL,
+        };
+      }
       case NotificationType.SYSTEM:
       case NotificationType.SUPPORT_REPLY:
       default:
@@ -90,6 +141,11 @@ export class NotificationTemplateService {
     return typeof value === 'string' && value.trim().length > 0
       ? value.trim()
       : fallback;
+  }
+
+  private leadSuffix(metadata: Record<string, unknown>): string {
+    const leadName = this.asString(metadata.leadName, '');
+    return leadName ? ` for ${leadName}` : '';
   }
 
   private asNumber(value: unknown): number {

@@ -19,6 +19,15 @@ export interface SignedUploadUrlParams {
 export interface SignedDownloadUrlParams {
   objectKey: string;
   expiresInSeconds?: number;
+  /**
+   * `inline` lets the browser render it (previews); `attachment` forces a
+   * download. Omitted = the object's stored headers.
+   */
+  disposition?: 'inline' | 'attachment';
+  /** Suggested filename for `attachment`. */
+  fileName?: string;
+  /** Override the Content-Type the browser sees (e.g. force text/plain). */
+  contentType?: string;
 }
 
 export interface SignedUrlResult {

@@ -1,5 +1,6 @@
 "use client";
 
+import { StageBadge, StageIconPicker } from "@/components/crm/stage-visuals";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +20,17 @@ import {
   getDefaultInsertSortOrder,
   STAGE_COLOR_PRESETS,
 } from "@/features/pipelines/utils/pipeline-stage";
+import {
+  StageRuleFields,
+  stageRuleError,
+  stageRuleInput,
+  type StageRuleDraft,
+} from "@/features/pipelines/components/stage-rule-fields";
 import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
+
+/** Same default as the API: revive after 7 days, no stuck review. */
+const NEW_STAGE_RULES: StageRuleDraft = { staleAfterDays: "7", stuckAfterDays: "" };
 
 export function CreateStageDialog() {
   const createStagePipelineId = usePipelineUiStore(
@@ -39,11 +49,16 @@ export function CreateStageDialog() {
 
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(STAGE_COLOR_PRESETS[0]);
+  const [icon, setIcon] = useState<string | null>("circle-check");
+  const [rules, setRules] = useState<StageRuleDraft>(NEW_STAGE_RULES);
+  const rulesError = stageRuleError(rules);
 
   const handleClose = () => {
     closeCreateStage();
     setName("");
     setColor(STAGE_COLOR_PRESETS[0]);
+    setIcon("circle-check");
+    setRules(NEW_STAGE_RULES);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -51,7 +66,7 @@ export function CreateStageDialog() {
     if (!createStagePipelineId || !pipeline) return;
 
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || rulesError) return;
 
     await createStage.mutateAsync({
       pipelineId: createStagePipelineId,
@@ -59,7 +74,9 @@ export function CreateStageDialog() {
         name: trimmed,
         sortOrder: getDefaultInsertSortOrder(pipeline.stages),
         color,
+        icon,
         isClosed: false,
+        ...stageRuleInput(rules),
       },
     });
 
@@ -70,7 +87,7 @@ export function CreateStageDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add stage</DialogTitle>
           <DialogDescription>
@@ -90,6 +107,16 @@ export function CreateStageDialog() {
               required
               autoFocus
             />
+          </div>
+
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+            <span className="text-xs text-muted-foreground">Preview</span>
+            <StageBadge stage={{ name: name.trim() || "New stage", color, icon }} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Icon</Label>
+            <StageIconPicker value={icon} color={color} onChange={setIcon} />
           </div>
 
           <div className="space-y-2">
@@ -126,13 +153,15 @@ export function CreateStageDialog() {
             </div>
           </div>
 
+          <StageRuleFields value={rules} onChange={setRules} />
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={createStage.isPending || !name.trim()}
+              disabled={createStage.isPending || !name.trim() || Boolean(rulesError)}
             >
               {createStage.isPending ? "Adding..." : "Add stage"}
             </Button>

@@ -21,11 +21,16 @@ import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UsersService } from './users.service';
+import { InviteUserDto } from './dto/invite-user.dto';
+import { UserInvitationsService } from './services/user-invitations.service';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly invitations: UserInvitationsService,
+  ) {}
 
   @Get()
   @RequirePermission(PERMISSIONS.USER_READ)
@@ -109,6 +114,31 @@ export class UsersController {
       user.id,
       id,
       dto,
+    );
+    return { success: true, data };
+  }
+
+  /** Create the user and email them a link to choose their own password. */
+  @Post('invite')
+  @RequirePermission(PERMISSIONS.USER_CREATE)
+  async inviteUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: InviteUserDto,
+  ) {
+    const data = await this.invitations.inviteUser(user.tenantId, user.id, dto);
+    return { success: true, data };
+  }
+
+  @Post(':id/resend-invite')
+  @RequirePermission(PERMISSIONS.USER_CREATE)
+  async resendInvite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.invitations.resendInvite(
+      user.tenantId,
+      user.id,
+      id,
     );
     return { success: true, data };
   }

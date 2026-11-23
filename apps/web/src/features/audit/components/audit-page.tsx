@@ -10,10 +10,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { AuditDetailDrawer } from "@/features/audit/components/audit-detail-drawer";
 import { AuditEmptyState } from "@/features/audit/components/audit-empty-state";
 import { AuditHeader } from "@/features/audit/components/audit-header";
-import { AuditPagination } from "@/features/audit/components/audit-pagination";
 import { AuditSkeleton } from "@/features/audit/components/audit-skeleton";
 import { AuditTable } from "@/features/audit/components/audit-table";
 import { AuditToolbar } from "@/features/audit/components/audit-toolbar";
@@ -186,9 +186,12 @@ export function AuditPage() {
               onSelectLog={openDrawer}
             />
             {pagination ? (
-              <AuditPagination
+              <DataTablePagination
                 pagination={pagination}
                 onPageChange={setPage}
+                itemLabel="events"
+                hideOnSinglePage
+                className="border-t-0 px-1"
               />
             ) : null}
           </>

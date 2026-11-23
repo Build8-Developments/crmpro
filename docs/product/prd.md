@@ -83,12 +83,17 @@ The platform should:
 Long-term vision includes:
 
 - AI assistant features
-- WhatsApp integration
-- Meta Ads integration
+- multi-channel Meta messaging, beginning with WhatsApp
+- Meta Ads attribution and closed-loop outcome reporting
+- Project Files for raw developer price lists and inventory sheets
 - Google Ads integration
 - automation workflows
 
 These are **not part of MVP**.
+
+Confirmed post-MVP scope, sequencing, pricing principles, and non-decisions are maintained in
+[`phase-2-roadmap.md`](phase-2-roadmap.md). Meta-specific architecture is maintained in
+[`../architecture/meta-platform-integrations.md`](../architecture/meta-platform-integrations.md).
 
 ---
 
@@ -636,3 +641,21 @@ Key metrics:
 - improved response time
 - better visibility into agent activity
 - improved lead conversion
+
+---
+
+# 13. Confirmed Post-MVP Direction
+
+The MVP scope above is unchanged. The next confirmed product direction is:
+
+- tenant-owned Meta integrations, with tenants paying Meta directly;
+- a channel-neutral messaging engine launching with WhatsApp and later supporting Messenger and
+  Instagram Direct;
+- a flat per-agency messaging addon tiered by CRMPro plan or seats, plus a one-time setup fee;
+- auditable cross-channel Lead matching with automatic merge only on exact phone matches;
+- Meta ad-click attribution and closed-loop outcome reporting after messaging is stable;
+- Project Files for retaining raw developer documents without AI normalization or live unit
+  inventory claims.
+
+See [`phase-2-roadmap.md`](phase-2-roadmap.md) for the canonical Phase 2 product decisions and
+[`competitive-positioning.md`](competitive-positioning.md) for the dated competitor assessment.
