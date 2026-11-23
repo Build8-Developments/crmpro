@@ -32,6 +32,16 @@ import {
 import { usePermissions } from "@/hooks/use-permissions";
 import { accessLeadContact } from "@/features/leads/api";
 import { toast } from "@/lib/toast";
+import { CustomFieldsFormSection } from "@/features/custom-fields/components/custom-field-inputs";
+import { useCustomFields } from "@/features/custom-fields/hooks";
+import {
+  customFieldErrorsFromApi,
+  customFieldsInput,
+  draftFromValues,
+  validateCustomFieldDraft,
+  type CustomFieldDraft,
+  type CustomFieldErrors,
+} from "@/features/custom-fields/utils/custom-field-values";
 import {
   EMPTY_PROFILE_DRAFT,
   LeadProfileFields,
@@ -47,6 +57,8 @@ export function EditLeadDialog() {
   const { can } = usePermissions();
   const { sources, projects } = useLeadFilterOptions();
   const updateLead = useUpdateLead();
+  const { data: customFieldData } = useCustomFields();
+  const customFields = customFieldData ?? [];
 
   const leadId = editDialog?.leadId;
   const open = Boolean(leadId);
@@ -64,6 +76,8 @@ export function EditLeadDialog() {
   const [projectInterests, setProjectInterests] = useState<
     ProjectInterestDraft[]
   >([]);
+  const [customDraft, setCustomDraft] = useState<CustomFieldDraft>({});
+  const [customErrors, setCustomErrors] = useState<CustomFieldErrors>({});
 
   // Include the lead's own projects so interests in projects outside the
   // option list (inactive, or beyond the first page) are still shown and kept.
@@ -88,6 +102,8 @@ export function EditLeadDialog() {
       setFullName(lead.fullName);
       setContactUnlocked(false);
       setProfile(profileDraftFromLead(lead));
+      setCustomDraft(draftFromValues(lead.customFields));
+      setCustomErrors({});
       setSourceId(lead.source?.id);
       setProjectInterests(
         lead.projectInterests.map((interest) => ({
@@ -126,29 +142,59 @@ export function EditLeadDialog() {
     }
   };
 
+  /** Editing a field clears its error; the others stay until fixed. */
+  const handleCustomChange = (draft: CustomFieldDraft) => {
+    setCustomErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([key]) => draft[key] === customDraft[key]),
+      ),
+    );
+    setCustomDraft(draft);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!leadId) return;
+    if (!leadId || !lead) return;
 
     const trimmedSecondary = secondaryPhone.trim();
     const trimmedEmail = email.trim();
 
-    await updateLead.mutateAsync({
-      leadId,
-      input: {
-        fullName: fullName.trim(),
-        ...(contactUnlocked
-          ? {
-              primaryPhone: primaryPhone.trim(),
-              secondaryPhone: trimmedSecondary.length > 0 ? trimmedSecondary : null,
-              email: trimmedEmail.length > 0 ? trimmedEmail : null,
-            }
-          : {}),
-        ...profileDraftToInput(profile),
-        sourceId: sourceId ?? null,
-        projectInterests: toProjectInterestsInput(projectInterests),
-      },
+    // Only changed values are sent; archived fields are never touched.
+    const customFieldValues = customFieldsInput(
+      customFields,
+      customDraft,
+      lead.customFields ?? {},
+    );
+    // Like the API: required fields are checked when custom fields change.
+    const errors = validateCustomFieldDraft(customFields, customDraft, {
+      checkRequired: customFieldValues !== undefined,
     });
+    setCustomErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    try {
+      await updateLead.mutateAsync({
+        leadId,
+        input: {
+          fullName: fullName.trim(),
+          ...(contactUnlocked
+            ? {
+                primaryPhone: primaryPhone.trim(),
+                secondaryPhone: trimmedSecondary.length > 0 ? trimmedSecondary : null,
+                email: trimmedEmail.length > 0 ? trimmedEmail : null,
+              }
+            : {}),
+          ...profileDraftToInput(profile),
+          sourceId: sourceId ?? null,
+          projectInterests: toProjectInterestsInput(projectInterests),
+          ...(customFieldValues ? { customFields: customFieldValues } : {}),
+        },
+      });
+    } catch (error) {
+      const fieldErrors = customFieldErrorsFromApi(error);
+      if (fieldErrors) setCustomErrors(fieldErrors);
+      return;
+    }
 
     handleClose();
   };
@@ -258,6 +304,14 @@ export function EditLeadDialog() {
               <p className="text-sm font-medium">Client profile</p>
               <LeadProfileFields value={profile} onChange={setProfile} />
             </div>
+
+            <CustomFieldsFormSection
+              idPrefix="edit-lead-custom"
+              fields={customFields}
+              value={customDraft}
+              errors={customErrors}
+              onChange={handleCustomChange}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>

@@ -8,6 +8,7 @@ import { DomainEventBus } from '../../common/events/domain-event-bus.service';
 import { NotificationTriggerService } from '../notifications/notification-trigger.service';
 import { QueueService } from '../jobs/queues/queue.service';
 import { AuditWriterService } from '../audit/audit-writer.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
 import { ImportJobsService } from './import-jobs.service';
 
 describe('ImportJobsService job claiming', () => {
@@ -52,6 +53,10 @@ describe('ImportJobsService job claiming', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ImportJobsService,
+        {
+          provide: CustomFieldsService,
+          useValue: { getLeadDefinitions: jest.fn().mockResolvedValue([]) },
+        },
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storageService },
         { provide: LeadsService, useValue: {} },
@@ -62,6 +67,9 @@ describe('ImportJobsService job claiming', () => {
           provide: TenantAccessService,
           useValue: {
             assertTenantAccessible: jest.fn().mockResolvedValue(undefined),
+            getTenantAccessState: jest
+              .fn()
+              .mockResolvedValue({ readOnly: false, accessEndsAt: null }),
           },
         },
         {

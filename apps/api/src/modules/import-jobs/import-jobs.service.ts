@@ -23,6 +23,12 @@ import { TenantAccessService } from '../../common/tenant-access/tenant-access.se
 import { TenantInactiveException } from '../../common/tenant-access/tenant-access.exception';
 import { StorageService } from '../../common/storage/storage.service';
 import { LeadsService } from '../leads/leads.service';
+import { CustomFieldsService } from '../custom-fields/custom-fields.service';
+import {
+  CustomFieldValidationError,
+  mergeCustomFieldValues,
+  type CustomFieldDefinitionLike,
+} from '../custom-fields/custom-field-values';
 import type {
   DefaultPipelinePlacement,
   ImportLeadProfile,
@@ -59,7 +65,9 @@ import {
   MAX_IMPORT_ROWS,
   PROGRESS_UPDATE_BATCH_SIZE,
 } from './import-jobs.constants';
+import { importedCustomFieldValue } from './mapping/import-custom-fields';
 import {
+  customFieldColumns,
   describeMissingFields,
   IMPORT_FIELD_LABELS,
   IMPORT_FIELDS,
@@ -68,6 +76,7 @@ import {
   parseImportMapping,
   REQUIRED_IMPORT_FIELDS,
   suggestMapping,
+  toCustomFieldTarget,
   type ImportField,
   type ImportMapping,
 } from './mapping/import-fields';
@@ -150,12 +159,21 @@ type RowOutcome = 'success' | 'failure' | 'skipped';
 
 type ColumnIndexes = Partial<Record<ImportField, number>>;
 
+/** A mapped custom field column. */
+interface CustomColumn {
+  definition: CustomFieldDefinitionLike;
+  index: number;
+}
+
 interface JobRunContext {
   jobId: string;
   tenantId: string;
   userId: string;
   duplicatePolicy: ImportDuplicatePolicy;
   columns: ColumnIndexes;
+  customColumns: CustomColumn[];
+  /** Every lead field definition (validation keeps the stored-value rules). */
+  customFieldDefinitions: CustomFieldDefinitionLike[];
   defaults: ImportDefaults;
   canAssign: boolean;
   placement: DefaultPipelinePlacement;
@@ -196,6 +214,12 @@ function fileOwnerWhere(scope: LeadScope): { uploadedByUserId?: string } {
     : { uploadedByUserId: scope.actorUserId };
 }
 
+function activeDefinitions(
+  definitions: CustomFieldDefinitionLike[],
+): CustomFieldDefinitionLike[] {
+  return definitions.filter((field) => !field.archivedAt);
+}
+
 @Injectable()
 export class ImportJobsService {
   private readonly logger = new Logger(ImportJobsService.name);
@@ -209,6 +233,7 @@ export class ImportJobsService {
     private readonly notificationTrigger: NotificationTriggerService,
     private readonly tenantAccessService: TenantAccessService,
     private readonly auditWriter: AuditWriterService,
+    private readonly customFields: CustomFieldsService,
   ) {}
 
   /** Headers, a few rows and a suggested column mapping (nothing is saved). */
@@ -223,7 +248,10 @@ export class ImportJobsService {
       fileOwnerWhere(actor.scope),
     );
     const table = await this.readFile(file);
-    const suggestedMapping = suggestMapping(table.headers);
+    const customFields = activeDefinitions(
+      await this.customFields.getLeadDefinitions(tenantId),
+    );
+    const suggestedMapping = suggestMapping(table.headers, customFields);
     if (!actor.canAssign) {
       for (const [header, field] of Object.entries(suggestedMapping)) {
         if (field === 'assignee') suggestedMapping[header] = null;
@@ -240,13 +268,24 @@ export class ImportJobsService {
         .map((row) => row.values),
       totalRows: table.rows.length,
       suggestedMapping,
-      fields: IMPORT_FIELDS.filter(
-        (key) => actor.canAssign || key !== 'assignee',
-      ).map((key) => ({
-        key,
-        label: IMPORT_FIELD_LABELS[key],
-        required: REQUIRED_IMPORT_FIELDS.includes(key),
-      })),
+      fields: [
+        ...IMPORT_FIELDS.filter(
+          (key) => actor.canAssign || key !== 'assignee',
+        ).map((key) => ({
+          key,
+          label: IMPORT_FIELD_LABELS[key],
+          required: REQUIRED_IMPORT_FIELDS.includes(key),
+          custom: false,
+        })),
+        // Required custom fields need not be mapped: an unmapped column never
+        // blocks a row, a mapped one must have a value.
+        ...customFields.map((field) => ({
+          key: toCustomFieldTarget(field.key),
+          label: field.label,
+          required: false,
+          custom: true,
+        })),
+      ],
     };
   }
 
@@ -272,6 +311,7 @@ export class ImportJobsService {
           if (field === 'assignee') mapping[header] = null;
         }
       }
+      await this.assertCustomFieldTargets(tenantId, mapping);
     }
 
     const defaults = await this.validateDefaults(tenantId, dto.defaults, actor);
@@ -349,6 +389,17 @@ export class ImportJobsService {
 
     try {
       await this.tenantAccessService.assertTenantAccessible(job.tenantId);
+      // A job queued before the contract went read-only must not write.
+      const access = await this.tenantAccessService.getTenantAccessState(
+        job.tenantId,
+      );
+      if (access.readOnly) {
+        await this.failImportJobIfActive(
+          job.id,
+          'This workspace is read-only because its contract ended; the import was not run.',
+        );
+        return;
+      }
     } catch (error) {
       if (error instanceof TenantInactiveException) {
         await this.failImportJobIfActive(job.id, error.message);
@@ -460,8 +511,22 @@ export class ImportJobsService {
       const table = await this.readFile(file);
       totalRows = table.rows.length;
 
-      const columns = this.resolveColumns(table, options.mapping);
+      const customFieldDefinitions =
+        await this.customFields.getLeadDefinitions(tenantId);
+      const mapping =
+        options.mapping ??
+        suggestMapping(
+          table.headers,
+          activeDefinitions(customFieldDefinitions),
+        );
+      const columns = this.resolveColumns(table, mapping);
       if (!options.canAssign) delete columns.assignee;
+      const customColumns = this.resolveCustomColumns(
+        jobId,
+        table,
+        mapping,
+        customFieldDefinitions,
+      );
 
       const [placement, lookups] = await Promise.all([
         this.resolvePlacement(tenantId, options.defaults),
@@ -482,6 +547,8 @@ export class ImportJobsService {
         userId,
         duplicatePolicy: job.duplicatePolicy,
         columns,
+        customColumns,
+        customFieldDefinitions,
         defaults: options.canAssign
           ? options.defaults
           : { ...options.defaults, assignedUserId: undefined },
@@ -611,9 +678,8 @@ export class ImportJobsService {
   /** Field → column index, from the stored mapping or the headers. */
   private resolveColumns(
     table: ImportTable,
-    stored: ImportMapping | null,
+    mapping: ImportMapping,
   ): ColumnIndexes {
-    const mapping = stored ?? suggestMapping(table.headers);
     const missing = missingRequiredFields(mapping);
     if (missing.length > 0) {
       throw new BadRequestException(
@@ -633,6 +699,60 @@ export class ImportJobsService {
       columns[field] = index;
     }
     return columns;
+  }
+
+  /**
+   * Mapped custom field columns. A field archived (or removed) since the
+   * job was created is skipped: its values could not be written anyway.
+   */
+  private resolveCustomColumns(
+    jobId: string,
+    table: ImportTable,
+    mapping: ImportMapping,
+    definitions: CustomFieldDefinitionLike[],
+  ): CustomColumn[] {
+    const byKey = new Map(definitions.map((field) => [field.key, field]));
+    const columns: CustomColumn[] = [];
+
+    for (const [key, header] of Object.entries(customFieldColumns(mapping))) {
+      const definition = byKey.get(key);
+      if (!definition || definition.archivedAt) {
+        this.logger.warn(
+          `Import job ${jobId}: custom field "${key}" is no longer active; column "${header}" skipped`,
+        );
+        continue;
+      }
+      const index = table.headers.indexOf(header);
+      if (index === -1) {
+        throw new BadRequestException(
+          `Column "${header}" (${definition.label}) is not in the file`,
+        );
+      }
+      columns.push({ definition, index });
+    }
+    return columns;
+  }
+
+  /** Every custom field a mapping targets must exist and be active. */
+  private async assertCustomFieldTargets(
+    tenantId: string,
+    mapping: ImportMapping,
+  ): Promise<void> {
+    const targets = customFieldColumns(mapping);
+    if (Object.keys(targets).length === 0) return;
+
+    const active = new Set(
+      activeDefinitions(
+        await this.customFields.getLeadDefinitions(tenantId),
+      ).map((field) => field.key),
+    );
+    for (const [key, header] of Object.entries(targets)) {
+      if (!active.has(key)) {
+        throw new BadRequestException(
+          `Column "${header}" is mapped to a custom field that does not exist or is archived`,
+        );
+      }
+    }
   }
 
   /** Every default must belong to the tenant (assignee: and the scope). */
@@ -849,6 +969,9 @@ export class ImportJobsService {
     const secondaryPhone = cleanImportedPhone(cell('secondaryPhone'));
     const notes = cell('notes');
 
+    const customFields = this.buildCustomFields(context, row);
+    if ('error' in customFields) return customFields;
+
     // Names that matched nothing stay on the timeline instead of vanishing.
     const metadata: Record<string, string> = {};
     if (sourceName && !context.lookups.resolveSourceId(sourceName)) {
@@ -873,9 +996,46 @@ export class ImportJobsService {
         projectIds,
         message: notes || null,
         profile: this.buildProfile(cell),
+        customFields: customFields.values,
       },
       metadata,
     };
+  }
+
+  /**
+   * Mapped custom field cells, validated like a lead form: a bad value fails
+   * the row with the field's message; a required field whose column is
+   * mapped must not be blank.
+   */
+  private buildCustomFields(
+    context: JobRunContext,
+    row: ImportTableRow,
+  ): { values: Record<string, unknown> } | { error: string } {
+    if (context.customColumns.length === 0) return { values: {} };
+
+    const submitted: Record<string, unknown> = {};
+    for (const { definition, index } of context.customColumns) {
+      submitted[definition.key] = importedCustomFieldValue(
+        definition,
+        row.values[index] ?? '',
+      );
+    }
+
+    try {
+      return {
+        values: mergeCustomFieldValues({
+          definitions: context.customFieldDefinitions,
+          existing: null,
+          submitted,
+          required: 'submitted',
+        }),
+      };
+    } catch (error) {
+      if (error instanceof CustomFieldValidationError) {
+        return { error: error.message };
+      }
+      throw error;
+    }
   }
 
   /** Unknown option values and unreadable amounts are ignored, not fatal. */

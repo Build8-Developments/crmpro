@@ -36,6 +36,7 @@ import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { LeadFiles } from "./lead-files";
 import { LeadProfileSummary } from "./lead-profile-summary";
+import { LeadCustomFieldsSummary } from "@/features/custom-fields/components/lead-custom-fields-summary";
 import { MaskedContact } from "./masked-contact";
 import { LeadNextSteps } from "./lead-next-steps";
 import { CHANNEL_ICONS, HeatBadge } from "./workflow-visuals";
@@ -333,6 +334,8 @@ export function LeadDetailDrawer() {
                 </section>
 
                 <LeadProfileSummary lead={lead} />
+
+                <LeadCustomFieldsSummary values={lead.customFields ?? {}} />
 
                 <LeadFiles leadId={lead.id} />
 

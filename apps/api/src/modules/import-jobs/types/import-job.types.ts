@@ -1,6 +1,10 @@
 import { ImportDuplicatePolicy, JobStatus } from '@crmpro/database';
 import type { StoredLeadScope } from '../../../common/auth';
-import type { ImportField, ImportMapping } from '../mapping/import-fields';
+import type {
+  CustomFieldTarget,
+  ImportField,
+  ImportMapping,
+} from '../mapping/import-fields';
 import type { ImportFileType } from '../parsing/import-table.reader';
 
 export type ImportJobErrorKind = 'error' | 'duplicate';
@@ -71,9 +75,12 @@ export interface ImportJobResponse {
 }
 
 export interface ImportFieldDescriptor {
-  key: ImportField;
+  /** A lead field, or `custom:<key>` for a tenant custom field. */
+  key: ImportField | CustomFieldTarget;
   label: string;
   required: boolean;
+  /** A tenant custom field (shown in its own group). */
+  custom: boolean;
 }
 
 export interface ImportPreviewResponse {

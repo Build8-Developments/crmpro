@@ -6,7 +6,10 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -222,6 +225,20 @@ export function ImportMappingStep({
     if (field) headerForField.set(field, header);
   }
   const importedColumns = data.headers.filter((header) => mapping[header]);
+  // Older API responses have no `custom` flag: treat those as lead fields.
+  const leadFields = data.fields.filter((field) => !field.custom);
+  const customFields = data.fields.filter((field) => field.custom);
+
+  const renderOption = (option: ImportFieldDescriptor, header: string) => {
+    const usedBy = headerForField.get(option.key);
+    return (
+      <SelectItem key={option.key} value={option.key}>
+        {option.label}
+        {option.required ? " *" : ""}
+        {usedBy && usedBy !== header ? " (in use)" : ""}
+      </SelectItem>
+    );
+  };
 
   /** A field belongs to one column: picking it elsewhere moves it. */
   const setField = (header: string, value: string) => {
@@ -301,16 +318,16 @@ export function ImportMappingStep({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>Don&apos;t import</SelectItem>
-                    {data.fields.map((option) => {
-                      const usedBy = headerForField.get(option.key);
-                      return (
-                        <SelectItem key={option.key} value={option.key}>
-                          {option.label}
-                          {option.required ? " *" : ""}
-                          {usedBy && usedBy !== header ? " (in use)" : ""}
-                        </SelectItem>
-                      );
-                    })}
+                    {leadFields.map((option) => renderOption(option, header))}
+                    {customFields.length > 0 ? (
+                      <>
+                        <SelectSeparator />
+                        <SelectGroup>
+                          <SelectLabel>Custom fields</SelectLabel>
+                          {customFields.map((option) => renderOption(option, header))}
+                        </SelectGroup>
+                      </>
+                    ) : null}
                   </SelectContent>
                 </Select>
               </li>
@@ -322,6 +339,9 @@ export function ImportMappingStep({
         * Required. Phones with a lost leading zero, Arabic digits and budgets
         like &quot;2.5M&quot; or &quot;٣ مليون&quot; are cleaned up
         automatically. Unknown sources, projects and options are left empty.
+        {customFields.length > 0
+          ? " A custom field value that doesn't fit the field (or a required one left blank) fails that row and is listed in the report."
+          : ""}
       </p>
     </div>
   );

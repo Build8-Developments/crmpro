@@ -36,7 +36,9 @@ export type ImportFieldKey =
   | "contactChannelPreference"
   | "contactTimePreference"
   | "purchasePurpose"
-  | "assignee";
+  | "assignee"
+  /** A tenant custom field: `custom:<definition key>`. */
+  | `custom:${string}`;
 
 /** File header → lead field (null = not imported). */
 export type ImportMapping = Record<string, ImportFieldKey | null>;
@@ -58,6 +60,8 @@ export interface ImportFieldDescriptor {
   key: ImportFieldKey;
   label: string;
   required: boolean;
+  /** A tenant custom field (listed in its own group). */
+  custom: boolean;
 }
 
 export interface ImportPreview {

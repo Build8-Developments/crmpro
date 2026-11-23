@@ -395,6 +395,7 @@ export class LeadMergeService {
               }
             : {}),
           ...plan.phone,
+          ...mergedCustomFields(target.customFields, source.customFields),
           firstContactedAt: minDate(
             target.firstContactedAt,
             source.firstContactedAt,
@@ -743,4 +744,42 @@ export class LeadMergeService {
     );
     return keys.has(PERMISSIONS.LEAD_ASSIGN);
   }
+}
+
+function asValueRecord(
+  value: Prisma.JsonValue | null,
+): Record<string, Prisma.JsonValue> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, Prisma.JsonValue>)
+    : {};
+}
+
+function isEmptyValue(value: Prisma.JsonValue | undefined): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
+/**
+ * Custom field values the duplicate has and the survivor doesn't (the
+ * survivor's own values always win). Nothing to write when nothing is new.
+ */
+export function mergedCustomFields(
+  target: Prisma.JsonValue | null,
+  source: Prisma.JsonValue | null,
+): { customFields?: Prisma.InputJsonValue } {
+  const kept = asValueRecord(target);
+  const extra = Object.entries(asValueRecord(source)).filter(
+    ([key, value]) => !isEmptyValue(value) && isEmptyValue(kept[key]),
+  );
+  if (extra.length === 0) return {};
+  return {
+    customFields: {
+      ...kept,
+      ...Object.fromEntries(extra),
+    },
+  };
 }

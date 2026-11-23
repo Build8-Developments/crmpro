@@ -3,6 +3,7 @@ import { AuthRbacModule } from '../../common/auth/auth-rbac.module';
 import { EntitlementsModule } from '../../common/entitlements/entitlements.module';
 import { TenantAccessModule } from '../../common/tenant-access/tenant-access.module';
 import { AuditModule } from '../audit/audit.module';
+import { CustomFieldsModule } from '../custom-fields/custom-fields.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LeadsModule } from '../leads/leads.module';
 import { QueueModule } from '../jobs/queues/queue.module';
@@ -15,6 +16,7 @@ import { ImportJobsService } from './import-jobs.service';
     EntitlementsModule,
     TenantAccessModule,
     AuditModule,
+    CustomFieldsModule,
     NotificationsModule,
     LeadsModule,
     QueueModule,

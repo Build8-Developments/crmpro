@@ -32,6 +32,15 @@ import {
   type ProjectInterestDraft,
 } from "@/features/leads/components/project-interests-field";
 import { usePermissions } from "@/hooks/use-permissions";
+import { CustomFieldsFormSection } from "@/features/custom-fields/components/custom-field-inputs";
+import { useCustomFields } from "@/features/custom-fields/hooks";
+import {
+  customFieldErrorsFromApi,
+  customFieldsInput,
+  validateCustomFieldDraft,
+  type CustomFieldDraft,
+  type CustomFieldErrors,
+} from "@/features/custom-fields/utils/custom-field-values";
 import {
   EMPTY_PROFILE_DRAFT,
   LeadProfileFields,
@@ -47,6 +56,8 @@ export function CreateLeadDialog() {
   const { can } = usePermissions();
   const { pipelines, sources, users, projects } = useLeadFilterOptions();
   const createLeadMutation = useCreateLead();
+  const { data: customFieldData } = useCustomFields();
+  const customFields = customFieldData ?? [];
 
   const [fullName, setFullName] = useState("");
   const [primaryPhone, setPrimaryPhone] = useState("");
@@ -60,6 +71,8 @@ export function CreateLeadDialog() {
   >([]);
   const [pipelineId, setPipelineId] = useState<string>();
   const [pipelineStageId, setPipelineStageId] = useState<string>();
+  const [customDraft, setCustomDraft] = useState<CustomFieldDraft>({});
+  const [customErrors, setCustomErrors] = useState<CustomFieldErrors>({});
 
   const pipelineOptions = pipelines.data ?? [];
 
@@ -98,6 +111,18 @@ export function CreateLeadDialog() {
     setSourceId(undefined);
     setAssignedUserId(undefined);
     setProjectInterests([]);
+    setCustomDraft({});
+    setCustomErrors({});
+  };
+
+  /** Editing a field clears its error; the others stay until fixed. */
+  const handleCustomChange = (draft: CustomFieldDraft) => {
+    setCustomErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([key]) => draft[key] === customDraft[key]),
+      ),
+    );
+    setCustomDraft(draft);
   };
 
   const handleClose = () => {
@@ -109,20 +134,36 @@ export function CreateLeadDialog() {
     event.preventDefault();
     if (!pipelineId || !pipelineStageId) return;
 
-    const result = await createLeadMutation.mutateAsync({
-      fullName: fullName.trim(),
-      primaryPhone: primaryPhone.trim(),
-      secondaryPhone: secondaryPhone.trim() || null,
-      email: email.trim() || null,
-      ...profileDraftToInput(profile),
-      pipelineId,
-      pipelineStageId,
-      ...(sourceId ? { sourceId } : {}),
-      ...(assignedUserId ? { assignedUserId } : {}),
-      ...(projectInterests.length > 0
-        ? { projectInterests: toProjectInterestsInput(projectInterests) }
-        : {}),
+    const errors = validateCustomFieldDraft(customFields, customDraft, {
+      checkRequired: true,
     });
+    setCustomErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    const customFieldValues = customFieldsInput(customFields, customDraft);
+
+    let result;
+    try {
+      result = await createLeadMutation.mutateAsync({
+        fullName: fullName.trim(),
+        primaryPhone: primaryPhone.trim(),
+        secondaryPhone: secondaryPhone.trim() || null,
+        email: email.trim() || null,
+        ...profileDraftToInput(profile),
+        pipelineId,
+        pipelineStageId,
+        ...(sourceId ? { sourceId } : {}),
+        ...(assignedUserId ? { assignedUserId } : {}),
+        ...(projectInterests.length > 0
+          ? { projectInterests: toProjectInterestsInput(projectInterests) }
+          : {}),
+        ...(customFieldValues ? { customFields: customFieldValues } : {}),
+      });
+    } catch (error) {
+      // The toast says what is wrong; also point at the fields.
+      const fieldErrors = customFieldErrorsFromApi(error);
+      if (fieldErrors) setCustomErrors(fieldErrors);
+      return;
+    }
 
     handleClose();
     openDrawer(result.lead.id);
@@ -246,6 +287,14 @@ export function CreateLeadDialog() {
               <LeadProfileFields value={profile} onChange={setProfile} />
             </div>
           </details>
+
+          <CustomFieldsFormSection
+            idPrefix="create-lead-custom"
+            fields={customFields}
+            value={customDraft}
+            errors={customErrors}
+            onChange={handleCustomChange}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>

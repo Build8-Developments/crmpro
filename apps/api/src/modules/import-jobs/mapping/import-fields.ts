@@ -27,10 +27,29 @@ export type ImportField = (typeof IMPORT_FIELDS)[number];
 /** A column the importer chose not to import. */
 export const IGNORE_FIELD = 'ignore';
 
-export type ImportMappingTarget = ImportField | typeof IGNORE_FIELD;
+/** Mapping target for a tenant custom field: `custom:<definition key>`. */
+export const CUSTOM_FIELD_TARGET_PREFIX = 'custom:';
+export type CustomFieldTarget = `${typeof CUSTOM_FIELD_TARGET_PREFIX}${string}`;
 
-/** File header → lead field (null / "ignore" = not imported). */
-export type ImportMapping = Record<string, ImportMappingTarget | null>;
+/** Same rule as CustomFieldDefinition.key. */
+const CUSTOM_FIELD_KEY = /^[a-z][a-z0-9_]{0,39}$/;
+
+export type ImportMappingTarget =
+  | ImportField
+  | CustomFieldTarget
+  | typeof IGNORE_FIELD;
+
+/** File header → lead field or custom field (null / "ignore" = not imported). */
+export type ImportMapping = Record<
+  string,
+  ImportField | CustomFieldTarget | null
+>;
+
+/** A custom field a column can be matched to (active definitions only). */
+export interface ImportCustomFieldOption {
+  key: string;
+  label: string;
+}
 
 export const REQUIRED_IMPORT_FIELDS: readonly ImportField[] = [
   'fullName',
@@ -364,13 +383,19 @@ function isNumberedPhoneHeader(normalized: string): boolean {
 
 /**
  * Best-guess field for each header. Exact matches win; then numbered phone
- * columns; then the longest synonym contained in a header ("رقم موبايل
+ * columns; then a custom field whose label (or key) is the header, in any
+ * language; then the longest synonym contained in a header ("رقم موبايل
  * العميل" → phone). Each field is used at most once; unmatched headers map
  * to null.
  */
-export function suggestMapping(headers: string[]): ImportMapping {
+export function suggestMapping(
+  headers: string[],
+  customFields: readonly ImportCustomFieldOption[] = [],
+): ImportMapping {
   const normalized = headers.map(normalizeHeader);
-  const byColumn: Array<ImportField | null> = headers.map(() => null);
+  const byColumn: Array<ImportField | CustomFieldTarget | null> = headers.map(
+    () => null,
+  );
   const usedFields = new Set<ImportField>();
 
   const assign = (column: number, field: ImportField) => {
@@ -396,6 +421,17 @@ export function suggestMapping(headers: string[]): ImportMapping {
         byColumn[index] === null && isNumberedPhoneHeader(header),
     );
     if (column !== -1) assign(column, 'secondaryPhone');
+  }
+
+  // Pass 2b: a header that is a custom field's label or key.
+  for (const field of customFields) {
+    const names = new Set(
+      [field.label, field.key].map(normalizeHeader).filter(Boolean),
+    );
+    const column = normalized.findIndex(
+      (header, index) => byColumn[index] === null && names.has(header),
+    );
+    if (column !== -1) byColumn[column] = toCustomFieldTarget(field.key);
   }
 
   // Pass 3: longest contained synonym across all remaining fields.
@@ -433,6 +469,34 @@ export function isImportField(value: unknown): value is ImportField {
   );
 }
 
+export function toCustomFieldTarget(key: string): CustomFieldTarget {
+  return `${CUSTOM_FIELD_TARGET_PREFIX}${key}`;
+}
+
+/** The definition key of a `custom:<key>` target (null for anything else). */
+export function customFieldKeyOf(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    !value.startsWith(CUSTOM_FIELD_TARGET_PREFIX)
+  ) {
+    return null;
+  }
+  const key = value.slice(CUSTOM_FIELD_TARGET_PREFIX.length);
+  return CUSTOM_FIELD_KEY.test(key) ? key : null;
+}
+
+/** Custom field key → header, for the custom fields that are imported. */
+export function customFieldColumns(
+  mapping: ImportMapping,
+): Record<string, string> {
+  const columns: Record<string, string> = {};
+  for (const [header, target] of Object.entries(mapping)) {
+    const key = customFieldKeyOf(target);
+    if (key) columns[key] = header;
+  }
+  return columns;
+}
+
 /** Field → header for the fields that are actually imported. */
 export function invertMapping(
   mapping: ImportMapping,
@@ -454,9 +518,10 @@ export function describeMissingFields(fields: ImportField[]): string {
 }
 
 /**
- * Structural validation of a user-supplied mapping: known field keys, each
- * field at most once, name + phone present. Whether the headers exist in the
- * file is checked when the file is read.
+ * Structural validation of a user-supplied mapping: known field keys (or
+ * well-formed `custom:<key>` targets), each field at most once, name + phone
+ * present. Whether the headers exist in the file is checked when the file is
+ * read; whether custom fields exist (and are active) by the import service.
  */
 export function parseImportMapping(value: unknown): ImportMapping {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -470,6 +535,7 @@ export function parseImportMapping(value: unknown): ImportMapping {
 
   const mapping: ImportMapping = {};
   const usedFields = new Set<ImportField>();
+  const usedCustomFields = new Set<string>();
 
   for (const [header, target] of entries) {
     if (header.length > MAX_HEADER_LENGTH) {
@@ -480,6 +546,18 @@ export function parseImportMapping(value: unknown): ImportMapping {
 
     if (target === null || target === undefined || target === IGNORE_FIELD) {
       mapping[header] = null;
+      continue;
+    }
+
+    const customKey = customFieldKeyOf(target);
+    if (customKey) {
+      if (usedCustomFields.has(customKey)) {
+        throw new BadRequestException(
+          `Custom field "${customKey}" is mapped to more than one column`,
+        );
+      }
+      usedCustomFields.add(customKey);
+      mapping[header] = toCustomFieldTarget(customKey);
       continue;
     }
 

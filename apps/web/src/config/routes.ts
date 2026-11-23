@@ -241,6 +241,16 @@ export const settingsNavGroups: NavGroup[] = [
         keywords: ["lost", "reasons", "recycle", "re-engage"],
       },
       {
+        label: "Custom fields",
+        href: "/settings/custom-fields",
+        subtitle: "Extra details your team records on every lead",
+        icon: AppIcons.edit,
+        // The list itself is read with lead.read; editing needs settings.manage.
+        requiredPermissions: ["settings.read", "lead.read"],
+        searchable: true,
+        keywords: ["custom fields", "fields", "attributes", "form", "lead details", "unit type"],
+      },
+      {
         label: "Workday & response times",
         href: "/settings/workday",
         subtitle: "Working hours, first-call deadline and daily goal",

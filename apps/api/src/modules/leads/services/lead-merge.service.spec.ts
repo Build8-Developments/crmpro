@@ -923,3 +923,34 @@ describe('LeadMergeService', () => {
     });
   });
 });
+
+describe('mergedCustomFields', () => {
+  it("fills the survivor's empty custom fields from the duplicate", () => {
+    const { mergedCustomFields } = jest.requireActual<
+      typeof import('./lead-merge.service')
+    >('./lead-merge.service');
+
+    expect(
+      mergedCustomFields(
+        { unit: 'Villa', floor: null, tags: [] },
+        { unit: 'Apartment', floor: 3, tags: ['vip'], area: 'New Cairo' },
+      ),
+    ).toEqual({
+      customFields: {
+        unit: 'Villa',
+        floor: 3,
+        tags: ['vip'],
+        area: 'New Cairo',
+      },
+    });
+  });
+
+  it('writes nothing when the duplicate adds no value', () => {
+    const { mergedCustomFields } = jest.requireActual<
+      typeof import('./lead-merge.service')
+    >('./lead-merge.service');
+
+    expect(mergedCustomFields({ unit: 'Villa' }, { unit: '' })).toEqual({});
+    expect(mergedCustomFields(null, null)).toEqual({});
+  });
+});
