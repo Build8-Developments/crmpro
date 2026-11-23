@@ -21,6 +21,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, AppIcon> = {
   TASK_COMPLETED: AppIcons.users,
   SUPPORT_REPLY: AppIcons.lifeBuoy,
   ESCALATION: AppIcons.alertCircle,
+  PROJECT_UPDATE: AppIcons.projects,
   ACHIEVEMENT: AppIcons.performance,
 };
 
@@ -73,6 +74,10 @@ export function getNotificationHref(notification: Notification): string | null {
       return metaString(notification.metadata, "kind") === "leads_unassigned"
         ? "/leads?unassigned=true"
         : "/today";
+    }
+    case "PROJECT_UPDATE": {
+      const projectId = metaString(notification.metadata, "projectId");
+      return href ?? (projectId ? `/projects?id=${encodeURIComponent(projectId)}` : "/projects");
     }
     case "ACHIEVEMENT":
       return "/performance";

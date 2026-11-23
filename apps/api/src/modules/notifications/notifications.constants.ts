@@ -46,6 +46,9 @@ export const NOTIFICATION_TYPE_TO_PREFERENCE: Record<
   [NotificationType.ESCALATION]: NotificationPreferenceCategory.TASK_UPDATES,
   // Badges unlocked on My performance.
   [NotificationType.ACHIEVEMENT]: NotificationPreferenceCategory.SYSTEM,
+  // Price changes, new phases and availability on projects agents sell.
+  [NotificationType.PROJECT_UPDATE]:
+    NotificationPreferenceCategory.PIPELINE_UPDATES,
 };
 
 export const DEFAULT_NOTIFICATION_PRIORITY = NotificationPriority.NORMAL;

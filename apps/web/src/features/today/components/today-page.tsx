@@ -31,6 +31,7 @@ import {
 } from "@/features/leads/components/workflow-visuals";
 import { useLeadUiStore } from "@/features/leads/stores/lead-ui-store";
 import { SnoozeDialog, useFinishTask } from "@/features/today/components/task-actions";
+import { ProjectNewsCard } from "@/features/today/components/project-news-card";
 import { MonthTargetsCard } from "@/features/targets/components/month-targets-card";
 import { useToday } from "@/features/today/hooks";
 import type { SuggestedLead, TodayData, TodayTask } from "@/features/today/types";
@@ -119,6 +120,7 @@ export function TodayPage() {
         </div>
 
         <aside className="space-y-4">
+          <ProjectNewsCard />
           <MonthTargetsCard />
           <MonthCard data={data} />
           <UpcomingCard tasks={data.upcoming} />

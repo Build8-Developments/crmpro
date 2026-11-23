@@ -13,7 +13,7 @@ interface ProjectsTableProps {
   sortOrder: "asc" | "desc";
   onSortChange: (sortBy: ProjectsSortField, sortOrder: "asc" | "desc") => void;
   highlightedProjectId?: string | null;
-  onHighlightProject?: (projectId: string) => void;
+  onOpenProject?: (projectId: string) => void;
 }
 
 export function ProjectsTable({
@@ -22,7 +22,7 @@ export function ProjectsTable({
   sortOrder,
   onSortChange,
   highlightedProjectId,
-  onHighlightProject,
+  onOpenProject,
 }: ProjectsTableProps) {
   const table = useDataTable({ data: projects, columns: projectColumns });
 
@@ -34,7 +34,7 @@ export function ProjectsTable({
       sortOrder={sortOrder}
       onSortChange={onSortChange}
       highlightedRowId={highlightedProjectId}
-      onRowClick={onHighlightProject ? (project) => onHighlightProject(project.id) : undefined}
+      onRowClick={onOpenProject ? (project) => onOpenProject(project.id) : undefined}
       rowClassName={(project) => !project.isActive && "opacity-70"}
       aria-label="Projects"
       renderRow={(row, tr) => (

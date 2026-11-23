@@ -17,6 +17,7 @@ export type NotificationType =
   | "TASK_COMPLETED"
   | "SUPPORT_REPLY"
   | "ESCALATION"
+  | "PROJECT_UPDATE"
   | "ACHIEVEMENT";
 
 export type NotificationPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";

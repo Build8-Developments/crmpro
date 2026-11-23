@@ -16,6 +16,18 @@ export interface Project {
   developer: ProjectDeveloper;
 }
 
+/** GET /projects/:id/files */
+export interface ProjectFile {
+  id: string;
+  category: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: string;
+  projectId: string;
+  createdAt: string;
+  uploadedBy: { id: string; fullName: string };
+}
+
 export interface CreateProjectInput {
   developerId: string;
   name: string;

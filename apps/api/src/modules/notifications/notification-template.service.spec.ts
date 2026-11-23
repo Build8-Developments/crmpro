@@ -33,4 +33,32 @@ describe('NotificationTemplateService', () => {
       priority: 'NORMAL',
     });
   });
+
+  it('builds project update template with priority by update type', () => {
+    expect(
+      service.buildTemplate({
+        type: NotificationType.PROJECT_UPDATE,
+        metadata: {
+          projectName: 'Mivida',
+          title: 'New price list',
+          updateType: 'PRICE_CHANGE',
+          message: 'Prices up 5% from December.',
+        },
+      }),
+    ).toEqual({
+      title: 'Mivida: New price list',
+      message: 'Prices up 5% from December.',
+      priority: 'HIGH',
+    });
+    expect(
+      service.buildTemplate({
+        type: NotificationType.PROJECT_UPDATE,
+        metadata: {
+          projectName: 'Mivida',
+          title: 'Open day',
+          updateType: 'GENERAL',
+        },
+      }).priority,
+    ).toBe('NORMAL');
+  });
 });

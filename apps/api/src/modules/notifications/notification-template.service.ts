@@ -108,6 +108,21 @@ export class NotificationTemplateService {
           message: `You reached "${this.asString(input.metadata.levelLabel, 'a new level')}". See all your badges on My performance.`,
           priority: NotificationPriority.NORMAL,
         };
+      case NotificationType.PROJECT_UPDATE: {
+        const updateType = this.asString(input.metadata.updateType, '');
+        return {
+          title: `${this.asString(input.metadata.projectName, 'Project')}: ${this.asString(input.metadata.title, 'New update')}`,
+          message: this.asString(
+            input.metadata.message,
+            'A project you are selling has a new update.',
+          ),
+          // Price and availability changes mean re-quoting clients today.
+          priority:
+            updateType === 'PRICE_CHANGE' || updateType === 'AVAILABILITY'
+              ? NotificationPriority.HIGH
+              : NotificationPriority.NORMAL,
+        };
+      }
       case NotificationType.SYSTEM:
       case NotificationType.SUPPORT_REPLY:
       default:

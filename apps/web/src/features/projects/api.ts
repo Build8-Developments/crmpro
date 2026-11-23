@@ -3,6 +3,7 @@ import { serializeQueryParams } from "@/lib/query/query-params";
 import type {
   CreateProjectInput,
   Project,
+  ProjectFile,
   ProjectsListParams,
   ProjectsListResponse,
   UpdateProjectInput,
@@ -33,4 +34,9 @@ export function updateProject(id: string, input: UpdateProjectInput) {
 
 export function deleteProject(id: string) {
   return apiClient.delete<{ id: string }>(`/projects/${id}`);
+}
+
+/** The project's own documents (brochures, price sheets); read-only. */
+export function getProjectFiles(id: string) {
+  return apiClient.get<ProjectFile[]>(`/projects/${id}/files`);
 }
