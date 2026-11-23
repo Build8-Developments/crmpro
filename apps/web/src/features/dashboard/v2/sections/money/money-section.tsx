@@ -1,5 +1,7 @@
 "use client";
 
+import { SetupNudge } from "@/features/dashboard/v2/components/setup-nudge";
+import { usePermissions } from "@/hooks/use-permissions";
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -78,9 +80,22 @@ function MoneyContent({ data }: { data: DashboardMoney }) {
   const count = (value: number) => formatNumber(value);
   const previousLabel = PREVIOUS_LABELS[data.period.key];
   const { reserved, contracted, cancelled } = data.deals;
+  const { can } = usePermissions();
+  const noTargets =
+    data.period.key === "this-month" &&
+    data.revenue.target === null &&
+    data.commission.target === null &&
+    reserved.target === null;
 
   return (
     <div className="space-y-3">
+      {noTargets && can("target.manage") ? (
+        <SetupNudge
+          message="No targets are set for this month yet, so there's nothing to measure against."
+          href="/targets"
+          action="Set targets"
+        />
+      ) : null}
       <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border/60 bg-border/60 shadow-sm min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <MoneyKpiCard
           label="Revenue (contracted)"

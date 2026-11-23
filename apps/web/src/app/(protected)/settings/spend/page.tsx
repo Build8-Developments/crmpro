@@ -1,5 +1,6 @@
-import { SpendSettingsPage } from "@/features/source-spend/components/spend-settings-page";
+import { redirect } from "next/navigation";
 
-export default function SpendSettingsRoutePage() {
-  return <SpendSettingsPage />;
+/** Marketing spend moved out of Settings to the sidebar (Manage → Marketing spend). */
+export default function OldSpendSettingsPage() {
+  redirect("/marketing-spend");
 }

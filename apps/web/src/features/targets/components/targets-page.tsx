@@ -95,7 +95,7 @@ function savedSignature(grid: TargetsGrid): string {
  * Settings → Leads & sales → Targets (workflow spec §2.6): monthly goals per
  * person and for the workspace, next to what was actually done that month.
  */
-export function TargetsSettingsPage() {
+export function TargetsPage() {
   const [period, setPeriod] = useState<string | null>(null);
   const { data: grid, isLoading, isError, refetch, isFetching } = useTargetsGrid(period);
 

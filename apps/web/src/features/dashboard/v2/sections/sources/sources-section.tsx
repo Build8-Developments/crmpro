@@ -1,5 +1,7 @@
 "use client";
 
+import { SetupNudge } from "@/features/dashboard/v2/components/setup-nudge";
+import { usePermissions } from "@/hooks/use-permissions";
 import Link from "next/link";
 import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
@@ -59,8 +61,21 @@ function SourcesContent({ data }: { data: DashboardSources }) {
     ...(data.spendVisible ? [`${money(totals.costPerLead)} per lead`] : []),
   ];
 
+  const { can } = usePermissions();
+  const noSpend =
+    data.period.key === "this-month" &&
+    data.spendVisible &&
+    !(totals.spend && totals.spend > 0);
+
   return (
     <div className="space-y-3">
+      {noSpend && can("spend.manage") ? (
+        <SetupNudge
+          message="No marketing spend is entered for this month yet, so cost per lead, visit and deal can't be worked out."
+          href="/marketing-spend"
+          action="Enter spend"
+        />
+      ) : null}
       <div className="grid gap-3 2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <DashboardSectionCard
           icon={AppIcons.leadSources}
@@ -101,7 +116,7 @@ function SourcesContent({ data }: { data: DashboardSources }) {
         {data.spendVisible ? (
           <>
             {" "}
-            <Link href="/settings/spend" className="text-primary hover:underline">
+            <Link href="/marketing-spend" className="text-primary hover:underline">
               Enter marketing spend
             </Link>
           </>

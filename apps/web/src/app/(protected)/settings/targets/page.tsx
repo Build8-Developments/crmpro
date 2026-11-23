@@ -1,5 +1,6 @@
-import { TargetsSettingsPage } from "@/features/targets/components/targets-settings-page";
+import { redirect } from "next/navigation";
 
-export default function TargetsSettingsRoutePage() {
-  return <TargetsSettingsPage />;
+/** Targets moved out of Settings to the sidebar (Manage → Targets). */
+export default function OldTargetsSettingsPage() {
+  redirect("/targets");
 }

@@ -112,11 +112,13 @@ price; the rest optional). Cancelling a deal re-opens the lead.
 
 `(tenantId, userId | null for team, period 'YYYY-MM', metric, value)` with
 metrics: `DEALS`, `REVENUE`, `COMMISSION`, `INTERACTIONS`, `VISITS`. Managers
-set them in Settings → Team; the system proposes defaults from the last 3 months.
+set them on the Targets page (sidebar → Manage → Targets); the system proposes
+defaults from the last 3 months.
 
 ### 2.7 `SourceSpend` (new, small)
 
-`(tenantId, sourceId, period 'YYYY-MM', amount)` — entered monthly by the owner.
+`(tenantId, sourceId, period 'YYYY-MM', amount)` — entered monthly by the owner
+on the Marketing spend page (sidebar → Manage → Marketing spend).
 Enough for cost per lead / per visit / per deal without building campaigns yet.
 
 ### 2.8 `UserDailyStat` (new, computed)

@@ -80,6 +80,30 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    // Monthly routines for owners and managers; shown only with the right to edit.
+    label: "Manage",
+    routes: [
+      {
+        label: "Targets",
+        href: "/targets",
+        subtitle: "Monthly goals per person and for the workspace",
+        icon: AppIcons.trendingUp,
+        requiredPermissions: ["target.manage"],
+        searchable: true,
+        keywords: ["targets", "goals", "quota", "deals", "revenue", "commission", "kpi"],
+      },
+      {
+        label: "Marketing spend",
+        href: "/marketing-spend",
+        subtitle: "Spend per lead source and cost per lead, visit and deal",
+        icon: AppIcons.percentage,
+        requiredPermissions: ["spend.manage"],
+        searchable: true,
+        keywords: ["spend", "budget", "marketing", "cost per lead", "cpl", "ads", "roi"],
+      },
+    ],
+  },
+  {
     label: "Catalog",
     routes: [
       {
@@ -258,24 +282,6 @@ export const settingsNavGroups: NavGroup[] = [
         requiredPermissions: ["settings.read"],
         searchable: true,
         keywords: ["working hours", "sla", "response time", "goal", "workday", "escalation"],
-      },
-      {
-        label: "Targets",
-        href: "/settings/targets",
-        subtitle: "Monthly goals per person and for the workspace",
-        icon: AppIcons.trendingUp,
-        requiredPermissions: ["target.manage"],
-        searchable: true,
-        keywords: ["targets", "goals", "quota", "deals", "revenue", "commission", "kpi"],
-      },
-      {
-        label: "Marketing spend",
-        href: "/settings/spend",
-        subtitle: "Spend per lead source and cost per lead, visit and deal",
-        icon: AppIcons.percentage,
-        requiredPermissions: ["spend.manage"],
-        searchable: true,
-        keywords: ["spend", "budget", "marketing", "cost per lead", "cpl", "ads", "roi"],
       },
       {
         label: "Integrations",

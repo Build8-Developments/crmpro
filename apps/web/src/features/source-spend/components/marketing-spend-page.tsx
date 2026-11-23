@@ -80,7 +80,7 @@ interface NoteTarget {
  * Settings → Leads & sales → Marketing spend (workflow spec §2.7): what each
  * lead source cost per month, and what it produced for that money.
  */
-export function SpendSettingsPage() {
+export function MarketingSpendPage() {
   const [to, setTo] = useState<string | null>(null);
   const { data: grid, isLoading, isError, refetch } = useSourceSpend(to);
 
