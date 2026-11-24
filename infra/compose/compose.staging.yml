@@ -1,0 +1,46 @@
+# Staging on rovlex-vps: sized for the project's 3 GB / 200% slice (deployment-plan.md §2).
+# The limits add up to ~2.6 GB with everything running; tools runs only during a deploy, before
+# the apps are restarted.
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - max_connections=60
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
+  valkey:
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+  api:
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 768M }
+  admin-api:
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 384M }
+  web:
+    deploy:
+      resources:
+        limits: { cpus: "0.75", memory: 384M }
+  admin:
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+  caddy:
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+  tools:
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 768M }

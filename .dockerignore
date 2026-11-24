@@ -1,0 +1,17 @@
+# Docker build context: the repository root (apps/*/Dockerfile).
+.git
+.github
+.claude
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+docs
+infra
+docker
+**/.env
+**/.env.*
+!**/.env.example
+**/.DS_Store

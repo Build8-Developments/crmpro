@@ -72,25 +72,38 @@ Email records come in §7.
 
 ## 4. Settings that would break the app
 
-| Where                                              | Set to | Why                                                                                     |
-| -------------------------------------------------- | ------ | --------------------------------------------------------------------------------------- |
-| **Network → WebSockets**                           | On     | Realtime updates (`/socket.io`).                                                         |
-| **Speed → Optimization → Rocket Loader**           | Off    | Rewrites script loading and breaks Next.js.                                              |
-| **Scrape Shield → Email Address Obfuscation**      | Off    | Rewrites emails in the HTML, so React's page no longer matches and breaks (leads, users). |
-| **Security → Bots → Bot Fight Mode**               | Off    | Challenges server-to-server calls: the inbound leads API now, Meta webhooks later.       |
-| **Caching → Configuration → Browser Cache TTL**    | Respect Existing Headers | The apps set their own cache headers.                                  |
+| Where                                                                   | Set to | Why                                                                                      |
+| ----------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------- |
+| **Network → WebSockets**                                                | On     | Realtime updates (`/socket.io`).                                                         |
+| **Speed → Settings → Content Optimization → Rocket Loader**             | Off    | Rewrites script loading and breaks Next.js.                                              |
+| **Security → Settings** (filter *Client-side abuse*) **→ Email Address Obfuscation** | Off | Rewrites emails in the HTML, so React's page no longer matches and breaks (leads, users). |
+| **Security → Settings** (filter *Bot traffic*) **→ Bot fight mode**     | Off    | Challenges server-to-server calls: the inbound leads API now, Meta webhooks later. On the Free plan no rule can exempt a path from it, so it has to be off. |
+| **Caching → Configuration → Browser Cache TTL**                         | Respect Existing Headers | The apps set their own cache headers.                                  |
 
-Then one rule so integrations can reach the inbound leads API:
+(Email Address Obfuscation used to live under "Scrape Shield"; the new dashboard moved it.)
 
-1. **Rules → Configuration Rules → Create rule**, name `Inbound leads API`.
-2. When: **URI Path** *starts with* `/api/v1/inbound/`.
-3. Then: **Browser Integrity Check → Off**. Deploy.
+Then one rule so integrations can reach the inbound leads API. **Browser Integrity Check** (on by
+default, under Security → Settings) challenges requests with a missing or unusual `User-Agent`.
+That's fine for people, but Zapier, Make or a website's form backend calling
+`POST /api/v1/inbound/leads` can't solve a challenge, so they would get a Cloudflare HTML page
+instead of our JSON. The rule turns the check off for that path only:
 
-Leave **Security → WAF → Managed rules** (the free managed ruleset) on.
+1. **Rules → Overview → Create rule → Configuration Rule**, name `Inbound leads API`.
+2. **When incoming requests match:** *Custom filter expression* → Field **URI Path**, Operator
+   **starts with**, Value `/api/v1/inbound/`.
+3. **Then the settings are:** add **Browser Integrity Check**, set it **Off**. **Deploy**.
 
-## 5. Cloudflare Access on the admin host
+The inbound API has its own protection: an API key on every request, and our own rate limits.
 
-The platform admin gets a second lock in front of its own login.
+The **Cloudflare Free Managed Ruleset** (Security → WAF / Security rules → Managed rules) is
+deployed by default on every zone. It blocks well-known exploits (e.g. Log4j). Nothing to do; just
+don't turn it off.
+
+## 5. Cloudflare Access on the admin host (optional for staging, required before production)
+
+The platform admin gets a second lock in front of its own login. That's all it does; nothing else
+depends on it. It matters because the admin controls every workspace and has no two-factor sign-in
+yet. Staging holds only demo data, so it can wait. Do it, or add admin 2FA, before production.
 
 1. Open **Zero Trust** (left sidebar). The first time:
    1. Pick a team name, e.g. `nomow`.
@@ -113,7 +126,9 @@ The platform admin gets a second lock in front of its own login.
    10 GB, but it needs a payment method on file.
 2. **Create bucket:**
    - Name: `crmpro-staging-files`
-   - Location: **Automatic**, hint **Western Europe (WEUR)** (the server is in Europe)
+   - Location: **Specify jurisdiction → European Union (EU)**, as created for staging. Files stay
+     in the EU, and the bucket is reached at `<account-id>.eu.r2.cloudflarestorage.com`
+     (`R2_ENDPOINT_HOST` in `infra/compose/staging.env`).
    - Default storage class: **Standard**
 3. Bucket → **Settings:**
    - **Public access:** R2.dev subdomain **disabled**, no custom domain. Files are only reached
@@ -142,7 +157,8 @@ The platform admin gets a second lock in front of its own login.
      filter would break uploads.
    - Create, then save the **Access Key ID** and **Secret Access Key** in the password manager
      (the secret is shown once). Note the **S3 endpoint**
-     `https://<account-id>.r2.cloudflarestorage.com`. The account ID is not a secret.
+     `https://<account-id>.eu.r2.cloudflarestorage.com` (EU jurisdiction). The account ID is not a
+     secret.
 
 ## 7. Email — Resend on `mail.nomow.app`
 
@@ -150,52 +166,62 @@ The platform admin gets a second lock in front of its own login.
 2. **Domains → Add domain:** `mail.nomow.app`, region **Ireland (eu-west-1)**.
 3. Add the records Resend shows. Its **automatic setup with Cloudflare** is fine to use; if you
    enter them by hand, they are all **DNS only** (grey cloud), and you copy names and values
-   exactly from Resend. Cloudflare adds `.nomow.app` itself. They look like:
+   exactly from Resend. Cloudflare adds `.nomow.app` itself. The automatic setup (used for staging, 2026-11-24)
+   created:
 
-   | Type | Name                      | Content                                         |
-   | ---- | ------------------------- | ----------------------------------------------- |
-   | MX   | `send.mail`               | `feedback-smtp.eu-west-1.amazonses.com`, priority 10 |
-   | TXT  | `send.mail`               | `v=spf1 include:amazonses.com ~all`             |
-   | TXT  | `resend._domainkey.mail`  | the DKIM key Resend gives                       |
+   | Type  | Name                      | Content                                              |
+   | ----- | ------------------------- | ---------------------------------------------------- |
+   | CNAME | `send.mail`               | `send.forge.rmta.net` (Resend's bounce/return path)   |
+   | TXT   | `resend._domainkey.mail`  | the DKIM key Resend gives                            |
 
-4. DMARC and anti-spoofing, added by hand in **DNS → Records**:
+   Resend's record values change over time; whatever Resend shows and marks verified is right.
+
+4. DMARC and anti-spoofing, added by hand (Resend's automatic setup normally adds only its own three). First look
+   in **DNS → Records** for an existing `_dmarc.mail`, `_dmarc` or `@` TXT record starting
+   `v=spf1`: a name may hold only one DMARC record and one SPF record, so edit the existing one
+   instead of adding a second. For each row: **Add record** → Type **TXT** → Name as shown
+   (Cloudflare adds `.nomow.app` itself) → Content exactly as shown (no extra quotes) → TTL Auto →
+   **Save**. TXT records have no proxy toggle.
 
    | Type | Name          | Content                                                   |
    | ---- | ------------- | --------------------------------------------------------- |
-   | TXT  | `_dmarc.mail` | `v=DMARC1; p=none; rua=mailto:<your address>`             |
+   | TXT  | `_dmarc.mail` | `v=DMARC1; p=none; rua=mailto:<an address you read>`      |
    | TXT  | `@`           | `v=spf1 -all`                                             |
    | TXT  | `_dmarc`      | `v=DMARC1; p=reject`                                      |
+
+   - `rua` is where mail providers send daily DMARC reports (small XML attachments). Use any
+     inbox you check, or leave it out (`v=DMARC1; p=none`). The record still counts, which Gmail
+     and Yahoo require, but you get no reports.
 
    - `mail.nomow.app` starts at `p=none` (reports only). After two weeks of clean reports, change
      it to `p=quarantine`.
    - The bare domain sends no mail, so the last two records stop anyone from faking
      `@nomow.app` or `@<workspace>.nomow.app`. If you later want real mailboxes on `nomow.app`
      (e.g. `support@`), these two change.
-5. Wait for **Verified** in Resend. Then, in the domain's settings, turn **click tracking** and
-   **open tracking** off: tracking rewrites links, including password-reset and invite links.
+5. Wait for **Verified** in Resend. Open and click tracking must stay **off** (the default):
+   tracking rewrites links, including password-reset and invite links. To check: **Domains →
+   `mail.nomow.app` → Configuration**; if *Enable tracking metrics* still shows **Configure**,
+   tracking is off and there is nothing to do.
 6. **API Keys → Create:** name `crmpro-staging`, permission **Sending access**, domain
-   `mail.nomow.app`. Save it in the password manager (shown once). It is the SMTP password.
+   `mail.nomow.app`. Save it in the password manager (shown once). It goes in the secrets file as `RESEND_API_KEY`.
 
 ## 8. What goes into the staging secrets file (you paste the secret values)
 
-When I create the server project, `/srv/crmpro-staging/secrets/staging.env` gets these. I fill in
-everything except the three secret values, which you paste in yourself over SSH:
+`/srv/crmpro-staging/secrets/staging.env` (template: [`infra/secrets.example.env`](../../infra/secrets.example.env)).
+In the server step I run `infra/server/init-secrets.sh`, which generates the database password,
+both JWT secrets, the monitoring key and the demo passwords. Then you open the file over SSH and
+fill in the rest yourself:
 
 ```bash
-AWS_REGION=auto
-AWS_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-AWS_S3_BUCKET=crmpro-staging-files
-AWS_ACCESS_KEY_ID=            # you: R2 Access Key ID
-AWS_SECRET_ACCESS_KEY=        # you: R2 Secret Access Key
-
-MAIL_TRANSPORT=smtp
-MAIL_FROM="Nomow <no-reply@mail.nomow.app>"
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=resend
-SMTP_PASS=                    # you: Resend API key
+R2_ACCOUNT_ID=                # the Cloudflare account ID (not secret)
+R2_ACCESS_KEY_ID=             # you: R2 token's Access Key ID
+R2_SECRET_ACCESS_KEY=         # you: R2 token's Secret Access Key
+RESEND_API_KEY=               # you: Resend API key
+SEED_ADMIN_EMAIL=             # you: the email you sign in to admin-staging with
 ```
+
+Everything else (Resend's SMTP host and port, the bucket name, `MAIL_FROM`) is already in
+[`infra/compose/staging.env`](../../infra/compose/staging.env).
 
 ## 9. Checklist — tell me when these are done
 
@@ -203,7 +229,7 @@ SMTP_PASS=                    # you: Resend API key
 - [ ] `origin.pem` + `origin.key` uploaded to `~/crmpro-origin/` on `rovlex-vps` (§2.3)
 - [ ] DNS: `@` and `*` proxied A records (§3)
 - [ ] App-breaking settings off, inbound API rule added (§4)
-- [ ] Access application on `admin-staging.nomow.app` (§5)
+- [ ] Access application on `admin-staging.nomow.app` (§5), optional for staging
 - [ ] R2 bucket, CORS policy, token saved; send me the account ID (§6)
 - [ ] Resend domain verified, DMARC/SPF records, tracking off, API key saved (§7)
 

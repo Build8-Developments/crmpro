@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const apiProxyTarget =
@@ -7,6 +8,12 @@ const apiProxyTarget =
 const MOVED_TO_SETTINGS = ["users", "roles", "pipelines", "lead-sources", "audit"];
 
 const nextConfig: NextConfig = {
+  // Docker images (apps/web/Dockerfile) set NEXT_OUTPUT=standalone: a self-contained server
+  // with only the files it needs. The monorepo root is traced so workspace packages are included.
+  ...(process.env.NEXT_OUTPUT === "standalone" && {
+    output: "standalone",
+    outputFileTracingRoot: path.join(process.cwd(), "../.."),
+  }),
   // Each workspace has its own host (prime-estates.localhost:3001 in dev);
   // let `next dev` serve its assets to all of them.
   allowedDevOrigins: ["*.localhost"],

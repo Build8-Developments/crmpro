@@ -1,0 +1,43 @@
+# Nomow on the shared host Caddy of rovlex-vps (docs/infrastructure/deployment-plan.md §1).
+# Installed root-owned as /etc/caddy/sites/crmpro.caddy by the server's admin; validate with
+# `sudo -u caddy caddy validate --config /etc/caddy/Caddyfile` before reloading.
+#
+# It terminates TLS with the Cloudflare Origin certificate for nomow.app + *.nomow.app, refuses
+# any connection without Cloudflare's client certificate (Authenticated Origin Pulls), and hands
+# each request, host unchanged, to the environment's own Caddy over its unix socket. All routing
+# lives in that Caddy (infra/compose/Caddyfile), not here. The host Caddyfile's global options
+# trust CF-Connecting-IP from Cloudflare's ranges only, so {client_ip} is the real client.
+
+(nomow_env) {
+	reverse_proxy unix/{args[0]}/run/caddy.sock {
+		# Exactly one address: the client. Whatever the client sent is replaced.
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Forwarded-Proto https
+	}
+}
+
+nomow.app, *.nomow.app {
+	tls /etc/caddy/certs/crmpro/origin.pem /etc/caddy/certs/crmpro/origin.key {
+		client_auth {
+			mode require_and_verify
+			trust_pool file /etc/caddy/certs/cloudflare-origin-pull-ca.pem
+		}
+	}
+	log {
+		output file /var/log/caddy/crmpro.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+
+	# Staging: staging.nomow.app, admin-staging.nomow.app and every <slug>-staging.nomow.app.
+	@staging expression {http.request.host} == "staging.nomow.app" || {http.request.host}.endsWith("-staging.nomow.app")
+	handle @staging {
+		import nomow_env /srv/crmpro-staging
+	}
+
+	# Production gets its own server; nothing else is served here.
+	handle {
+		respond 404
+	}
+}
