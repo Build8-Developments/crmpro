@@ -81,7 +81,14 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string): Promise<RefreshResult> {
+  /**
+   * `workspaceSlug`: the workspace host the browser called from, if any. A
+   * session of another workspace is refused there (and left untouched).
+   */
+  async refresh(
+    refreshToken: string,
+    options: { workspaceSlug?: string | null } = {},
+  ): Promise<RefreshResult> {
     const parsed = this.tokenService.parseRefreshToken(refreshToken);
     if (!parsed) {
       this.authLoggingService.refreshFailure({ reason: 'malformed_token' });
@@ -120,6 +127,13 @@ export class AuthService {
     }
 
     this.assertUserActive(user);
+    if (options.workspaceSlug && options.workspaceSlug !== user.tenant.slug) {
+      this.authLoggingService.refreshFailure({
+        reason: 'workspace_mismatch',
+        sessionId: session.id,
+      });
+      throw new UnauthorizedException('Invalid refresh token');
+    }
     await this.tenantAccessService.assertTenantAccessible(user.tenantId);
 
     const newRawSecret = this.tokenService.generateRawRefreshSecret();

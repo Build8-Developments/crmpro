@@ -9,6 +9,8 @@ export interface TenantListItem {
   id: string;
   name: string;
   slug: string;
+  /** The workspace's own host, e.g. https://acme-x7k2.nomow.app; null when not configured. */
+  workspaceUrl: string | null;
   status: TenantStatus;
   plan: TenantPlanSummary;
   createdAt: Date;
@@ -32,6 +34,8 @@ export interface TenantDetail {
   id: string;
   name: string;
   slug: string;
+  /** The workspace's own host, e.g. https://acme-x7k2.nomow.app; null when not configured. */
+  workspaceUrl: string | null;
   status: TenantStatus;
   subscriptionPlan: TenantPlanSummary;
   contract: TenantContractSummary | null;

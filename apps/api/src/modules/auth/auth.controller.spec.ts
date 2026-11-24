@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request, Response } from 'express';
@@ -67,7 +67,11 @@ describe('AuthController cookie transport', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('development'),
+            get: jest.fn((key: string) =>
+              key === 'workspaces.urlTemplate'
+                ? 'https://{slug}.nomow.app'
+                : 'development',
+            ),
             getOrThrow: jest.fn().mockReturnValue('7d'),
           },
         },
@@ -125,6 +129,64 @@ describe('AuthController cookie transport', () => {
     });
   });
 
+  describe('login from a workspace host', () => {
+    const request = (origin: string) =>
+      ({
+        headers: { origin },
+        ip: '127.0.0.1',
+        socket: { remoteAddress: '127.0.0.1' },
+      }) as unknown as Request;
+    const credentials = (tenantSlug: string) => ({
+      tenantSlug,
+      email: 'owner@example.com',
+      password: 'Password1',
+    });
+
+    it('signs in to the workspace whose host sent the request', async () => {
+      authService.login.mockResolvedValue({
+        accessToken: 'a',
+        refreshToken: 'session-1.b',
+        user: sanitizedUser,
+      });
+
+      await controller.login(
+        credentials('acme-x7k2'),
+        request('https://acme-x7k2.nomow.app'),
+        response as unknown as Response,
+      );
+
+      expect(authService.login).toHaveBeenCalled();
+    });
+
+    it("refuses to sign in to another workspace from this one's host", async () => {
+      await expect(
+        controller.login(
+          credentials('other-a1b2'),
+          request('https://acme-x7k2.nomow.app'),
+          response as unknown as Response,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(authService.login).not.toHaveBeenCalled();
+      expect(response.cookie).not.toHaveBeenCalled();
+    });
+
+    it('does not bind requests from the apex or other origins', async () => {
+      authService.login.mockResolvedValue({
+        accessToken: 'a',
+        refreshToken: 'session-1.b',
+        user: sanitizedUser,
+      });
+
+      await controller.login(
+        credentials('acme-x7k2'),
+        request('https://nomow.app'),
+        response as unknown as Response,
+      );
+
+      expect(authService.login).toHaveBeenCalled();
+    });
+  });
+
   describe('refresh', () => {
     it('reads refresh token from cookie, rotates cookie, and returns access token only', async () => {
       authService.refresh.mockResolvedValue({
@@ -134,12 +196,15 @@ describe('AuthController cookie transport', () => {
 
       const result = await controller.refresh(
         {
+          headers: {},
           cookies: { [REFRESH_COOKIE_NAME]: 'session-1.secret' },
         } as unknown as Request,
         response as unknown as Response,
       );
 
-      expect(authService.refresh).toHaveBeenCalledWith('session-1.secret');
+      expect(authService.refresh).toHaveBeenCalledWith('session-1.secret', {
+        workspaceSlug: null,
+      });
       expect(response.cookie).toHaveBeenCalledWith(
         REFRESH_COOKIE_NAME,
         'session-1.new-secret',
@@ -153,6 +218,25 @@ describe('AuthController cookie transport', () => {
         },
       });
       expect(result.data).not.toHaveProperty('refreshToken');
+    });
+
+    it('passes the workspace host the browser called from', async () => {
+      authService.refresh.mockResolvedValue({
+        accessToken: 'a',
+        refreshToken: 'session-1.b',
+      });
+
+      await controller.refresh(
+        {
+          headers: { origin: 'https://demo-x7k2.nomow.app' },
+          cookies: { [REFRESH_COOKIE_NAME]: 'session-1.secret' },
+        } as unknown as Request,
+        response as unknown as Response,
+      );
+
+      expect(authService.refresh).toHaveBeenCalledWith('session-1.secret', {
+        workspaceSlug: 'demo-x7k2',
+      });
     });
 
     it('rejects refresh when cookie is missing', async () => {

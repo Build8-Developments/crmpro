@@ -10,11 +10,27 @@ export const PASSWORD_HINT =
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function isValidSlug(slug: string): boolean {
-  return SLUG_PATTERN.test(slug);
+  return (
+    slug.length >= 2 &&
+    slug.length <= WORKSPACE_PREFIX_MAX_LENGTH &&
+    SLUG_PATTERN.test(slug) &&
+    !RESERVED_PREFIXES.has(slug)
+  );
 }
 
 export const SLUG_HINT =
-  "Lowercase kebab-case: letters, numbers, and hyphens only.";
+  "Lowercase letters, numbers and single hyphens. 4 random characters are added, so the address can't be guessed.";
+
+/** Must match the admin API (WORKSPACE_PREFIX_MAX_LENGTH, reserved prefixes). */
+export const WORKSPACE_PREFIX_MAX_LENGTH = 30;
+const RESERVED_PREFIXES = new Set([
+  "admin", "api", "app", "auth", "docs", "help", "login", "mail",
+  "nomow", "staging", "status", "support", "www",
+]);
+
+export function isReservedSlug(slug: string): boolean {
+  return RESERVED_PREFIXES.has(slug);
+}
 
 export function slugifyName(name: string): string {
   return name
@@ -22,5 +38,6 @@ export function slugifyName(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+    .slice(0, WORKSPACE_PREFIX_MAX_LENGTH)
+    .replace(/-+$/g, "");
 }

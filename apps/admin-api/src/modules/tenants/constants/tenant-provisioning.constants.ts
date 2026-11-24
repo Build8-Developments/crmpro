@@ -9,7 +9,19 @@ export {
   TENANT_ROLE_NAMES,
 } from '@crmpro/shared/bootstrap';
 
-export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/**
+ * A workspace's slug is also its host: `<prefix>-<suffix>.nomow.app`. The
+ * admin picks the prefix; the suffix is random so hosts are unique and hard
+ * to guess. Slugs never change after creation.
+ */
+export {
+  RESERVED_WORKSPACE_PREFIXES,
+  WORKSPACE_PREFIX_MAX_LENGTH,
+  WORKSPACE_SLUG_PATTERN as SLUG_PATTERN,
+  WORKSPACE_SUFFIX_ALPHABET,
+  WORKSPACE_SUFFIX_LENGTH,
+  generateWorkspaceSlug,
+} from '@crmpro/shared/workspaces';
 
 /** @deprecated Use DEFAULT_TENANT_ROLES from @crmpro/shared/bootstrap */
 export { DEFAULT_TENANT_ROLES as TENANT_ROLE_DEFINITIONS } from '@crmpro/shared/bootstrap';

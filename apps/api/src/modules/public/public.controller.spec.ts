@@ -1,11 +1,14 @@
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   API_ERROR_CODES,
   mapExceptionToApiErrorResponse,
 } from '@crmpro/shared/errors';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AUTH_RATE_LIMIT_METADATA_KEY } from '../../common/rate-limit/rate-limit.constants';
+import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
 import { StorageService } from '../../common/storage/storage.service';
+import { MailService } from '../mail/mail.service';
 import { PublicController } from './public.controller';
 import { PublicService } from './public.service';
 
@@ -15,14 +18,23 @@ describe('PublicService', () => {
     tenant: {
       findFirst: jest.Mock;
     };
+    user: { findMany: jest.Mock };
   };
   let storage: { getSignedDownloadUrl: jest.Mock };
+  let mail: { send: jest.Mock; workspaceUrl: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
       tenant: {
         findFirst: jest.fn(),
       },
+      user: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    mail = {
+      send: jest.fn(),
+      workspaceUrl: jest.fn(
+        (slug: string, path: string) => `https://${slug}.nomow.test${path}`,
+      ),
     };
     storage = {
       getSignedDownloadUrl: jest
@@ -35,6 +47,7 @@ describe('PublicService', () => {
         PublicService,
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storage },
+        { provide: MailService, useValue: mail },
       ],
     }).compile();
 
@@ -142,19 +155,98 @@ describe('PublicService', () => {
   });
 });
 
+describe('PublicService.sendWorkspaceLinks', () => {
+  it('emails one message listing every workspace for the address', async () => {
+    const prisma = {
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            email: 'sara@x.com',
+            tenant: { name: 'Nile Homes', slug: 'nile-homes-a1b2' },
+          },
+          {
+            email: 'sara@x.com',
+            tenant: { name: 'Prime Estates', slug: 'prime-estates' },
+          },
+        ]),
+      },
+    };
+    const mail = {
+      send: jest.fn(),
+      workspaceUrl: jest.fn(
+        (slug: string, path: string) => `https://${slug}.nomow.test${path}`,
+      ),
+    };
+    const service = new PublicService(
+      prisma as never,
+      {} as never,
+      mail as never,
+    );
+
+    await service.sendWorkspaceLinks('sara@x.com');
+
+    expect(mail.send).toHaveBeenCalledTimes(1);
+    const [message] = mail.send.mock.calls[0] as [{ to: string; text: string }];
+    expect(message.to).toBe('sara@x.com');
+    expect(message.text).toContain('https://nile-homes-a1b2.nomow.test/login');
+    expect(message.text).toContain('https://prime-estates.nomow.test/login');
+  });
+
+  it('sends nothing when the address has no workspace', async () => {
+    const prisma = { user: { findMany: jest.fn().mockResolvedValue([]) } };
+    const mail = { send: jest.fn(), workspaceUrl: jest.fn() };
+    const service = new PublicService(
+      prisma as never,
+      {} as never,
+      mail as never,
+    );
+
+    await service.sendWorkspaceLinks('nobody@x.com');
+
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it('logs a failed background send instead of throwing', async () => {
+    const prisma = {
+      user: { findMany: jest.fn().mockRejectedValue(new Error('db down')) },
+    };
+    const service = new PublicService(
+      prisma as never,
+      {} as never,
+      { send: jest.fn(), workspaceUrl: jest.fn() } as never,
+    );
+    const logError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    expect(() => service.queueWorkspaceLinks('sara@x.com')).not.toThrow();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(logError).toHaveBeenCalledWith('Workspace links failed: db down');
+    logError.mockRestore();
+  });
+});
+
 describe('PublicController', () => {
   let controller: PublicController;
-  let publicService: { lookupWorkspaceBySlug: jest.Mock };
+  let publicService: {
+    lookupWorkspaceBySlug: jest.Mock;
+    queueWorkspaceLinks: jest.Mock;
+  };
 
   beforeEach(async () => {
     publicService = {
       lookupWorkspaceBySlug: jest.fn(),
+      queueWorkspaceLinks: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PublicController],
       providers: [{ provide: PublicService, useValue: publicService }],
-    }).compile();
+    })
+      .overrideGuard(RateLimitGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get(PublicController);
   });
@@ -185,6 +277,28 @@ describe('PublicController', () => {
 
     await expect(controller.getWorkspace('unknown-workspace')).rejects.toThrow(
       NotFoundException,
+    );
+  });
+
+  it('rate-limits the lookup per IP and "find" in its own buckets', () => {
+    const kindOf = (handler: object) =>
+      Reflect.getMetadata(AUTH_RATE_LIMIT_METADATA_KEY, handler) as unknown;
+
+    expect(kindOf(PublicController.prototype.getWorkspace)).toBe(
+      'workspace-lookup',
+    );
+    expect(kindOf(PublicController.prototype.findWorkspaces)).toBe(
+      'workspace-find',
+    );
+  });
+
+  it('answers "find" without waiting for the lookup or the email', () => {
+    expect(controller.findWorkspaces({ email: 'sara@x.com' })).toEqual({
+      success: true,
+      message: 'If this email has a workspace, we have sent the links to it',
+    });
+    expect(publicService.queueWorkspaceLinks).toHaveBeenCalledWith(
+      'sara@x.com',
     );
   });
 });

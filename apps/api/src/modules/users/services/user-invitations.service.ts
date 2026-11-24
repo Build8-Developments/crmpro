@@ -195,7 +195,11 @@ export class UserInvitationsService {
     const [user, actor] = await Promise.all([
       this.prisma.user.findFirstOrThrow({
         where: { id: userId, tenantId },
-        select: { name: true, email: true, tenant: { select: { name: true } } },
+        select: {
+          name: true,
+          email: true,
+          tenant: { select: { name: true, slug: true } },
+        },
       }),
       this.prisma.user.findFirst({
         where: { id: actorUserId, tenantId },
@@ -207,7 +211,8 @@ export class UserInvitationsService {
       name: user.name,
       inviterName: actor?.name ?? user.tenant.name,
       workspaceName: user.tenant.name,
-      url: this.mail.webUrl(
+      url: this.mail.workspaceUrl(
+        user.tenant.slug,
         `/accept-invite?token=${encodeURIComponent(rawToken)}`,
       ),
       expiresInDays: INVITE_TTL_DAYS,

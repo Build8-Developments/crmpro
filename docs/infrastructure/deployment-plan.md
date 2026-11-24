@@ -4,8 +4,10 @@ How Nomow (the product; `crmpro` stays the repo, image and server project name) 
 shared Rovlex server, following the practices already in place for Malls Guide
 (`malls-guide/docs/infrastructure/server.md`, `hosting.md`, `deployment.md`).
 
-**Status:** Proposed (2026-11-23). Domain: `nomow.app`, the only domain. Decisions to confirm are
-in §8.
+**Status:** Decided 2026-11-24 (§8). Domain: `nomow.app`, the only domain. **Staging is deployed
+first and alone**, on `rovlex-vps` for now. `rovlex-vps` will end up hosting Malls Guide only:
+Nomow (staging and production) and Rovlex ERP move to their own servers later, so everything
+here is built to move (one project, one compose, one secrets file, backups off the box).
 
 ---
 
@@ -29,51 +31,100 @@ several isolated projects:
 - **Secrets:** one dotenv per environment, `/srv/<project>/secrets/<env>.env` (mode `600`),
   generated values created on the server; non-secret settings committed in `infra/compose/<env>.env`.
 
-Today: `mallsguide-staging` runs (8 containers, ~2.5 GB), `mallsguide` (production) is reserved
-but empty. Registry `/etc/rovlex/projects.md`: 10000–10999 and 11000–11999 are taken.
+### Projects on the server today (read 2026-11-24)
+
+| Project              | Ports       | Memory max (high) | CPU  | Uses now  |
+| -------------------- | ----------- | ----------------- | ---- | --------- |
+| `mallsguide`         | 10000–10999 | 7 GB (6.0 GB)     | 400% | ~0.1 GB (reserved, empty) |
+| `mallsguide-staging` | 11000–11999 | 6 GB (5.1 GB)     | 400% | ~1.2 GB   |
+| `rovlex-erp`         | 12000–12999 | 3 GB (2.6 GB)     | 200% | ~0.7 GB   |
+
+The caps add up to **16 GB on an 11 GB machine**. Total use is ~1.7 GB, so nothing is short today,
+but one runaway project could push the others into swap. `rovlex-erp` now holds 12000–12999, the
+range this plan first gave Nomow production.
 
 ## 2. Environments
 
-| Project          | Purpose                                                  | Data            | Ports       | Memory max | CPU  |
-| ---------------- | -------------------------------------------------------- | --------------- | ----------- | ---------- | ---- |
-| `crmpro`         | **Production** — the pilot agency                        | Real            | 12000–12999 | 3 GB       | 200% |
-| `crmpro-staging` | Release check before production, and the **sales demo** | Demo seed only  | 13000–13999 | 2 GB       | 200% |
+| Project          | Purpose                                                  | Data           | Where                     | Ports       | Memory max | CPU  |
+| ---------------- | -------------------------------------------------------- | -------------- | ------------------------- | ----------- | ---------- | ---- |
+| `crmpro-staging` | Release check before production, and the **sales demo** | Demo seed only | `rovlex-vps`, now         | 13000–13999 | 3 GB       | 200% |
+| `crmpro`         | **Production** — the pilot agency                        | Real           | Its own VPS, later        | —           | —          | —    |
 
-The Malls Guide caps (7 GB + 6 GB) already exceed the machine. Proposed rebalance (re-run
-`rovlex-new-project` with new caps): `mallsguide-staging` 4 GB (uses ~2.5 GB), `mallsguide` 3 GB
-until its production actually moves here. Totals then fit the 11 GB machine with swap as headroom.
+**Caps on `rovlex-vps`** (decided; re-run `rovlex-new-project` with the new caps):
+
+| Project              | Now          | Decided      |
+| -------------------- | ------------ | ------------ |
+| `mallsguide`         | 7 GB / 400%  | unchanged    |
+| `mallsguide-staging` | 6 GB / 400%  | 3 GB / 400%  |
+| `rovlex-erp`         | 3 GB / 200%  | unchanged    |
+| `crmpro-staging`     | —            | 3 GB / 200%  |
+| **Total**            | 16 GB        | **16 GB**    |
+
+The caps still add up to more than the 11 GB of RAM (+4 GB swap). That is acceptable while
+Malls Guide production is empty and the other two are test deployments; the slices' `MemoryHigh`
+(~85% of each cap) throttles a project before it hits its cap. When Malls Guide production goes
+live, Nomow and Rovlex ERP leave this server and the question goes away.
 
 ## 3. Domains (`nomow.app` on Cloudflare, all proxied, one level deep)
 
 Every host is one level under `nomow.app`, because Cloudflare's free Universal SSL covers only
-`nomow.app` and `*.nomow.app`. `.app` is on the browsers' HSTS preload list, so it is HTTPS only.
+`nomow.app` and `*.nomow.app` (deeper names such as `x.staging.nomow.app` need the paid Advanced
+Certificate Manager). `.app` is on the browsers' HSTS preload list, so it is HTTPS only.
 
-| Host                                          | Serves                                                                    |
-| --------------------------------------------- | ------------------------------------------------------------------------- |
-| `nomow.app`                                   | Public site; "find my workspace" (email → a link to the workspace host)   |
-| `<slug>-<4 chars>.nomow.app`, e.g. `primeestate-x7k2.nomow.app` | One workspace (web) — `/api/*`, `/socket.io/*` → api (same origin) |
-| `admin.nomow.app`                             | Platform admin — `/api/*` → admin-api; behind **Cloudflare Access**       |
-| `<slug>-<4 chars>--staging.nomow.app`         | Staging / demo workspaces (demo data), `noindex`                          |
-| `admin--staging.nomow.app`                    | Staging admin, behind Cloudflare Access                                   |
-| `mail.nomow.app` (DNS only)                   | Email sending domain (Resend): SPF/DKIM/DMARC records                     |
+| Host                                    | Env        | Serves                                                                  |
+| --------------------------------------- | ---------- | ----------------------------------------------------------------------- |
+| `staging.nomow.app`                     | Staging    | "Find my workspace" (email → link to the workspace host), `noindex`     |
+| `<slug>-staging.nomow.app`, e.g. `prime-estates-x7k2-staging.nomow.app` | Staging | One demo workspace — `/api/*`, `/socket.io/*` → api (same origin), `noindex` |
+| `admin-staging.nomow.app`               | Staging    | Staging admin — `/api/*` → admin-api; behind **Cloudflare Access**      |
+| `nomow.app`                             | Production | Public site; "find my workspace"                                        |
+| `<slug>.nomow.app`, e.g. `prime-estates-x7k2.nomow.app` | Production | One workspace                                   |
+| `admin.nomow.app`                       | Production | Platform admin, behind Cloudflare Access                                |
+| `mail.nomow.app` (DNS only)             | Both       | Email sending domain (Resend): SPF/DKIM/DMARC records                   |
+
+The same agency reads the same way in both: `prime-estates-x7k2.nomow.app` and
+`prime-estates-x7k2-staging.nomow.app`. A slug always ends in its 4 random characters, so a
+production slug can never end in `-staging`.
 
 **Routing.** DNS: `nomow.app` and a wildcard `*.nomow.app`, both proxied to the server. The host
-Caddy site file sends `*--staging.nomow.app` to the `crmpro-staging` socket and the apex and every
-other `*.nomow.app` host to the `crmpro` socket. Generated slugs never contain `--`.
+Caddy site file sends `staging.nomow.app` and every host matching `^[a-z0-9-]+-staging\.nomow\.app$`
+to the `crmpro-staging` socket. Until production exists, every other `*.nomow.app` host gets a
+plain 404 from the host Caddy; later they go to the `crmpro` socket.
 
-**Workspace hosts** (replaces the workspace-name entry page):
+**Workspace hosts** (built):
 
-- Host = workspace slug (lowercase ASCII and hyphens, at most 30 characters, transliterated or
-  chosen by the owner for Arabic names) + `-` + 4 random `[a-z0-9]`. The suffix makes hosts
-  unique and hard to guess, so the host list does not reveal who the clients are.
-- Reserved: `www`, `app`, `admin`, `api`, `mail`, `status`, `docs`, `help`, `support`, `staging`,
-  and anything containing `--`.
-- The api resolves the tenant from the `Host` header, trusted only as set by the project Caddy.
-  Sign-in on a workspace host signs in to that workspace only. An unknown host shows a plain "not
-  found" page that does not say whether a workspace exists.
-- Session cookies are host-only (`__Host-` prefix, no `Domain=`), so a session for one workspace
-  is never sent to another.
-- Renaming a workspace keeps the old host as a redirect for 90 days.
+- The host carries the tenant's `slug`. The admin picks a prefix (at most 30 characters,
+  lowercase letters, numbers and single hyphens) and the admin API adds `-` + 4 random
+  characters without 0/o/1/l (`prime-estates-x7k2`). A clash at insert time draws a new suffix.
+  Slugs never change after creation, so there are no renames to redirect.
+- Reserved prefixes: `admin`, `api`, `app`, `auth`, `demo`, `docs`, `help`, `login`, `mail`,
+  `nomow`, `staging`, `status`, `support`, `www`.
+- One template per environment, `{slug}` standing for the slug, shared by every app
+  (`@crmpro/shared/workspaces`):
+
+  | Variable                              | App            | Staging                             | Production                  |
+  | ------------------------------------- | -------------- | ----------------------------------- | --------------------------- |
+  | `WORKSPACE_URL_TEMPLATE`              | api, admin-api | `https://{slug}-staging.nomow.app`  | `https://{slug}.nomow.app`  |
+  | `NEXT_PUBLIC_WORKSPACE_URL_TEMPLATE`  | web (build)    | `https://{slug}-staging.nomow.app`  | `https://{slug}.nomow.app`  |
+  | `NEXT_PUBLIC_APEX_URL`                | web (build)    | `https://staging.nomow.app`         | `https://nomow.app`         |
+
+  Both APIs refuse to start in production without `WORKSPACE_URL_TEMPLATE`. The web values are
+  baked in at build time, so the web image is built per environment.
+- The web app reads the slug from its own host and signs in to that workspace only; an unknown
+  host shows "Workspace not found". The apex is "find my workspace": `POST /public/workspaces/find`
+  emails the address its workspace links. It answers at once and the same way whether or not any
+  exist, and has its own rate-limit buckets (3 per email and 10 per IP per 15 minutes) so it
+  never uses up password resets.
+- `GET /public/workspaces/:slug` (each host asks once to show its sign-in page) is capped at 60
+  per IP per 15 minutes, so the 4-character suffix can't be brute-forced from one address.
+- **Sessions are bound to their host.** The refresh cookie is host-only (no `Domain=`), so it is
+  never sent to another workspace. On top of that the API reads the browser's `Origin`: signing in,
+  refreshing or requesting a password reset for workspace B from workspace A's host is refused, and
+  the web app drops any session whose workspace doesn't match the address bar.
+- CORS stays exact (`CORS_ORIGINS`, no wildcards): HTTP calls are same-origin. The realtime socket
+  accepts those exact origins plus this environment's workspace hosts, checked on both
+  long-polling and the WebSocket handshake. The apex, `admin*` and other environments are not
+  workspace hosts.
+- Emails (invites, password resets, notifications) link to the workspace's own host.
 
 ## 4. Services per environment (Docker Compose, rootless)
 
@@ -89,65 +140,96 @@ other `*.nomow.app` host to the `crmpro` socket. Generated slugs never contain `
 | `redis`     | `valkey/valkey` (pinned), AOF           | Internal only; `noeviction` for BullMQ                            |
 
 Only the project Caddy is reachable (via the socket). Nothing publishes a port. Every service has
-a memory/CPU limit, a health check and `restart: unless-stopped`.
+a memory/CPU limit, a health check and `restart: unless-stopped`. Staging adds
+`X-Robots-Tag: noindex` on every response.
 
-Rough footprint: ~2–2.5 GB for production, ~1.5 GB for staging.
+Rough footprint: ~1.5 GB for staging, ~2–2.5 GB for production (on its own VPS).
 
 ## 5. Storage, email, backups
 
 - **Cloudflare R2** (S3 API — the code already uses `AWS_S3_ENDPOINT` with path style):
-  - `crmpro-production-files`, `crmpro-staging-files`: private; uploads and downloads by presigned
-    URL; CORS allows only `https://*.nomow.app` (production) or the `--staging` hosts. If R2
-    does not accept a wildcard origin, uploads go through the api instead (decided when building).
-  - `crmpro-backups`: private, **bucket lock** (35 days).
-  - One scoped R2 token per bucket and purpose (files read/write per env, backups write-only,
-    a read-only restore token kept offline).
+  - `crmpro-staging-files` now, `crmpro-production-files` later: private; uploads and downloads
+    by presigned URL; CORS allows only that environment's workspace hosts
+    (`https://*-staging.nomow.app`; R2 accepts one `*` per origin).
+  - `crmpro-backups` (production only, later): private, **bucket lock**.
+  - One scoped R2 token per bucket and purpose.
 - **Email:** Resend over SMTP (`MAIL_TRANSPORT=smtp`, `smtp.resend.com`) from
-  `no-reply@mail.nomow.app`. Staging can use Mailpit until needed.
-- **Backups (production):** nightly `pg_dump -Fc`, encrypted with age, uploaded to
-  `crmpro-backups` (RPO 24 h, kept 35 days, restore tested monthly on staging). Upgrade path:
-  WAL-G continuous archiving like Malls Guide (RPO ~1 min) once the pilot has real volume.
+  `no-reply@mail.nomow.app`. Staging sends real mail too, so demo invites and resets work.
+- **Backups:** none for staging. Its data is the demo seed, recreated by `db:seed`. Production
+  backups are designed below and built with production.
+
+### 5.1 Production backups (design, not built)
+
+Goal: **lose at most ~1 minute of data (RPO), be back within an hour (RTO)**, survive the loss
+of the server, a bad migration, a deleted tenant, and a leaked server credential.
+
+| Layer | What | Why |
+| ----- | ---- | --- |
+| **1. Continuous** | **WAL-G**: a base backup each night + WAL shipped every ≤60 s to `crmpro-backups/wal/`, kept 14 days | Point-in-time restore to any second in the last two weeks (bad migration, mass delete). Same tool Malls Guide uses, so one runbook for the server. |
+| **2. Logical** | Nightly `pg_dump -Fc`, **encrypted with age** (public key on the server, private key offline), to `crmpro-backups/dumps/`; keep 35 daily + 12 monthly | Independent of WAL-G and of the Postgres version; can restore one tenant's rows into a scratch database; readable after a major upgrade. |
+| **3. Files** | Nightly `rclone copy` (copy, never sync) of `crmpro-production-files` into `crmpro-backups/files/`. **Code change needed:** deleting a file today removes the stored object at once (`files.service.ts`, `deleteFile`); keep it for 30 days after the soft delete and let the cleanup job remove it | A deleted or overwritten upload can be brought back; a mistaken delete in the app never reaches the copy. |
+| **4. Secrets** | `/srv/crmpro/secrets/production.env`, the age private key and the R2 restore token in the password manager | Without them the backups can't be decrypted or the server rebuilt. |
+
+Guard rails:
+
+- **Write-only from the server.** The server's R2 token can add objects to `crmpro-backups` but
+  not read or delete them; **object lock** (35 days on dumps and files, 14 on WAL) means a
+  compromised server can't wipe its own backups. The read token for restores lives offline.
+- **Off the box.** R2 is a different provider from Contabo; a lost VPS loses nothing that matters.
+- **Alerting.** Each job pings a dead-man's-switch check (e.g. healthchecks.io); no ping in 26 h →
+  email. WAL lag over 5 min → alert.
+- **Restore drill, monthly and automatic.** Restore last night's base backup + WAL into a scratch
+  container on the server, run `prisma migrate status` and row-count checks, record the time it
+  took, then throw it away. A backup that has never been restored doesn't count.
+- **Redis is not backed up.** It holds only queues, caches and rate-limit counters. Scheduled jobs
+  re-register at boot, and import/export jobs keep their state in Postgres (the reaper requeues
+  stuck ones).
+- Cost: well under 50 GB on R2 for the first year (≈ $1/month at today's prices; no egress fees).
 
 ## 6. CI/CD
 
 - **CI** (`ci.yml`, already green): lint, typecheck, tests on every PR and push.
-- **Release** (`release.yml`, new):
-  - push to `main` → build the four images, push to GHCR tagged with the git tree hash → deploy
-    **staging** automatically, then smoke tests;
-  - **production** = the same tree hash, deployed by `workflow_dispatch` through the GitHub
-    Environment `production` (manual approval).
-- Deploy over SSH with restricted keys (one per environment) and the existing
-  `rovlex-deploy-entry`; the server pulls with the job's short-lived `GITHUB_TOKEN`.
+- **Release** (`release.yml`, new, staging only for now): push to `main` → build the four images
+  with the staging build variables, push to GHCR tagged with the git tree hash → deploy
+  **staging** → smoke tests.
+- Later, **production** = the same tree hash, deployed by `workflow_dispatch` through the GitHub
+  Environment `production` (manual approval). The web image is rebuilt with production's
+  `NEXT_PUBLIC_*` values.
+- Deploy over SSH with a restricted key and the existing `rovlex-deploy-entry`; the server pulls
+  with the job's short-lived `GITHUB_TOKEN`.
 - `infra/deploy.sh`: pull images → start postgres/redis → migrate (`tools`) → start apps with
-  `--wait` → smoke tests through the socket (`/api/v1/health` on both APIs, both web hosts) →
-  append to `~/app/releases.log` → keep the last five releases.
+  `--wait` → smoke tests through the socket (`/api/v1/health` on both APIs, apex and admin hosts)
+  → append to `~/app/releases.log` → keep the last five releases.
 
-## 7. Work, in order
+## 7. Work, in order (staging)
 
-1. **Repo (me):** Dockerfiles for api, admin-api, web, admin (pnpm + turbo prune, Next standalone,
-   non-root); `infra/compose/*`, `infra/caddy/Caddyfile`, `infra/deploy.sh`, `release.yml`; env
-   checks for production (R2 endpoint, Resend, cookies `Secure`, CORS, `TRUST_PROXY_HOPS`).
-   Verified locally with a production-like compose run.
-2. **Workspace hosts (me):** tenant resolution from `Host`, slug + suffix generation, reserved
-   names, host-only cookies, "find my workspace" on the apex, removal of the workspace-name page,
-   rename redirects. Tested locally with `*.localhost` hosts.
-3. **Cloudflare (you, or me with a scoped API token):** buy `nomow.app`; Origin certificate for
-   `nomow.app` + `*.nomow.app`; SSL Full (strict); Authenticated Origin Pulls; DNS records (§3);
-   Cloudflare Access on the admin hosts; R2 buckets, CORS and tokens; Resend domain records.
-4. **Server (me, over SSH with sudo, after your OK):** rebalance caps; create `crmpro` and
-   `crmpro-staging`; install the edge site file and origin cert; generate secrets; add deploy keys;
-   register the projects.
-5. **First deploy:** staging with the demo seed, then production (empty) with the platform admin
-   and the pilot workspace created from the admin app.
-6. **Pilot onboarding:** workspace, users (email invites), pipeline, working hours, targets,
-   lead import.
+1. **Repo (me):** Dockerfiles for api, admin-api (missing today), web, admin (pnpm + turbo prune,
+   Next standalone, non-root); `infra/compose/staging.*`, `infra/caddy/Caddyfile`,
+   `infra/deploy.sh`, `release.yml`; production-style env checks (R2 endpoint, Resend, cookies
+   `Secure`, `TRUST_PROXY_HOPS`). Verified locally with a production-like compose run.
+2. **Workspace hosts (me): done.** Slugs, reserved names, sign-in bound to the host, "find my
+   workspace", workspace links in emails, socket origins, rate limits. Tested on `*.localhost`.
+3. **Cloudflare (you):** step by step in [`cloudflare-setup.md`](cloudflare-setup.md).
+4. **Server (me, over SSH with sudo, after your OK):** set `mallsguide-staging` to 3 GB / 400%
+   (§2); create `crmpro-staging` (13000, 3 GB, 200%); install its edge site file and the origin
+   cert (`/etc/caddy/certs/crmpro/origin.pem` + `.key`, Authenticated Origin Pulls like the other
+   projects); generate secrets; add the deploy key; register the project.
+5. **First deploy:** staging with the demo seed; platform admin created; demo workspaces checked
+   on their `-staging` hosts.
+6. **Later — production, on its own VPS:** same layout (rootless Docker, edge Caddy with the
+   origin cert and Authenticated Origin Pulls), build §5.1, deploy the same tree,
+   create the pilot workspace from the admin app, then pilot onboarding (users by email invite,
+   pipeline, working hours, targets, lead import).
 
-## 8. Decisions to confirm
+## 8. Decisions (2026-11-24)
 
-1. **Two environments** (`crmpro` + `crmpro-staging` as the demo) — or production only for now.
-2. **Host names** in §3: workspace hosts `<slug>-<4 chars>.nomow.app`, `admin.nomow.app`, and
-   the `--staging` pattern for staging.
-3. **Lowering the Malls Guide caps** to make room (§2).
-4. **Backups:** nightly encrypted dumps now, WAL-G later.
-5. **Cloudflare work:** you do it from the dashboard, or create a scoped API token
-   (zone DNS + SSL + Access for `nomow.app`, R2 for the three buckets) for me to use.
+1. **Environments:** two (`crmpro-staging` as release check and demo, `crmpro` for production);
+   **staging is deployed first and alone** on `rovlex-vps`; production gets its own VPS, and
+   staging moves there too once `rovlex-vps` is needed for Malls Guide.
+2. **Host names:** §3 — `<slug>.nomow.app` / `admin.nomow.app` / `nomow.app` for production,
+   `<slug>-staging.nomow.app` / `admin-staging.nomow.app` / `staging.nomow.app` for staging.
+3. **Server caps:** §2 — `mallsguide-staging` 3 GB / 400%, `crmpro-staging` 3 GB / 200%,
+   `mallsguide` and `rovlex-erp` unchanged.
+4. **Backups:** none for staging; production design in §5.1 (WAL-G + encrypted nightly dumps +
+   file copies, write-only and locked, restore drills), built with production.
+5. **Cloudflare:** done by you from the dashboard, following [`cloudflare-setup.md`](cloudflare-setup.md).

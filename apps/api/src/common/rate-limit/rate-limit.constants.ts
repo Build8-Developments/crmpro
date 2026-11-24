@@ -3,12 +3,18 @@ export const AUTH_RATE_LIMIT_METADATA_KEY = 'authRateLimit';
 /**
  * login / refresh: sign-in. password-reset: "forgot password" requests (they
  * send email). account-token: using an emailed link (reset, invitation).
+ * workspace-lookup: a workspace host asking whether it exists (slugs are
+ * meant to be hard to guess, so this is capped per IP). workspace-find:
+ * "find my workspace" (sends email); its own buckets, so it never uses up an
+ * address's password resets.
  */
 export type AuthRateLimitKind =
   | 'login'
   | 'refresh'
   | 'password-reset'
-  | 'account-token';
+  | 'account-token'
+  | 'workspace-lookup'
+  | 'workspace-find';
 
 export const RATE_LIMIT_CONFIG_KEYS = {
   plane: 'app.name',
@@ -25,6 +31,11 @@ export const DEFAULT_REFRESH_PER_IP_LIMIT = 60;
 export const DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT = 3;
 export const DEFAULT_PASSWORD_RESET_PER_IP_LIMIT = 10;
 export const DEFAULT_ACCOUNT_TOKEN_PER_IP_LIMIT = 20;
+// One office often shares an IP: each sign-in page asks once (then caches for
+// 5 minutes), so 60 covers a busy team while keeping a guesser at ~6k hosts a day.
+export const DEFAULT_WORKSPACE_LOOKUP_PER_IP_LIMIT = 60;
+export const DEFAULT_WORKSPACE_FIND_PER_EMAIL_LIMIT = 3;
+export const DEFAULT_WORKSPACE_FIND_PER_IP_LIMIT = 10;
 
 // Both backends share one Redis, so keys carry the plane name: without it the
 // tenant and admin planes would decrement the same counter and could lock each

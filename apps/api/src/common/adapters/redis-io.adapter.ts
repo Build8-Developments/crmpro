@@ -1,3 +1,4 @@
+import type { IncomingMessage } from 'node:http';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Server, ServerOptions } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -5,6 +6,10 @@ import Redis from 'ioredis';
 import { INestApplicationContext, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisConnectionConfig } from '@crmpro/shared';
+import {
+  isAllowedSocketOrigin,
+  workspaceUrlTemplate,
+} from '../http/workspace-origin';
 
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
@@ -40,13 +45,28 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   createIOServer(port: number, options?: ServerOptions): Server {
-    // Same fail-closed allowlist as HTTP CORS: gateways must never reflect
-    // an arbitrary origin (socket.io would otherwise accept any site).
-    const origins =
-      this.app.get(ConfigService).get<string[]>('cors.origins') ?? [];
+    // Fail closed: gateways must never reflect an arbitrary origin. The CORS
+    // option only covers HTTP long-polling, so `allowRequest` checks the
+    // WebSocket handshake too.
+    const config = this.app.get(ConfigService);
+    const exactOrigins = config.get<string[]>('cors.origins') ?? [];
+    const template = workspaceUrlTemplate(config);
+    const isAllowed = (origin: string | undefined) =>
+      isAllowedSocketOrigin(origin, exactOrigins, template);
+
     const server = super.createIOServer(port, {
       ...options,
-      cors: { origin: origins.length ? origins : false, credentials: true },
+      cors: {
+        origin: (
+          origin: string | undefined,
+          callback: (error: Error | null, allow?: boolean) => void,
+        ) => callback(null, isAllowed(origin)),
+        credentials: true,
+      },
+      allowRequest: (
+        request: IncomingMessage,
+        callback: (error: string | null | undefined, success: boolean) => void,
+      ) => callback(null, isAllowed(request.headers.origin)),
     }) as Server;
     server.adapter(this.adapterConstructor);
     return server;

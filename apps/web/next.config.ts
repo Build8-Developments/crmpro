@@ -7,6 +7,9 @@ const apiProxyTarget =
 const MOVED_TO_SETTINGS = ["users", "roles", "pipelines", "lead-sources", "audit"];
 
 const nextConfig: NextConfig = {
+  // Each workspace has its own host (prime-estates.localhost:3001 in dev);
+  // let `next dev` serve its assets to all of them.
+  allowedDevOrigins: ["*.localhost"],
   async redirects() {
     return MOVED_TO_SETTINGS.map((section) => ({
       source: `/${section}`,

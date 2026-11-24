@@ -50,7 +50,7 @@ export class AccountRecoveryService {
         tenantId: true,
         invitedAt: true,
         inviteAcceptedAt: true,
-        tenant: { select: { name: true } },
+        tenant: { select: { name: true, slug: true } },
       },
     });
 
@@ -76,7 +76,8 @@ export class AccountRecoveryService {
     const message = passwordResetEmail({
       name: user.name,
       workspaceName: user.tenant.name,
-      url: this.mail.webUrl(
+      url: this.mail.workspaceUrl(
+        user.tenant.slug,
         `/reset-password?token=${encodeURIComponent(rawToken)}`,
       ),
       expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,

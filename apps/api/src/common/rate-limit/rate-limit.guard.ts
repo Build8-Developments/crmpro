@@ -20,6 +20,9 @@ import {
   DEFAULT_ACCOUNT_TOKEN_PER_IP_LIMIT,
   DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT,
   DEFAULT_PASSWORD_RESET_PER_IP_LIMIT,
+  DEFAULT_WORKSPACE_FIND_PER_EMAIL_LIMIT,
+  DEFAULT_WORKSPACE_FIND_PER_IP_LIMIT,
+  DEFAULT_WORKSPACE_LOOKUP_PER_IP_LIMIT,
   MAX_EMAIL_KEY_LENGTH,
   RATE_LIMIT_CONFIG_KEYS,
   RATE_LIMIT_KEY_PREFIX,
@@ -107,21 +110,32 @@ export class RateLimitGuard implements CanActivate {
       ];
     }
 
-    if (kind === 'password-reset') {
+    if (kind === 'workspace-lookup') {
+      return [
+        {
+          key: `${keyPrefix}:workspace-lookup:ip:${clientIp}`,
+          limit: DEFAULT_WORKSPACE_LOOKUP_PER_IP_LIMIT,
+        },
+      ];
+    }
+
+    if (kind === 'password-reset' || kind === 'workspace-find') {
+      const [perEmail, perIp] =
+        kind === 'password-reset'
+          ? [
+              DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT,
+              DEFAULT_PASSWORD_RESET_PER_IP_LIMIT,
+            ]
+          : [
+              DEFAULT_WORKSPACE_FIND_PER_EMAIL_LIMIT,
+              DEFAULT_WORKSPACE_FIND_PER_IP_LIMIT,
+            ];
       const email = normalizeEmail(body);
       return [
         ...(email
-          ? [
-              {
-                key: `${keyPrefix}:password-reset:email:${email}`,
-                limit: DEFAULT_PASSWORD_RESET_PER_EMAIL_LIMIT,
-              },
-            ]
+          ? [{ key: `${keyPrefix}:${kind}:email:${email}`, limit: perEmail }]
           : []),
-        {
-          key: `${keyPrefix}:password-reset:ip:${clientIp}`,
-          limit: DEFAULT_PASSWORD_RESET_PER_IP_LIMIT,
-        },
+        { key: `${keyPrefix}:${kind}:ip:${clientIp}`, limit: perIp },
       ];
     }
 

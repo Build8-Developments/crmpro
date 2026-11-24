@@ -1,13 +1,18 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  IsNotIn,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { SLUG_PATTERN } from '../constants/tenant-provisioning.constants';
+import {
+  RESERVED_WORKSPACE_PREFIXES,
+  SLUG_PATTERN,
+  WORKSPACE_PREFIX_MAX_LENGTH,
+} from '../constants/tenant-provisioning.constants';
 
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/;
 
@@ -23,12 +28,18 @@ export class CreateTenantDto {
   )
   name: string;
 
+  /**
+   * Workspace address prefix: the tenant's slug and host become
+   * `<slug>-<4 random characters>` (see generateWorkspaceSlug).
+   */
   @IsString()
-  @MinLength(3)
-  @MaxLength(80)
+  @MinLength(2)
+  @MaxLength(WORKSPACE_PREFIX_MAX_LENGTH)
   @Matches(SLUG_PATTERN, {
-    message:
-      'Slug must be lowercase kebab-case (letters, numbers, hyphens only)',
+    message: 'Address must be lowercase letters, numbers and single hyphens',
+  })
+  @IsNotIn([...RESERVED_WORKSPACE_PREFIXES], {
+    message: 'This address is reserved; choose another',
   })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,

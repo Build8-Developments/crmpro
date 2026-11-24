@@ -207,6 +207,23 @@ describe('AuthService tenant suspension enforcement', () => {
     expect(tenantAccessService.assertTenantAccessible).not.toHaveBeenCalled();
   });
 
+  it("refuses another workspace's session on a workspace host", async () => {
+    await expect(
+      service.refresh('session.secret', { workspaceSlug: 'other-a1b2' }),
+    ).rejects.toThrow(UnauthorizedException);
+
+    expect(tenantAccessService.assertTenantAccessible).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a session on its own workspace's host", async () => {
+    await expect(
+      service.refresh('session.secret', { workspaceSlug: 'demo' }),
+    ).resolves.toEqual({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
+  });
+
   it('includes the read-only access state in /auth/me', async () => {
     tenantAccessService.getCachedTenantAccessState.mockResolvedValue({
       readOnly: true,

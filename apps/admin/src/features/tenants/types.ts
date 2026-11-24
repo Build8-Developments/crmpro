@@ -13,6 +13,8 @@ export interface TenantListItem {
   id: string;
   name: string;
   slug: string;
+  /** The workspace's own host; null when the server has no WORKSPACE_URL_TEMPLATE. */
+  workspaceUrl: string | null;
   status: TenantStatus;
   plan: TenantPlanSummary;
   createdAt: string;
@@ -36,6 +38,8 @@ export interface TenantDetail {
   id: string;
   name: string;
   slug: string;
+  /** The workspace's own host; null when the server has no WORKSPACE_URL_TEMPLATE. */
+  workspaceUrl: string | null;
   status: TenantStatus;
   subscriptionPlan: TenantPlanSummary;
   contract: TenantContractSummary | null;

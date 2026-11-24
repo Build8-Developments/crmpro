@@ -11,7 +11,7 @@ describe('UserInvitationsService', () => {
   let quota: { assertCanCreateUserInTransaction: jest.Mock };
   let guard: { assertActorCanAssignRole: jest.Mock };
   let tokens: { issue: jest.Mock };
-  let mail: { send: jest.Mock; webUrl: jest.Mock };
+  let mail: { send: jest.Mock; workspaceUrl: jest.Mock };
   let service: UserInvitationsService;
 
   const createdUser = {
@@ -37,7 +37,7 @@ describe('UserInvitationsService', () => {
         findFirstOrThrow: jest.fn().mockResolvedValue({
           name: 'Omar',
           email: 'omar@agency.com',
-          tenant: { name: 'Prime Estates' },
+          tenant: { name: 'Prime Estates', slug: 'prime' },
         }),
       },
       team: { findFirst: jest.fn() },
@@ -50,7 +50,9 @@ describe('UserInvitationsService', () => {
     tokens = { issue: jest.fn().mockResolvedValue('invite-token') };
     mail = {
       send: jest.fn(),
-      webUrl: jest.fn((path: string) => `https://app.test${path}`),
+      workspaceUrl: jest.fn(
+        (slug: string, path: string) => `https://${slug}.app.test${path}`,
+      ),
     };
     service = new UserInvitationsService(
       prisma as never,
