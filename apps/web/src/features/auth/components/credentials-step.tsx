@@ -5,6 +5,7 @@ import { AppIcons } from "@/components/icons/app-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { apexUrl } from "@/lib/workspace-host";
 import type { WorkspaceLookupResult } from "@/types/auth";
 
 interface CredentialsStepProps {
@@ -13,7 +14,6 @@ interface CredentialsStepProps {
   password: string;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
-  onBack: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
@@ -24,7 +24,6 @@ export function CredentialsStep({
   password,
   onEmailChange,
   onPasswordChange,
-  onBack,
   onSubmit,
   isSubmitting,
 }: CredentialsStepProps) {
@@ -41,18 +40,6 @@ export function CredentialsStep({
       }}
     >
       <div className="space-y-4">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
-          onClick={onBack}
-          disabled={isSubmitting}
-        >
-          <AppIcons.arrowLeft className="size-4" stroke={2} />
-          Back
-        </Button>
-
         <div className="space-y-3">
           <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
             <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-primary/10 text-primary">
@@ -70,7 +57,9 @@ export function CredentialsStep({
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{workspace.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{workspace.slug}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {typeof window === "undefined" ? workspace.slug : window.location.host}
+              </p>
             </div>
           </div>
 
@@ -109,7 +98,7 @@ export function CredentialsStep({
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
             <Link
-              href={`/forgot-password?workspace=${encodeURIComponent(workspace.slug)}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`}
+              href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
               Forgot password?
@@ -147,6 +136,13 @@ export function CredentialsStep({
           </>
         )}
       </Button>
+
+      <p className="text-center text-xs text-muted-foreground">
+        Not your workspace?{" "}
+        <a href={apexUrl("/login")} className="hover:text-foreground hover:underline">
+          Find yours
+        </a>
+      </p>
     </form>
   );
 }

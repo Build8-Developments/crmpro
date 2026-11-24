@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { workspaceLoginHref } from "@/lib/workspace-host";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { acceptInvitation, getInvitation } from "@/features/auth/recovery-api";
@@ -53,15 +53,14 @@ export function AcceptInvitePage() {
         title={`Welcome to ${info.workspaceName}`}
         description={
           <>
-            Your account is ready. Sign in to workspace{" "}
-            <span className="font-medium text-foreground">{info.workspaceSlug}</span> as{" "}
+            Your account is ready. Sign in as{" "}
             <span className="font-medium text-foreground">{info.email}</span>.
           </>
         }
         showBackLink={false}
       >
         <Button asChild className="w-full">
-          <Link href="/login">Sign in</Link>
+          <a href={workspaceLoginHref(info.workspaceSlug)}>Sign in</a>
         </Button>
       </AuthCard>
     );

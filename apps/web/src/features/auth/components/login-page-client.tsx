@@ -31,7 +31,6 @@ export function LoginPageClient() {
       <div className="w-full max-w-[400px] rounded-xl border bg-card p-8 shadow-sm">
         <div className="mb-6">
           <ProductLogo className="text-2xl" />
-          <p className="mt-3 text-xs text-muted-foreground">Sign in to your workspace</p>
         </div>
 
         <LoginFlow />

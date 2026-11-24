@@ -1,88 +1,78 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { AppIcons } from "@/components/icons/app-icons";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CredentialsStep } from "@/features/auth/components/credentials-step";
-import { WorkspaceStep } from "@/features/auth/components/workspace-step";
+import { FindWorkspace } from "@/features/auth/components/find-workspace";
 import { useLogin } from "@/features/auth/hooks/use-auth-actions";
-import { useWorkspaceLookup } from "@/features/auth/hooks/use-workspace-lookup";
-import { authToast } from "@/features/auth/utils/auth-toast";
-import { normalizeWorkspaceSlug } from "@/features/auth/utils/workspace-slug";
+import { useHostWorkspace } from "@/features/auth/hooks/use-host-workspace";
+import { apexUrl } from "@/lib/workspace-host";
 
-type LoginStep = "workspace" | "credentials";
-
+/**
+ * Sign-in on a workspace host signs in to that workspace only; the bare
+ * domain helps people find their workspace instead.
+ */
 export function LoginFlow() {
-  const [step, setStep] = useState<LoginStep>("workspace");
-  const [slugInput, setSlugInput] = useState("");
+  const { status, workspace, retry } = useHostWorkspace();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const { status, workspace } = useWorkspaceLookup(slugInput);
   const { login, isSubmitting } = useLogin();
 
-  const handleContinue = () => {
-    if (workspace) {
-      authToast.dismissSignIn();
-      setStep("credentials");
-    }
-  };
+  if (status === "apex") return <FindWorkspace />;
 
-  const handleBack = () => {
-    authToast.dismissSignIn();
-    setPassword("");
-    setStep("workspace");
-  };
+  if (status === "loading") {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    );
+  }
 
-  const handleLogin = async () => {
-    if (!workspace) return;
+  if (status === "missing" || status === "error") {
+    return (
+      <div className="space-y-3">
+        <h1 className="text-xl font-semibold tracking-tight">
+          {status === "missing" ? "Workspace not found" : "Couldn't reach the workspace"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {status === "missing"
+            ? "There's no workspace at this address. Check the link, or find yours by email."
+            : "Check your connection and try again."}
+        </p>
+        <div className="flex gap-2">
+          {status === "error" ? (
+            <Button variant="outline" onClick={() => void retry()}>
+              Try again
+            </Button>
+          ) : null}
+          <Button asChild>
+            <a href={apexUrl("/login")}>
+              <AppIcons.search className="size-4" stroke={2} />
+              Find my workspace
+            </a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
-    await login({
-      tenantSlug: workspace.slug,
-      email: email.trim(),
-      password,
-    });
-  };
+  if (!workspace) return null;
 
   return (
-    <div className="relative grid [&>*]:col-start-1 [&>*]:row-start-1">
-      <div
-        className={cn(
-          "transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          step === "workspace"
-            ? "relative z-10 translate-x-0 scale-100 opacity-100"
-            : "pointer-events-none absolute inset-x-0 top-0 -translate-x-3 scale-[0.98] opacity-0",
-        )}
-      >
-        <WorkspaceStep
-          slugInput={slugInput}
-          onSlugChange={(value) => setSlugInput(normalizeWorkspaceSlug(value))}
-          status={status}
-          workspace={workspace}
-          onContinue={handleContinue}
-        />
-      </div>
-
-      <div
-        className={cn(
-          "transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-          step === "credentials"
-            ? "relative z-10 translate-x-0 scale-100 opacity-100"
-            : "pointer-events-none absolute inset-x-0 top-0 translate-x-3 scale-[0.98] opacity-0",
-        )}
-      >
-        {workspace && (
-          <CredentialsStep
-            workspace={workspace}
-            email={email}
-            password={password}
-            onEmailChange={setEmail}
-            onPasswordChange={setPassword}
-            onBack={handleBack}
-            onSubmit={() => void handleLogin()}
-            isSubmitting={isSubmitting}
-          />
-        )}
-      </div>
-    </div>
+    <CredentialsStep
+      workspace={workspace}
+      email={email}
+      password={password}
+      onEmailChange={setEmail}
+      onPasswordChange={setPassword}
+      onSubmit={() =>
+        void login({ tenantSlug: workspace.slug, email: email.trim(), password })
+      }
+      isSubmitting={isSubmitting}
+    />
   );
 }

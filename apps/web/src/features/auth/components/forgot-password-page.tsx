@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FindWorkspace } from "@/features/auth/components/find-workspace";
+import { useHostWorkspace } from "@/features/auth/hooks/use-host-workspace";
 import { requestPasswordReset } from "@/features/auth/recovery-api";
 import { ApiError } from "@/lib/api/client";
 import { toast } from "@/lib/toast";
@@ -12,7 +14,7 @@ import { AuthCard } from "./auth-card";
 
 export function ForgotPasswordPage() {
   const searchParams = useSearchParams();
-  const [workspace, setWorkspace] = useState(searchParams.get("workspace") ?? "");
+  const { status, workspace } = useHostWorkspace();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -21,7 +23,8 @@ export function ForgotPasswordPage() {
     event.preventDefault();
     setSubmitting(true);
     try {
-      await requestPasswordReset({ tenantSlug: workspace.trim().toLowerCase(), email: email.trim() });
+      if (!workspace) return;
+      await requestPasswordReset({ tenantSlug: workspace.slug, email: email.trim() });
       setSent(true);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Something went wrong. Try again.");
@@ -37,7 +40,7 @@ export function ForgotPasswordPage() {
         description={
           <>
             If <span className="font-medium text-foreground">{email}</span> has an account in{" "}
-            <span className="font-medium text-foreground">{workspace}</span>, a link to set a new
+            <span className="font-medium text-foreground">{workspace?.name}</span>, a link to set a new
             password is on its way. It works once, for 30 minutes.
           </>
         }
@@ -47,23 +50,25 @@ export function ForgotPasswordPage() {
     );
   }
 
+  // Passwords belong to a workspace: on the bare domain, find it first.
+  if (status === "apex") {
+    return (
+      <AuthCard title="" showBackLink={false}>
+        <FindWorkspace />
+      </AuthCard>
+    );
+  }
+
   return (
     <AuthCard
       title="Forgot your password?"
-      description="Enter your workspace and email — we'll send you a link to choose a new one."
+      description={
+        workspace
+          ? `Enter the email you use in ${workspace.name} and we'll send you a link to choose a new password.`
+          : "Enter your email and we'll send you a link to choose a new password."
+      }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="workspace">Workspace</Label>
-          <Input
-            id="workspace"
-            value={workspace}
-            onChange={(event) => setWorkspace(event.target.value)}
-            placeholder="prime-estates"
-            autoCapitalize="none"
-            required
-          />
-        </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -76,7 +81,7 @@ export function ForgotPasswordPage() {
             required
           />
         </div>
-        <Button type="submit" className="w-full" disabled={submitting || !workspace.trim() || !email.trim()}>
+        <Button type="submit" className="w-full" disabled={submitting || !workspace || !email.trim()}>
           {submitting ? "Sending…" : "Send reset link"}
         </Button>
       </form>

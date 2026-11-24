@@ -5,22 +5,6 @@ import { AppIcons } from "@/components/icons/app-icons";
 const TOAST_ICON_PROPS = { className: "size-4", stroke: 2 } as const;
 
 export const authToast = {
-  workspaceNotFound() {
-    toast.error("Workspace not found", {
-      id: "workspace-lookup",
-      description: "Check the slug and try again.",
-      icon: createElement(AppIcons.buildingOff, TOAST_ICON_PROPS),
-    });
-  },
-
-  workspaceLookupFailed(message: string) {
-    toast.error("Unable to verify workspace", {
-      id: "workspace-lookup",
-      description: message,
-      icon: createElement(AppIcons.alertCircle, TOAST_ICON_PROPS),
-    });
-  },
-
   signInFailed(message: string) {
     toast.error("Sign in failed", {
       id: "auth-sign-in",
@@ -43,10 +27,6 @@ export const authToast = {
       description: "You have been logged out.",
       icon: createElement(AppIcons.logout, TOAST_ICON_PROPS),
     });
-  },
-
-  dismissWorkspace() {
-    toast.dismiss("workspace-lookup");
   },
 
   dismissSignIn() {

@@ -29,3 +29,8 @@ export function acceptInvitation(input: { token: string; password: string }) {
     PUBLIC,
   );
 }
+
+/** Emails the workspace links for an address; the answer never says whether any exist. */
+export function findWorkspaces(input: { email: string }) {
+  return apiClient.post<void>("/public/workspaces/find", input, PUBLIC);
+}

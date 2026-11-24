@@ -11,7 +11,7 @@ export function AuthCard({
   children,
   showBackLink = true,
 }: {
-  title: string;
+  title?: string;
   description?: ReactNode;
   children: ReactNode;
   showBackLink?: boolean;
@@ -22,7 +22,7 @@ export function AuthCard({
         <div className="mb-6">
           <ProductLogo className="text-2xl" />
         </div>
-        <h1 className="text-base font-semibold">{title}</h1>
+        {title ? <h1 className="text-base font-semibold">{title}</h1> : null}
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
         <div className="mt-5">{children}</div>
         {showBackLink ? (
