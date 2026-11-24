@@ -27,9 +27,6 @@ concurrency:
   # A newer push to a pull request replaces its rehearsal; deploys always finish.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  IMAGE_PREFIX: ghcr.io/build8-developments/crmpro
-
 jobs:
   rehearsal:
     name: Deploy rehearsal
@@ -91,6 +88,10 @@ jobs:
     name: Image ${{ matrix.image }}${{ matrix.suffix }}
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # Job-level only: docker compose prefers the shell's variables over its env files, so a global
+    # IMAGE_PREFIX would override the rehearsal's local image names.
+    env:
+      IMAGE_PREFIX: ghcr.io/build8-developments/crmpro
     timeout-minutes: 30
     permissions:
       contents: read

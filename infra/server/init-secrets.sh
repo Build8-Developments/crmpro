@@ -33,6 +33,6 @@ for name in SEED_ADMIN_EMAIL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY
   grep -qE "^$name=" "$file" || printf '%s=\n' "$name" >>"$file"
 done
 
-missing=$(grep -E '^[A-Z0-9_]+=$' "$file" | cut -d= -f1 | tr '\n' ' ')
+missing=$(grep -E '^[A-Z0-9_]+=$' "$file" | cut -d= -f1 | tr '\n' ' ' || true)
 echo "Secrets file: $file"
 [[ -z $missing ]] && echo "Complete." || echo "Still to fill in: $missing"
