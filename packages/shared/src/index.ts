@@ -82,3 +82,4 @@ export * from './leads/lead-profile';
 export * from './leads/stage-icons';
 export * from './leads/contact-mask';
 export * from './leads/lead-merge';
+export * from './workspaces';
