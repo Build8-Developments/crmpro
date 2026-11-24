@@ -1,0 +1,170 @@
+# Build the images and deploy staging (docs/infrastructure/deployment-plan.md §6).
+#
+# - Pull request: build the four images on the runner and rehearse the whole staging deploy there
+#   with the real infra/deploy.sh (infra/rehearsal/rehearse.sh). Nothing is pushed or deployed.
+# - Push to main (a merged pull request): build the images, tagged with the git tree hash, push
+#   them to GHCR and deploy staging on rovlex-vps.
+# Production comes later: the same tree, deployed by hand through the GitHub Environment
+# `production`.
+#
+# Repository settings it needs (deployment-plan.md §7, server step):
+#   Environment `staging` → secret DEPLOY_SSH_KEY (the private half of the deploy key),
+#                           variables DEPLOY_SSH_HOST and DEPLOY_SSH_KNOWN_HOSTS.
+# Third-party actions are pinned by commit SHA.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # A newer push to a pull request replaces its rehearsal; deploys always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE_PREFIX: ghcr.io/build8-developments/crmpro
+
+jobs:
+  rehearsal:
+    name: Deploy rehearsal
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tree hash
+        id: tree
+        run: echo "hash=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Image api
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          load: true
+          tags: crmpro-local-api:${{ steps.tree.outputs.hash }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Image admin-api
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/admin-api/Dockerfile
+          load: true
+          tags: crmpro-local-admin-api:${{ steps.tree.outputs.hash }}
+          cache-from: type=gha,scope=admin-api
+          cache-to: type=gha,mode=max,scope=admin-api
+      - name: Image admin
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/admin/Dockerfile
+          load: true
+          tags: crmpro-local-admin:${{ steps.tree.outputs.hash }}
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
+      - name: Image web (rehearsal hosts)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          load: true
+          build-args: |
+            NEXT_PUBLIC_WORKSPACE_URL_TEMPLATE=http://{slug}-staging.localhost:8080
+            NEXT_PUBLIC_APEX_URL=http://staging.localhost:8080
+          tags: crmpro-local-web:${{ steps.tree.outputs.hash }}-staging
+          cache-from: type=gha,scope=web-rehearsal
+          cache-to: type=gha,mode=max,scope=web-rehearsal
+      - name: Rehearse the staging deploy
+        run: infra/rehearsal/rehearse.sh "${{ steps.tree.outputs.hash }}"
+      - name: Logs
+        if: failure()
+        run: docker compose -p crmpro-staging logs --no-color --tail 200
+
+  images:
+    name: Image ${{ matrix.image }}${{ matrix.suffix }}
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { image: api, suffix: "" }
+          - { image: admin-api, suffix: "" }
+          - { image: admin, suffix: "" }
+          # The web app bakes its host names in, so it is built per environment.
+          - image: web
+            suffix: -staging
+            build_args: |
+              NEXT_PUBLIC_WORKSPACE_URL_TEMPLATE=https://{slug}-staging.nomow.app
+              NEXT_PUBLIC_APEX_URL=https://staging.nomow.app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tree hash
+        id: tree
+        run: echo "hash=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/${{ matrix.image }}/Dockerfile
+          build-args: ${{ matrix.build_args }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ steps.tree.outputs.hash }}${{ matrix.suffix }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ github.sha }}${{ matrix.suffix }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}${{ matrix.suffix }}
+
+  deploy-staging:
+    name: Deploy staging
+    needs: images
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: https://staging.nomow.app
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: SSH key
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      # The server's forced command (/usr/local/sbin/rovlex-deploy-entry) reads the registry token
+      # on the first line, then this release's deploy files as a tarball, and runs infra/deploy.sh.
+      # The token is the job's own: it can read this repository's packages until the job ends.
+      - name: Deploy
+        env:
+          HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tree=$(git rev-parse HEAD^{tree})
+          { printf '%s\n' "$TOKEN"; tar -czf - infra/compose infra/deploy.sh; } \
+            | ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes "crmpro-staging@$HOST" "deploy $tree"
+          echo "Deployed staging at tree \`$tree\` (commit ${GITHUB_SHA::7})" >> "$GITHUB_STEP_SUMMARY"

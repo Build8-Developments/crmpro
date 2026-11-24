@@ -1,0 +1,91 @@
+# Nomow's own Caddy (docs/infrastructure/deployment-plan.md §4). On rovlex-vps it sits behind the
+# shared host Caddy (infra/server/edge/crmpro.caddy), which terminates TLS, checks Cloudflare's
+# client certificate and forwards every request, host unchanged, over a unix socket. This Caddy
+# only routes: by host to the right app, and /api + /socket.io to the right API.
+#
+# Environment (infra/compose/<environment>.env):
+#   ADMIN_HOST   admin-staging.nomow.app · admin.nomow.app
+#   NOINDEX      true on staging: X-Robots-Tag on every response and a robots.txt that disallows all
+#   CADDY_BIND   where to listen; default the socket the host Caddy reads (local test: 0.0.0.0)
+{
+	admin off
+	auto_https off
+	default_bind {$CADDY_BIND:unix//run/edge/caddy.sock|0666}
+	servers {
+		# Whatever arrives on the socket comes from the host Caddy, which has already replaced
+		# X-Forwarded-For with the real client (Cloudflare's CF-Connecting-IP).
+		trusted_proxies_unix
+		client_ip_headers X-Forwarded-For
+	}
+	log {
+		format json
+	}
+}
+
+# Each upstream sees exactly one client address and the original host; the API counts rate limits
+# per client IP (TRUST_PROXY_HOPS=1) and binds sign-in to the host.
+(to) {
+	reverse_proxy {args[0]} {
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Forwarded-Proto https
+	}
+}
+
+(common) {
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+		-X-Powered-By
+	}
+	@noindex expression `"{$NOINDEX:false}" == "true"`
+	header @noindex X-Robots-Tag "noindex, nofollow"
+}
+
+http:// {
+	import common
+
+	# handle blocks are exclusive and tried in this order: robots.txt (staging), then by host.
+	@robots expression `"{$NOINDEX:false}" == "true" && {path} == "/robots.txt"`
+	handle @robots {
+		respond "User-agent: *
+Disallow: /
+" 200
+	}
+
+	# The platform admin: its app, and its API and socket on the same host.
+	@admin host {$ADMIN_HOST}
+	handle @admin {
+		handle /api/* {
+			import to admin-api:3100
+		}
+		handle /socket.io/* {
+			import to admin-api:3100
+		}
+		handle {
+			import to admin:3002
+		}
+	}
+
+	# Everything else the host Caddy sends here: the apex ("find my workspace") and every
+	# workspace host. The web app reads the workspace from the host; unknown ones show
+	# "Workspace not found".
+	handle {
+		# Operational endpoints are for the admin API on the internal network only (they need
+		# INTERNAL_MONITORING_KEY anyway).
+		@internal path /api/v1/internal/* /api/v1/metrics /api/v1/jobs/health /api/docs /api/docs/*
+		handle @internal {
+			respond 404
+		}
+		handle /api/* {
+			import to api:3000
+		}
+		handle /socket.io/* {
+			import to api:3000
+		}
+		handle {
+			import to web:3001
+		}
+	}
+}

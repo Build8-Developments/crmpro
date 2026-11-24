@@ -1,0 +1,156 @@
+# Nomow on a server (docs/infrastructure/deployment-plan.md §4): the services every environment
+# runs. Sizes live in compose.<environment>.yml; non-secret settings in <environment>.env;
+# secrets in the server's own file (/srv/<project>/secrets/<environment>.env, read last).
+# Run by infra/deploy.sh, never by hand.
+#
+# Values from the deploy: TAG (git tree hash), EDGE_SOCKET_DIR (the folder the host Caddy reads).
+name: crmpro-${APP_ENV:?}
+
+x-defaults: &defaults
+  restart: unless-stopped
+  init: true
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options: { max-size: 20m, max-file: "5" }
+
+x-data: &data
+  DATABASE_URL: postgresql://crmpro:${POSTGRES_PASSWORD:?}@postgres:5432/crmpro
+  REDIS_URL: redis://valkey:6379
+  BULL_PREFIX: crmpro
+
+services:
+  postgres:
+    <<: *defaults
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: crmpro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: crmpro
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    shm_size: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crmpro -d crmpro"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  valkey:
+    <<: *defaults
+    image: valkey/valkey:9.1-alpine
+    # BullMQ needs noeviction: a full Valkey refuses writes instead of dropping queued jobs.
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # The tenant API, with its BullMQ workers and scheduler in-process.
+  api:
+    <<: *defaults
+    image: ${IMAGE_PREFIX:?}-api:${TAG:?}
+    environment:
+      <<: *data
+      NODE_ENV: production
+      PORT: 3000
+      NODE_OPTIONS: ${API_NODE_OPTIONS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENABLE_SWAGGER: "false"
+      # Cloudflare → host Caddy → this project's Caddy, which sets X-Forwarded-For to the client.
+      TRUST_PROXY_HOPS: 1
+      JWT_ACCESS_SECRET: ${API_JWT_ACCESS_SECRET:?}
+      INTERNAL_MONITORING_KEY: ${INTERNAL_MONITORING_KEY:?}
+      # HTTP calls are same-origin; this list is the exact extra origins (the apex).
+      CORS_ORIGINS: ${APEX_URL:?}
+      WORKSPACE_URL_TEMPLATE: ${WORKSPACE_URL_TEMPLATE:?}
+      APP_WEB_URL: ${APEX_URL}
+      MAIL_TRANSPORT: smtp
+      MAIL_FROM: ${MAIL_FROM:?}
+      SMTP_HOST: ${SMTP_HOST:?}
+      SMTP_PORT: ${SMTP_PORT:?}
+      SMTP_SECURE: ${SMTP_SECURE:?}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      AWS_REGION: ${AWS_REGION:?}
+      AWS_S3_ENDPOINT: https://${R2_ACCOUNT_ID:?}.r2.cloudflarestorage.com
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:?}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?}
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+
+  admin-api:
+    <<: *defaults
+    image: ${IMAGE_PREFIX}-admin-api:${TAG}
+    environment:
+      <<: *data
+      NODE_ENV: production
+      PORT: 3100
+      NODE_OPTIONS: ${ADMIN_API_NODE_OPTIONS:-}
+      TRUST_PROXY_HOPS: 1
+      # Its own secret: a workspace user's token must never work on the platform admin.
+      JWT_ACCESS_SECRET: ${ADMIN_JWT_ACCESS_SECRET:?}
+      INTERNAL_MONITORING_KEY: ${INTERNAL_MONITORING_KEY}
+      TENANT_API_URL: http://api:3000/api/v1
+      CORS_ORIGINS: ${ADMIN_URL:?}
+      WORKSPACE_URL_TEMPLATE: ${WORKSPACE_URL_TEMPLATE}
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+
+  # Built per environment (its NEXT_PUBLIC_* values are baked in), hence the -<env> tag.
+  web:
+    <<: *defaults
+    image: ${IMAGE_PREFIX}-web:${TAG}-${APP_ENV}
+    depends_on:
+      api: { condition: service_healthy }
+
+  admin:
+    <<: *defaults
+    image: ${IMAGE_PREFIX}-admin:${TAG}
+    depends_on:
+      admin-api: { condition: service_healthy }
+
+  # Routing (./Caddyfile). Listens on a unix socket in EDGE_SOCKET_DIR for the host Caddy; nothing
+  # in this project publishes a port.
+  caddy:
+    <<: *defaults
+    image: caddy:2.11-alpine
+    environment:
+      ADMIN_HOST: ${ADMIN_HOST:?}
+      NOINDEX: ${NOINDEX:-false}
+      CADDY_BIND: ${CADDY_BIND:-unix//run/edge/caddy.sock|0666}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${EDGE_SOCKET_DIR:?}:/run/edge
+      - caddy-data:/data
+    depends_on:
+      web: { condition: service_healthy }
+      admin: { condition: service_healthy }
+
+  # One-shot jobs (infra/deploy.sh): migrations, and the demo seed on staging's first deploy.
+  tools:
+    image: ${IMAGE_PREFIX}-api:${TAG}
+    profiles: [tools]
+    working_dir: /repo/packages/database
+    entrypoint: []
+    environment:
+      <<: *data
+      NODE_ENV: production
+      # The seed command (prisma.config.ts) calls ts-node from the package's own bin folder.
+      PATH: /repo/packages/database/node_modules/.bin:/usr/local/bin:/usr/bin:/bin
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  postgres-data:
+  valkey-data:
+  caddy-data:

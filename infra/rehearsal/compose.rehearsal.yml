@@ -1,0 +1,12 @@
+# Deploy rehearsal only (infra/rehearsal/rehearse.sh): Caddy on 127.0.0.1:8080 instead of the
+# socket, and Mailpit (API on 127.0.0.1:18025) catching the mail instead of Resend.
+services:
+  caddy:
+    ports: ["127.0.0.1:8080:80"]
+  mailpit:
+    image: axllent/mailpit:v1.33
+    restart: unless-stopped
+    ports: ["127.0.0.1:18025:8025"]
+  api:
+    depends_on:
+      mailpit: { condition: service_started }

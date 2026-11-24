@@ -711,18 +711,22 @@ async function seedAdminRolePermissions(
   );
 }
 
-async function seedInitialPlatformAdmin(passwordHash: string): Promise<void> {
+async function seedInitialPlatformAdmin(
+  email: string,
+  passwordHash: string,
+): Promise<void> {
   await prisma.platformAdmin.upsert({
-    where: { email: 'admin@crmpro.local' },
+    where: { id: INITIAL_PLATFORM_ADMIN_ID },
     create: {
       id: INITIAL_PLATFORM_ADMIN_ID,
-      email: 'admin@crmpro.local',
+      email,
       passwordHash,
       fullName: 'System Administrator',
       roleId: ADMIN_ROLE_IDS.superAdmin,
       isActive: true,
     },
     update: {
+      email,
       passwordHash,
       fullName: 'System Administrator',
       roleId: ADMIN_ROLE_IDS.superAdmin,
@@ -1895,12 +1899,40 @@ async function seedTenantCrmData(
   );
 }
 
+/**
+ * Sign-in for the seeded users. The defaults are in the repo, so a database
+ * anyone else can reach (staging) sets its own through the environment
+ * (infra/secrets.example.env).
+ */
+function seedCredentials() {
+  const fromEnv = (name: string) => process.env[name]?.trim() || undefined;
+  const credentials = {
+    userPassword: fromEnv('SEED_USER_PASSWORD') ?? 'Password123!',
+    adminEmail: fromEnv('SEED_ADMIN_EMAIL') ?? 'admin@crmpro.local',
+    adminPassword: fromEnv('SEED_ADMIN_PASSWORD') ?? 'Admin123!',
+  };
+  if (process.env.NODE_ENV === 'production') {
+    const missing = [
+      'SEED_USER_PASSWORD',
+      'SEED_ADMIN_EMAIL',
+      'SEED_ADMIN_PASSWORD',
+    ].filter((name) => !fromEnv(name));
+    if (missing.length) {
+      throw new Error(
+        `NODE_ENV=production: set ${missing.join(', ')} (the defaults are public)`,
+      );
+    }
+  }
+  return credentials;
+}
+
 async function main(): Promise<void> {
   initFaker();
   console.log('Seeding CRMPro database...\n');
 
-  const passwordHash = await argon2.hash('Password123!');
-  const adminPasswordHash = await argon2.hash('Admin123!');
+  const credentials = seedCredentials();
+  const passwordHash = await argon2.hash(credentials.userPassword);
+  const adminPasswordHash = await argon2.hash(credentials.adminPassword);
 
   await seedSubscriptionPlans();
   console.log('✓ Subscription plans');
@@ -1926,7 +1958,7 @@ async function main(): Promise<void> {
   await seedAdminRolePermissions(adminPermissionIds);
   console.log('✓ Admin role permissions');
 
-  await seedInitialPlatformAdmin(adminPasswordHash);
+  await seedInitialPlatformAdmin(credentials.adminEmail, adminPasswordHash);
   console.log('✓ Platform admin');
 
   await seedTenantContracts();
@@ -1954,12 +1986,18 @@ async function main(): Promise<void> {
   console.log('\nSeed complete.');
   console.log('\nLogin (prime-estates):');
   console.log('  tenantSlug: prime-estates');
-  console.log('  owner@primeestates.com / Password123!');
-  console.log('  manager@primeestates.com / Password123!');
-  console.log('  agent@primeestates.com / Password123!');
+  const shownPassword = process.env.SEED_USER_PASSWORD
+    ? '<SEED_USER_PASSWORD>'
+    : credentials.userPassword;
+  console.log(`  owner@primeestates.com / ${shownPassword}`);
+  console.log(`  manager@primeestates.com / ${shownPassword}`);
+  console.log(`  agent@primeestates.com / ${shownPassword}`);
   console.log('  (+ 8 more team members, e.g. mona.adel@primeestates.com, same password)');
   console.log('\nLogin (admin-api):');
-  console.log('  admin@crmpro.local / Admin123!');
+  const shownAdminPassword = process.env.SEED_ADMIN_PASSWORD
+    ? '<SEED_ADMIN_PASSWORD>'
+    : credentials.adminPassword;
+  console.log(`  ${credentials.adminEmail} / ${shownAdminPassword}`);
   console.log('\nAdmin audit explorer sample IDs:');
   console.log(`  auditId: ${ADMIN_AUDIT_IDS.tenantCreated}`);
   console.log(`  securityEventId: ${ADMIN_SECURITY_EVENT_IDS.loginSuccess}`);

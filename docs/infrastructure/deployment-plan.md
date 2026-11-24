@@ -75,7 +75,7 @@ Certificate Manager). `.app` is on the browsers' HSTS preload list, so it is HTT
 | --------------------------------------- | ---------- | ----------------------------------------------------------------------- |
 | `staging.nomow.app`                     | Staging    | "Find my workspace" (email → link to the workspace host), `noindex`     |
 | `<slug>-staging.nomow.app`, e.g. `prime-estates-x7k2-staging.nomow.app` | Staging | One demo workspace — `/api/*`, `/socket.io/*` → api (same origin), `noindex` |
-| `admin-staging.nomow.app`               | Staging    | Staging admin — `/api/*` → admin-api; behind **Cloudflare Access**      |
+| `admin-staging.nomow.app`               | Staging    | Staging admin — `/api/*` → admin-api; **Cloudflare Access** optional until production |
 | `nomow.app`                             | Production | Public site; "find my workspace"                                        |
 | `<slug>.nomow.app`, e.g. `prime-estates-x7k2.nomow.app` | Production | One workspace                                   |
 | `admin.nomow.app`                       | Production | Platform admin, behind Cloudflare Access                                |
@@ -130,14 +130,14 @@ plain 404 from the host Caddy; later they go to the `crmpro` socket.
 
 | Service     | Image                                   | Notes                                                             |
 | ----------- | --------------------------------------- | ----------------------------------------------------------------- |
-| `caddy`     | `caddy:2` + `infra/caddy/Caddyfile`     | Listens on the unix socket; routes by host and path               |
+| `caddy`     | `caddy:2.11-alpine` + `infra/compose/Caddyfile` | Listens on the unix socket; routes by host and path               |
 | `web`       | `ghcr.io/build8-developments/crmpro-web` | Next.js standalone                                                |
 | `admin`     | `…/crmpro-admin`                        | Next.js standalone                                                |
 | `api`       | `…/crmpro-api`                          | NestJS; BullMQ workers and the scheduler run in-process           |
 | `admin-api` | `…/crmpro-admin-api`                    | NestJS                                                            |
 | `tools`     | same image as `api`, one-shot           | `prisma migrate deploy` at deploy time                            |
-| `postgres`  | `postgres:17-alpine` (pinned)           | Internal only; data volume                                        |
-| `redis`     | `valkey/valkey` (pinned), AOF           | Internal only; `noeviction` for BullMQ                            |
+| `postgres`  | `postgres:17-alpine`                    | Internal only; data volume                                        |
+| `valkey`    | `valkey/valkey:9.1-alpine`, AOF         | Internal only; `noeviction` for BullMQ                            |
 
 Only the project Caddy is reachable (via the socket). Nothing publishes a port. Every service has
 a memory/CPU limit, a health check and `restart: unless-stopped`. Staging adds
@@ -203,10 +203,12 @@ Guard rails:
 
 ## 7. Work, in order (staging)
 
-1. **Repo (me):** Dockerfiles for api, admin-api (missing today), web, admin (pnpm + turbo prune,
-   Next standalone, non-root); `infra/compose/staging.*`, `infra/caddy/Caddyfile`,
-   `infra/deploy.sh`, `release.yml`; production-style env checks (R2 endpoint, Resend, cookies
-   `Secure`, `TRUST_PROXY_HOPS`). Verified locally with a production-like compose run.
+1. **Repo (me): done.** `apps/{api,admin-api,web,admin}/Dockerfile` (pnpm filtered install, Next
+   standalone, non-root, health checks); `infra/compose/` (`compose.yml`, `compose.staging.yml`,
+   `staging.env`, `Caddyfile`), `infra/deploy.sh`, `infra/server/` (edge site file,
+   `init-secrets.sh`), `release.yml`. The demo seed takes its passwords and the platform admin's
+   email from the secrets file on staging (the repo's defaults are public). Every pull request
+   rehearses the whole deploy on the runner; see [`infra/README.md`](../../infra/README.md).
 2. **Workspace hosts (me): done.** Slugs, reserved names, sign-in bound to the host, "find my
    workspace", workspace links in emails, socket origins, rate limits. Tested on `*.localhost`.
 3. **Cloudflare (you):** step by step in [`cloudflare-setup.md`](cloudflare-setup.md).
