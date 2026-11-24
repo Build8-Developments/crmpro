@@ -68,6 +68,7 @@ request() { # method host path [json] → prints the status code; body in $body_
     ${data:+-H 'Content-Type: application/json' --data "$data"} "http://$host:8080$path"
 }
 failed=0
+# NestJS answers a successful POST with 201.
 expect() { # name expected actual
   printf '  %-4s %-52s %s\n' "$([[ $3 == "$2" ]] && echo ok || echo FAIL)" "$1" "$3"
   [[ $3 == "$2" ]] || { failed=1; head -c 400 "$body_file"; echo; }
@@ -79,19 +80,19 @@ user='{"tenantSlug":"prime-estates","email":"owner@primeestates.com","password":
 
 expect "repo default password refused" 401 \
   "$(request POST "$ws" /api/v1/auth/login '{"tenantSlug":"prime-estates","email":"owner@primeestates.com","password":"Password123!"}')"
-expect "owner signs in on its workspace host" 200 "$(request POST "$ws" /api/v1/auth/login "$user")"
+expect "owner signs in on its workspace host" 201 "$(request POST "$ws" /api/v1/auth/login "$user")"
 token=$(node -e 'const b=JSON.parse(require("fs").readFileSync(process.argv[1]));process.stdout.write((b.data??b).accessToken??"")' "$body_file" 2>/dev/null || true)
 set_cookie=$(tr -d '\r' <"$headers" | grep -i '^set-cookie:' | head -1)
 expect "refresh cookie is HttpOnly, Secure, host-only" yes \
   "$(grep -qi 'httponly' <<<"$set_cookie" && grep -qi 'secure' <<<"$set_cookie" && ! grep -qi 'domain=' <<<"$set_cookie" && echo yes || echo no)"
 cookie=$(sed -E 's/^[Ss]et-[Cc]ookie: *([^;]*).*/\1/' <<<"$set_cookie")
-expect "session refreshes on the same host" 200 "$(request POST "$ws" /api/v1/auth/refresh)"
+expect "session refreshes on the same host" 201 "$(request POST "$ws" /api/v1/auth/refresh)"
 cookie=""
 expect "same login from another workspace's host" 403 "$(request POST "$other" /api/v1/auth/login "$user")"
 code=$(curl -s -o "$body_file" -w '%{http_code}' --max-time 20 --connect-to "::127.0.0.1:8080" \
   -H "Authorization: Bearer $token" "http://$ws:8080/api/v1/auth/me")
 expect "the access token works" 200 "$code"
-expect "platform admin signs in with the secrets file's password" 200 \
+expect "platform admin signs in with the secrets file's password" 201 \
   "$(request POST "$admin" /api/v1/auth/login '{"email":"platform-admin@nomow.test","password":"'"$(secret SEED_ADMIN_PASSWORD)"'"}')"
 expect "a workspace token is refused by the admin API" 401 \
   "$(curl -s -o "$body_file" -w '%{http_code}' --max-time 20 --connect-to "::127.0.0.1:8080" \
