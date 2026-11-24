@@ -109,9 +109,20 @@ export function TenantDetailPage({ tenantId }: TenantDetailPageProps) {
               </Badge>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              <code className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
-                {tenant.slug}
-              </code>
+              {tenant.workspaceUrl ? (
+                <a
+                  href={tenant.workspaceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] hover:text-foreground hover:underline"
+                >
+                  {tenant.workspaceUrl.replace(/^https?:\/\//, "")}
+                </a>
+              ) : (
+                <code className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px]">
+                  {tenant.slug}
+                </code>
+              )}
               <span className="mx-1.5 text-border">·</span>
               Created {formatRelativeTime(tenant.createdAt)}
             </p>

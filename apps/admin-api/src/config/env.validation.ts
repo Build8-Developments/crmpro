@@ -1,4 +1,17 @@
 import * as Joi from 'joi';
+import { parseWorkspaceUrlTemplate } from '@crmpro/shared/workspaces';
+
+/** https://{slug}.nomow.app, https://{slug}-staging.nomow.app, http://{slug}.localhost:3001 */
+function workspaceUrlTemplate() {
+  return Joi.string().custom((value: string, helpers) =>
+    parseWorkspaceUrlTemplate(value)
+      ? value
+      : helpers.message({
+          custom:
+            'WORKSPACE_URL_TEMPLATE must look like https://{slug}.example.com or https://{slug}-staging.example.com (no path)',
+        }),
+  );
+}
 
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -21,5 +34,12 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_EXPIRATION: Joi.string().default('30d'),
   REFRESH_COOKIE_CROSS_ORIGIN: Joi.string().valid('true', 'false').optional(),
   CORS_ORIGINS: Joi.string().min(1).required(),
+  // Links to each workspace's own host. Required in production: without it
+  // the admin app cannot show where a tenant signs in.
+  WORKSPACE_URL_TEMPLATE: workspaceUrlTemplate().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   API_VERSION: Joi.string().optional(),
 }).or('REDIS_URL', 'REDIS_HOST');

@@ -50,6 +50,16 @@ export default () => {
         false,
       ),
     },
+    workspaces: {
+      // e.g. https://{slug}.nomow.app: shown on each tenant in the admin app.
+      // Development falls back to *.localhost (resolves to this machine);
+      // production must set it (env.validation).
+      urlTemplate:
+        process.env.WORKSPACE_URL_TEMPLATE?.trim() ||
+        (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+          ? 'http://{slug}.localhost:3001'
+          : null),
+    },
     cors: {
       origins: (process.env.CORS_ORIGINS ?? '')
         .split(',')

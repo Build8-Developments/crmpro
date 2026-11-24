@@ -26,10 +26,12 @@ import { useActiveContracts } from "@/features/tenants/hooks";
 import { useCreateTenant } from "@/features/tenants/mutations";
 import {
   isValidPassword,
+  isReservedSlug,
   isValidSlug,
   PASSWORD_HINT,
   SLUG_HINT,
   slugifyName,
+  WORKSPACE_PREFIX_MAX_LENGTH,
 } from "@/features/tenants/utils/password";
 import { usePermissions } from "@/hooks/use-permissions";
 import { formatNumber } from "@/lib/format";
@@ -186,7 +188,7 @@ export function CreateTenantForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tenant-slug">Slug</Label>
+              <Label htmlFor="tenant-slug">Workspace address</Label>
               <Input
                 id="tenant-slug"
                 value={slug}
@@ -195,14 +197,22 @@ export function CreateTenantForm() {
                   setSlug(event.target.value.toLowerCase());
                 }}
                 required
-                minLength={3}
-                maxLength={80}
+                minLength={2}
+                maxLength={WORKSPACE_PREFIX_MAX_LENGTH}
                 autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">{SLUG_HINT}</p>
+              <p className="text-xs text-muted-foreground">
+                Signs in at{" "}
+                <code className="rounded bg-muted/60 px-1 py-0.5 text-[11px]">
+                  {slug || "name"}-xxxx
+                </code>
+                . {SLUG_HINT}
+              </p>
               {slug && !slugValid ? (
                 <p className="text-xs text-destructive">
-                  Slug must be lowercase kebab-case.
+                  {isReservedSlug(slug)
+                    ? "This address is reserved; choose another."
+                    : `Use lowercase letters, numbers and single hyphens (2–${WORKSPACE_PREFIX_MAX_LENGTH} characters).`}
                 </p>
               ) : null}
             </div>

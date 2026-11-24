@@ -33,11 +33,23 @@ type TenantWithRelations = TenantWithPlan & {
   }>;
 };
 
-export function toTenantListItem(tenant: TenantWithPlan): TenantListItem {
+/** WORKSPACE_URL_TEMPLATE (e.g. https://{slug}.nomow.app) filled in for one tenant. */
+export function workspaceUrlFor(
+  slug: string,
+  template: string | null | undefined,
+): string | null {
+  return template ? template.replace('{slug}', slug).replace(/\/$/, '') : null;
+}
+
+export function toTenantListItem(
+  tenant: TenantWithPlan,
+  workspaceUrlTemplate?: string | null,
+): TenantListItem {
   return {
     id: tenant.id,
     name: tenant.name,
     slug: tenant.slug,
+    workspaceUrl: workspaceUrlFor(tenant.slug, workspaceUrlTemplate),
     status: tenant.status,
     plan: {
       id: tenant.subscriptionPlan.id,
@@ -77,7 +89,10 @@ function findOwnerUser(
   };
 }
 
-export function toTenantDetail(tenant: TenantWithRelations): TenantDetail {
+export function toTenantDetail(
+  tenant: TenantWithRelations,
+  workspaceUrlTemplate?: string | null,
+): TenantDetail {
   const activeContract =
     tenant.contracts.find((contract) => contract.deletedAt === null) ?? null;
 
@@ -85,6 +100,7 @@ export function toTenantDetail(tenant: TenantWithRelations): TenantDetail {
     id: tenant.id,
     name: tenant.name,
     slug: tenant.slug,
+    workspaceUrl: workspaceUrlFor(tenant.slug, workspaceUrlTemplate),
     status: tenant.status,
     subscriptionPlan: {
       id: tenant.subscriptionPlan.id,

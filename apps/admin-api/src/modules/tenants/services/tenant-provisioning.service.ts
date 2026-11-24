@@ -20,8 +20,26 @@ import type { CreateTenantDto } from '../dto/create-tenant.dto';
 import type { ProvisionTenantResult } from '../types/tenant.types';
 import { TenantsAuditService } from './tenants-audit.service';
 import type { RequestSecurityMetadata } from '../../auth/auth.types';
+import { randomInt } from 'node:crypto';
+import { generateWorkspaceSlug } from '../constants/tenant-provisioning.constants';
 
 type PrismaTx = Prisma.TransactionClient;
+
+const SLUG_INSERT_ATTEMPTS = 3;
+
+/** The unique index on `Tenant.slug` refused the insert. */
+function isSlugTaken(error: unknown): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== 'P2002'
+  ) {
+    return false;
+  }
+  const target = (error.meta as { target?: unknown } | undefined)?.target;
+  return Array.isArray(target)
+    ? target.includes('slug')
+    : typeof target === 'string' && target.includes('slug');
+}
 
 type ProvisionableContract = {
   id: string;
@@ -41,12 +59,42 @@ export class TenantProvisioningService {
     actorAdminId: string,
     metadata: RequestSecurityMetadata,
   ): Promise<ProvisionTenantResult> {
-    await this.assertSlugAvailable(dto.slug);
     await this.assertOwnerEmailAvailable(dto.ownerEmail);
 
     await this.findProvisionableContract(dto.contractId);
     const passwordHash = await this.passwordService.hash(dto.ownerPassword);
 
+    // The free-slug check and the insert are not atomic: if another tenant
+    // takes the same address in between, the unique index refuses it and we
+    // try a fresh suffix instead of failing with a 500.
+    for (let attempt = 1; ; attempt += 1) {
+      const slug = await this.pickWorkspaceSlug(dto.slug);
+      try {
+        return await this.createTenant(
+          dto,
+          slug,
+          passwordHash,
+          actorAdminId,
+          metadata,
+        );
+      } catch (error) {
+        if (!isSlugTaken(error)) throw error;
+        if (attempt >= SLUG_INSERT_ATTEMPTS) {
+          throw new ConflictException(
+            'Could not find a free workspace address; try again',
+          );
+        }
+      }
+    }
+  }
+
+  private createTenant(
+    dto: CreateTenantDto,
+    slug: string,
+    passwordHash: string,
+    actorAdminId: string,
+    metadata: RequestSecurityMetadata,
+  ): Promise<ProvisionTenantResult> {
     return this.prisma.$transaction(async (tx) => {
       const contract = await this.lockProvisionableContractInTx(
         tx,
@@ -56,7 +104,7 @@ export class TenantProvisioningService {
       const tenant = await tx.tenant.create({
         data: {
           name: dto.name,
-          slug: dto.slug,
+          slug,
           subscriptionPlanId: contract.planId,
           status: TenantStatus.ACTIVE,
           storageUsedBytes: 0n,
@@ -248,15 +296,19 @@ export class TenantProvisioningService {
     }
   }
 
-  private async assertSlugAvailable(slug: string): Promise<void> {
-    const existing = await this.prisma.tenant.findFirst({
-      where: { slug, deletedAt: null },
-      select: { id: true },
-    });
-
-    if (existing) {
-      throw new ConflictException('Tenant slug is already in use');
+  /** `<prefix>-<random suffix>` that no tenant uses, including deleted ones. */
+  private async pickWorkspaceSlug(prefix: string): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const slug = generateWorkspaceSlug(prefix, randomInt);
+      const existing = await this.prisma.tenant.findFirst({
+        where: { slug },
+        select: { id: true },
+      });
+      if (!existing) return slug;
     }
+    throw new ConflictException(
+      'Could not find a free workspace address; try again',
+    );
   }
 
   private async assertOwnerEmailAvailable(email: string): Promise<void> {

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ContractStatus, TenantStatus } from '@crmpro/database';
@@ -70,6 +71,10 @@ describe('TenantsService reactivateTenant', () => {
         {
           provide: TenantUsageService,
           useValue: {},
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: () => 'https://{slug}.nomow.test' },
         },
         {
           provide: TenantsAuditService,

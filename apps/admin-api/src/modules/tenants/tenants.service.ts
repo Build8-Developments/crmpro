@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import {
   BadRequestException,
   Injectable,
@@ -69,7 +70,12 @@ export class TenantsService {
     private readonly ownerService: TenantOwnerService,
     private readonly usageService: TenantUsageService,
     private readonly auditService: TenantsAuditService,
+    private readonly config: ConfigService,
   ) {}
+
+  private get workspaceUrlTemplate(): string | null {
+    return this.config.get<string | null>('workspaces.urlTemplate') ?? null;
+  }
 
   async listTenants(
     query: GetTenantsQueryDto,
@@ -102,7 +108,9 @@ export class TenantsService {
     ]);
 
     return buildPaginatedResponse(
-      tenants.map(toTenantListItem),
+      tenants.map((tenant) =>
+        toTenantListItem(tenant, this.workspaceUrlTemplate),
+      ),
       page,
       limit,
       totalItems,
@@ -119,7 +127,7 @@ export class TenantsService {
       throw new NotFoundException('Tenant not found');
     }
 
-    return toTenantDetail(tenant);
+    return toTenantDetail(tenant, this.workspaceUrlTemplate);
   }
 
   async listTenantUsers(

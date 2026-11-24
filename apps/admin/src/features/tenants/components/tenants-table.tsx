@@ -26,7 +26,7 @@ export function TenantsTable({ tenants }: TenantsTableProps) {
               Tenant
             </th>
             <th className="hidden h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase sm:table-cell">
-              Slug
+              Address
             </th>
             <th className="h-8 px-3 font-medium text-[11px] tracking-wide text-muted-foreground uppercase">
               Plan

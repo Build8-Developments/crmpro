@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ContractStatus } from '@crmpro/database';
+import { ContractStatus, Prisma } from '@crmpro/database';
 import { PERMISSIONS } from '@crmpro/shared';
 import { PasswordService } from '../../../common/security/password.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -153,6 +153,55 @@ describe('TenantProvisioningService contract concurrency', () => {
       },
       data: { tenantId: 'tenant-1' },
     });
+  });
+
+  it('adds a random 4-character suffix to the chosen address', async () => {
+    await service.provisionTenant(dto, 'admin-1', metadata);
+
+    const created = tx.tenant.create.mock.calls[0][0] as {
+      data: { slug: string };
+    };
+    expect(created.data.slug).toMatch(/^acme-realty-[a-z2-9]{4}$/);
+    expect(created.data.slug).not.toMatch(/[01lo]$/);
+  });
+
+  it('draws a new suffix when the first one is taken', async () => {
+    prisma.tenant.findFirst
+      .mockResolvedValueOnce({ id: 'existing' })
+      .mockResolvedValueOnce(null);
+
+    await service.provisionTenant(dto, 'admin-1', metadata);
+
+    expect(prisma.tenant.findFirst).toHaveBeenCalledTimes(2);
+    expect(tx.tenant.create).toHaveBeenCalled();
+  });
+
+  const slugTaken = () =>
+    new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['slug'] },
+    });
+
+  it('tries a fresh suffix when another tenant takes the address first', async () => {
+    tx.tenant.create.mockRejectedValueOnce(slugTaken());
+
+    await service.provisionTenant(dto, 'admin-1', metadata);
+
+    expect(tx.tenant.create).toHaveBeenCalledTimes(2);
+    const [first, second] = tx.tenant.create.mock.calls.map(
+      ([args]: [{ data: { slug: string } }]) => args.data.slug,
+    );
+    expect(second).not.toBe(first);
+  });
+
+  it('answers 409, not 500, when the address keeps clashing', async () => {
+    tx.tenant.create.mockRejectedValue(slugTaken());
+
+    await expect(
+      service.provisionTenant(dto, 'admin-1', metadata),
+    ).rejects.toThrow(ConflictException);
+    expect(tx.tenant.create).toHaveBeenCalledTimes(3);
   });
 
   it('creates default organization settings for the new tenant', async () => {
