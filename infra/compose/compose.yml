@@ -146,6 +146,10 @@ services:
       NODE_ENV: production
       # The seed command (prisma.config.ts) calls ts-node from the package's own bin folder.
       PATH: /repo/packages/database/node_modules/.bin:/usr/local/bin:/usr/bin:/bin
+      # Run the seed without type-checking it: checking 2,000 lines on every run ran out of
+      # memory at Node's default heap in the 768 MB tools container.
+      TS_NODE_TRANSPILE_ONLY: "true"
+      NODE_OPTIONS: --max-old-space-size=640
       SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
