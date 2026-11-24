@@ -1,4 +1,17 @@
 import * as Joi from 'joi';
+import { parseWorkspaceUrlTemplate } from '@crmpro/shared/workspaces';
+
+/** https://{slug}.nomow.app, https://{slug}-staging.nomow.app, http://{slug}.localhost:3001 */
+function workspaceUrlTemplate() {
+  return Joi.string().custom((value: string, helpers) =>
+    parseWorkspaceUrlTemplate(value)
+      ? value
+      : helpers.message({
+          custom:
+            'WORKSPACE_URL_TEMPLATE must look like https://{slug}.example.com or https://{slug}-staging.example.com (no path)',
+        }),
+  );
+}
 
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -74,6 +87,14 @@ export const envValidationSchema = Joi.object({
   REFRESH_COOKIE_CROSS_ORIGIN: Joi.string().valid('true', 'false').optional(),
   JWT_REFRESH_EXPIRATION: Joi.string().optional(),
   CORS_ORIGINS: Joi.string().min(1).required(),
+  // Each workspace's own host. Emails link to it, the realtime socket accepts
+  // it as an origin, and sign-in from it is bound to that workspace. Required
+  // in production: without it every link would point at the bare domain.
+  WORKSPACE_URL_TEMPLATE: workspaceUrlTemplate().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   AWS_REGION: Joi.string().required(),
   AWS_ACCESS_KEY_ID: Joi.string().required(),
   AWS_SECRET_ACCESS_KEY: Joi.string().required(),

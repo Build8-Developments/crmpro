@@ -15,7 +15,7 @@ describe('EmailNotificationChannel', () => {
     notificationPreference: { findUnique: jest.Mock };
     user: { findFirst: jest.Mock };
   };
-  let mail: { send: jest.Mock; webUrl: jest.Mock };
+  let mail: { send: jest.Mock; workspaceUrl: jest.Mock };
   let channel: EmailNotificationChannel;
 
   beforeEach(() => {
@@ -28,12 +28,17 @@ describe('EmailNotificationChannel', () => {
         }),
       },
       user: {
-        findFirst: jest.fn().mockResolvedValue({ email: 'agent@x.com' }),
+        findFirst: jest.fn().mockResolvedValue({
+          email: 'agent@x.com',
+          tenant: { slug: 'prime' },
+        }),
       },
     };
     mail = {
       send: jest.fn(),
-      webUrl: jest.fn((path: string) => `https://app.test${path}`),
+      workspaceUrl: jest.fn(
+        (slug: string, path: string) => `https://${slug}.app.test${path}`,
+      ),
     };
     channel = new EmailNotificationChannel(prisma as never, mail as never);
   });
@@ -45,7 +50,7 @@ describe('EmailNotificationChannel', () => {
       expect.objectContaining({
         to: 'agent@x.com',
         text: expect.stringContaining(
-          'https://app.test/leads?id=lead-1',
+          'https://prime.app.test/leads?id=lead-1',
         ) as string,
       }),
     );

@@ -84,6 +84,38 @@ describe('RateLimitGuard', () => {
     );
   });
 
+  it('caps workspace lookups per IP', async () => {
+    reflector.getAllAndOverride.mockReturnValue('workspace-lookup');
+    const { context } = buildContext({ ip: '10.0.0.1' });
+
+    await guard.canActivate(context);
+
+    expect(rateLimitService.consume).toHaveBeenCalledTimes(1);
+    expect(rateLimitService.consume).toHaveBeenCalledWith(
+      'rate-limit:api:workspace-lookup:ip:10.0.0.1',
+      60,
+      900,
+    );
+  });
+
+  it('keeps "find my workspace" out of the password-reset buckets', async () => {
+    reflector.getAllAndOverride.mockReturnValue('workspace-find');
+    const { context } = buildContext({
+      ip: '10.0.0.1',
+      body: { email: 'Sara@X.com' },
+    });
+
+    await guard.canActivate(context);
+
+    const keys = rateLimitService.consume.mock.calls.map(
+      ([key]: [string]) => key,
+    );
+    expect(keys).toEqual([
+      'rate-limit:api:workspace-find:email:sara@x.com',
+      'rate-limit:api:workspace-find:ip:10.0.0.1',
+    ]);
+  });
+
   it('allows a request under the limit and reports remaining budget', async () => {
     reflector.getAllAndOverride.mockReturnValue('refresh');
     const { context, setHeader } = buildContext({ ip: '10.0.0.1' });

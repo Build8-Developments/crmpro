@@ -26,6 +26,11 @@ import {
 import { extractLoginSessionMetadata } from './utils/request-metadata.util';
 import { AuthRateLimit } from '../../common/rate-limit/rate-limit.decorator';
 import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
+import {
+  assertRequestFromWorkspace,
+  requestWorkspaceSlug,
+  workspaceUrlTemplate,
+} from '../../common/http/workspace-origin';
 
 @Controller('auth')
 export class AuthController {
@@ -55,6 +60,11 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    assertRequestFromWorkspace(
+      req.headers,
+      workspaceUrlTemplate(this.configService),
+      loginDto.tenantSlug,
+    );
     const result = await this.authService.login(
       loginDto,
       extractLoginSessionMetadata(req, loginDto.deviceName),
@@ -84,7 +94,12 @@ export class AuthController {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const result = await this.authService.refresh(refreshToken);
+    const result = await this.authService.refresh(refreshToken, {
+      workspaceSlug: requestWorkspaceSlug(
+        req.headers,
+        workspaceUrlTemplate(this.configService),
+      ),
+    });
 
     setRefreshCookie(res, result.refreshToken, this.getRefreshCookieConfig());
 

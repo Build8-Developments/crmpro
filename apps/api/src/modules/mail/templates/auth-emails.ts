@@ -105,3 +105,34 @@ export function notificationEmail(params: {
     }),
   };
 }
+
+/** "Find my workspace": every workspace this email can sign in to. */
+export function workspaceLinksEmail(params: {
+  workspaces: { name: string; url: string }[];
+}) {
+  const items = params.workspaces.map(
+    (workspace) =>
+      `<strong>${escapeHtml(workspace.name)}</strong> — <a href="${escapeHtml(workspace.url)}">${escapeHtml(workspace.url)}</a>`,
+  );
+
+  return {
+    subject: 'مساحات العمل الخاصة بك · Your Nomow workspaces',
+    ...renderEmail({
+      heading: { ar: 'مساحات العمل الخاصة بك', en: 'Your workspaces' },
+      body: {
+        ar: [
+          'طلبت روابط مساحات العمل المرتبطة بهذا البريد الإلكتروني. افتح الرابط ثم سجّل الدخول:',
+          ...items,
+        ],
+        en: [
+          'You asked for the workspaces linked to this email. Open one and sign in:',
+          ...items,
+        ],
+      },
+      footer: {
+        ar: 'إذا لم تطلب ذلك فتجاهل هذه الرسالة.',
+        en: "If you didn't ask for this, ignore this email.",
+      },
+    }),
+  };
+}

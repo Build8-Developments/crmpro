@@ -10,7 +10,7 @@ describe('AccountRecoveryService', () => {
     tenantId: 'tenant-1',
     invitedAt: null,
     inviteAcceptedAt: null,
-    tenant: { name: 'Prime Estates' },
+    tenant: { name: 'Prime Estates', slug: 'prime' },
   };
 
   let tx: {
@@ -24,7 +24,7 @@ describe('AccountRecoveryService', () => {
     consume: jest.Mock;
     peek: jest.Mock;
   };
-  let mail: { send: jest.Mock; webUrl: jest.Mock };
+  let mail: { send: jest.Mock; workspaceUrl: jest.Mock };
   let tenantAccess: { assertTenantAccessible: jest.Mock };
   let audit: { createAuditLog: jest.Mock };
   let service: AccountRecoveryService;
@@ -57,7 +57,9 @@ describe('AccountRecoveryService', () => {
     };
     mail = {
       send: jest.fn(),
-      webUrl: jest.fn((path: string) => `https://app.test${path}`),
+      workspaceUrl: jest.fn(
+        (slug: string, path: string) => `https://${slug}.app.test${path}`,
+      ),
     };
     tenantAccess = { assertTenantAccessible: jest.fn() };
     audit = { createAuditLog: jest.fn() };
@@ -84,7 +86,7 @@ describe('AccountRecoveryService', () => {
       expect.objectContaining({
         to: 'mona@agency.com',
         text: expect.stringContaining(
-          'https://app.test/reset-password?token=raw-token',
+          'https://prime.app.test/reset-password?token=raw-token',
         ) as string,
       }),
     );

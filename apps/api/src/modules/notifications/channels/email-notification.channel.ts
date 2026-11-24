@@ -49,7 +49,7 @@ export class EmailNotificationChannel implements NotificationDeliveryChannel {
           isActive: true,
           deletedAt: null,
         },
-        select: { email: true },
+        select: { email: true, tenant: { select: { slug: true } } },
       });
 
       if (!recipient) {
@@ -59,7 +59,10 @@ export class EmailNotificationChannel implements NotificationDeliveryChannel {
       const message = notificationEmail({
         title: context.title,
         message: context.message,
-        url: this.mail.webUrl(this.resolvePath(context)),
+        url: this.mail.workspaceUrl(
+          recipient.tenant.slug,
+          this.resolvePath(context),
+        ),
       });
 
       await this.mail.send({ to: recipient.email, ...message });

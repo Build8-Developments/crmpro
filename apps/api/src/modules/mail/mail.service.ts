@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Queue, Worker } from 'bullmq';
 import { createTransport, type Transporter } from 'nodemailer';
+import { buildWorkspaceUrl } from '@crmpro/shared/workspaces';
+import { workspaceUrlTemplate } from '../../common/http/workspace-origin';
 import { BullService } from '../jobs/bull/bull.service';
 import { MAIL_JOB_ATTEMPTS, MAIL_QUEUE, type MailMessage } from './mail.types';
 
@@ -93,6 +95,18 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
       html: message.html,
       text: message.text,
     });
+  }
+
+  /**
+   * Absolute link into one workspace's own host (WORKSPACE_URL_TEMPLATE, e.g.
+   * https://{slug}.nomow.app). Production requires the template; the single
+   * web URL is only a fallback for tests and scripts.
+   */
+  workspaceUrl(slug: string, path: string): string {
+    const template = workspaceUrlTemplate(this.config);
+    return template
+      ? buildWorkspaceUrl(template, slug, path)
+      : this.webUrl(path);
   }
 
   /** Absolute link into the web app, e.g. `/reset-password?token=…`. */

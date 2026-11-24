@@ -1,4 +1,17 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Request } from 'express';
+import {
+  assertRequestFromWorkspace,
+  workspaceUrlTemplate,
+} from '../../common/http/workspace-origin';
 import { AuthRateLimit } from '../../common/rate-limit/rate-limit.decorator';
 import { RateLimitGuard } from '../../common/rate-limit/rate-limit.guard';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -10,12 +23,20 @@ import { AccountRecoveryService } from './services/account-recovery.service';
 @Controller('auth')
 @UseGuards(RateLimitGuard)
 export class AccountRecoveryController {
-  constructor(private readonly recovery: AccountRecoveryService) {}
+  constructor(
+    private readonly recovery: AccountRecoveryService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post('forgot-password')
   @HttpCode(200)
   @AuthRateLimit('password-reset')
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    assertRequestFromWorkspace(
+      req.headers,
+      workspaceUrlTemplate(this.config),
+      dto.tenantSlug,
+    );
     await this.recovery.requestPasswordReset(dto.tenantSlug, dto.email);
     // Same answer whether or not the account exists.
     return {
