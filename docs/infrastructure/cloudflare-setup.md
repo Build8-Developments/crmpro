@@ -126,7 +126,9 @@ yet. Staging holds only demo data, so it can wait. Do it, or add admin 2FA, befo
    10 GB, but it needs a payment method on file.
 2. **Create bucket:**
    - Name: `crmpro-staging-files`
-   - Location: **Automatic**, hint **Western Europe (WEUR)** (the server is in Europe)
+   - Location: **Specify jurisdiction → European Union (EU)**, as created for staging. Files stay
+     in the EU, and the bucket is reached at `<account-id>.eu.r2.cloudflarestorage.com`
+     (`R2_ENDPOINT_HOST` in `infra/compose/staging.env`).
    - Default storage class: **Standard**
 3. Bucket → **Settings:**
    - **Public access:** R2.dev subdomain **disabled**, no custom domain. Files are only reached
@@ -155,7 +157,8 @@ yet. Staging holds only demo data, so it can wait. Do it, or add admin 2FA, befo
      filter would break uploads.
    - Create, then save the **Access Key ID** and **Secret Access Key** in the password manager
      (the secret is shown once). Note the **S3 endpoint**
-     `https://<account-id>.r2.cloudflarestorage.com`. The account ID is not a secret.
+     `https://<account-id>.eu.r2.cloudflarestorage.com` (EU jurisdiction). The account ID is not a
+     secret.
 
 ## 7. Email — Resend on `mail.nomow.app`
 
