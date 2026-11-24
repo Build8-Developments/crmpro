@@ -29,7 +29,7 @@ done
 for name in SEED_USER_PASSWORD SEED_ADMIN_PASSWORD; do
   has "$name" || add "$name" "$(random 20)"
 done
-for name in SEED_ADMIN_EMAIL R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY SMTP_PASS; do
+for name in SEED_ADMIN_EMAIL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY RESEND_API_KEY; do
   grep -qE "^$name=" "$file" || printf '%s=\n' "$name" >>"$file"
 done
 

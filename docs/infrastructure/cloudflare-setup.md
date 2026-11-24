@@ -200,7 +200,7 @@ yet. Staging holds only demo data, so it can wait. Do it, or add admin 2FA, befo
    `mail.nomow.app` → Configuration**; if *Enable tracking metrics* still shows **Configure**,
    tracking is off and there is nothing to do.
 6. **API Keys → Create:** name `crmpro-staging`, permission **Sending access**, domain
-   `mail.nomow.app`. Save it in the password manager (shown once). It is the SMTP password.
+   `mail.nomow.app`. Save it in the password manager (shown once). It goes in the secrets file as `RESEND_API_KEY`.
 
 ## 8. What goes into the staging secrets file (you paste the secret values)
 
@@ -211,9 +211,9 @@ fill in the rest yourself:
 
 ```bash
 R2_ACCOUNT_ID=                # the Cloudflare account ID (not secret)
-AWS_ACCESS_KEY_ID=            # you: R2 Access Key ID
-AWS_SECRET_ACCESS_KEY=        # you: R2 Secret Access Key
-SMTP_PASS=                    # you: Resend API key
+R2_ACCESS_KEY_ID=             # you: R2 token's Access Key ID
+R2_SECRET_ACCESS_KEY=         # you: R2 token's Secret Access Key
+RESEND_API_KEY=               # you: Resend API key
 SEED_ADMIN_EMAIL=             # you: the email you sign in to admin-staging with
 ```
 

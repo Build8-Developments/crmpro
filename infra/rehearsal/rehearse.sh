@@ -40,8 +40,8 @@ CADDY_BIND=0.0.0.0
 EOF
 
 secrets=$work/secrets/staging.env
-printf '%s\n' R2_ACCOUNT_ID=rehearsal AWS_ACCESS_KEY_ID=rehearsal AWS_SECRET_ACCESS_KEY=rehearsal \
-  SMTP_PASS=rehearsal SEED_ADMIN_EMAIL=platform-admin@nomow.test >"$secrets"
+printf '%s\n' R2_ACCOUNT_ID=rehearsal R2_ACCESS_KEY_ID=rehearsal R2_SECRET_ACCESS_KEY=rehearsal \
+  RESEND_API_KEY=rehearsal SEED_ADMIN_EMAIL=platform-admin@nomow.test >"$secrets"
 bash "$repo/infra/server/init-secrets.sh" "$secrets"
 secret() { grep -E "^$1=" "$secrets" | tail -1 | cut -d= -f2-; }
 
