@@ -31,6 +31,7 @@ export function Hero({
 }: {
   copy: Dictionary["hero"];
   demoHref: string;
+  /** Empty: no "Sign in" button. */
   signInHref: string;
 }) {
   const [firstLine, lastLine] = copy.title;
@@ -114,12 +115,14 @@ export function Hero({
               {copy.primary}
               <IconArrowRight className="flip-rtl" />
             </ButtonLink>
-            <a
-              href={signInHref}
-              className="inline-flex h-11 items-center rounded-full border border-white/35 bg-white/10 px-6 font-display text-[15px] font-semibold text-white transition-colors hover:bg-white/15"
-            >
-              {copy.signIn}
-            </a>
+            {signInHref && (
+              <a
+                href={signInHref}
+                className="inline-flex h-11 items-center rounded-full border border-white/35 bg-white/10 px-6 font-display text-[15px] font-semibold text-white transition-colors hover:bg-white/15"
+              >
+                {copy.signIn}
+              </a>
+            )}
           </div>
         </div>
       </ScrollProgress>

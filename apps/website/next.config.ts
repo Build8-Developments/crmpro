@@ -19,6 +19,15 @@ const nextConfig: NextConfig = {
     // jump from 2048 straight to 3840 on wide screens.
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 2560, 3200, 3840],
   },
+  // The image optimiser (sharp) on the server's small container (320 MB, one CPU): by default it
+  // gives each encode half the host's cores as threads, each holding image buffers, and gives up
+  // after 7 s, while the 3840px hero AVIF takes ~9 s on one CPU. One thread per encode and a
+  // streaming decode keep several visitors' first requests inside the memory limit.
+  experimental: {
+    imgOptConcurrency: 1,
+    imgOptSequentialRead: true,
+    imgOptTimeoutInSeconds: 30,
+  },
 };
 
 export default nextConfig;

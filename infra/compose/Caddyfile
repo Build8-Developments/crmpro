@@ -5,7 +5,9 @@
 #
 # Environment (infra/compose/<environment>.env):
 #   ADMIN_HOST   admin-staging.nomow.app · admin.nomow.app
-#   NOINDEX      true on staging: X-Robots-Tag on every response and a robots.txt that disallows all
+#   SITE_HOST    the public website (apps/website), nomow.app; www.<SITE_HOST> redirects to it
+#   NOINDEX      true on staging: X-Robots-Tag on every response and a robots.txt that disallows all,
+#                except on the website, which staging serves until production has its own server
 #   CADDY_BIND   where to listen; default the socket the host Caddy reads (local test: 0.0.0.0)
 {
 	admin off
@@ -39,19 +41,44 @@
 		-Server
 		-X-Powered-By
 	}
-	@noindex expression `"{$NOINDEX:false}" == "true"`
+	@noindex expression `"{$NOINDEX:false}" == "true" && {http.request.host} != "{$SITE_HOST}" && {http.request.host} != "www.{$SITE_HOST}"`
 	header @noindex X-Robots-Tag "noindex, nofollow"
 }
 
 http:// {
 	import common
 
-	# handle blocks are exclusive and tried in this order: robots.txt (staging), then by host.
-	@robots expression `"{$NOINDEX:false}" == "true" && {path} == "/robots.txt"`
+	# handle blocks are exclusive and tried in this order: robots.txt (staging, not the website, which
+	# answers its own), then by host.
+	@robots expression `"{$NOINDEX:false}" == "true" && {path} == "/robots.txt" && {http.request.host} != "{$SITE_HOST}"`
 	handle @robots {
 		respond "User-agent: *
 Disallow: /
 " 200
+	}
+
+	# The public website. It has no /api of its own; the demo form is a server action on the page.
+	@www host www.{$SITE_HOST}
+	handle @www {
+		redir https://{$SITE_HOST}{uri} 308
+	}
+	@site host {$SITE_HOST}
+	handle @site {
+		# The image optimiser: a size encoded for the first time takes up to ~425 MB (sharp, AVIF at
+		# 3840px), so first-time encodes go one at a time, which keeps the website inside its
+		# memory limit. Encoded sizes are cached and return at once, so the queue stays short.
+		handle /_next/image {
+			reverse_proxy website:3003 {
+				header_up X-Forwarded-For {client_ip}
+				header_up X-Forwarded-Proto https
+				transport http {
+					max_conns_per_host 1
+				}
+			}
+		}
+		handle {
+			import to website:3003
+		}
 	}
 
 	# The platform admin: its app, and its API and socket on the same host.

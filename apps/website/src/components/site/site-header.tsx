@@ -34,6 +34,7 @@ export function SiteHeader({
   locale: Locale;
   dict: Pick<Dictionary, "nav" | "theme">;
   demoHref: string;
+  /** Empty: no "Sign in" link. */
   signInHref: string;
   overlay?: boolean;
 }) {
@@ -82,7 +83,7 @@ export function SiteHeader({
   const links: { href: string; label: string; section?: Section }[] = [
     { href: "#product", label: nav.product, section: "product" },
     { href: "#features", label: nav.features, section: "features" },
-    { href: signInHref, label: nav.signIn },
+    ...(signInHref ? [{ href: signInHref, label: nav.signIn }] : []),
   ];
 
   return (

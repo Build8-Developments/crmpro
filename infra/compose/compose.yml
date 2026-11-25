@@ -118,6 +118,27 @@ services:
     depends_on:
       admin-api: { condition: service_healthy }
 
+  # The public website on SITE_HOST (docs/website/README.md, Deployment). Its URLs are baked in
+  # (built once, for nomow.app). Demo requests arrive by email until Nomow's own workspace exists
+  # in production; DEMO_EMAIL_TO is in the secrets file.
+  website:
+    <<: *defaults
+    image: ${IMAGE_PREFIX}-website:${TAG}
+    environment:
+      NODE_OPTIONS: ${WEBSITE_NODE_OPTIONS:-}
+      # Fewer glibc memory arenas: the image encoder's freed memory goes back instead of lingering.
+      MALLOC_ARENA_MAX: "2"
+      DEMO_EMAIL_TO: ${DEMO_EMAIL_TO:-}
+      SITE_MAIL_FROM: ${SITE_MAIL_FROM:?}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${RESEND_API_KEY}
+    volumes:
+      # Optimised images (AVIF/WebP per size) survive a redeploy instead of being re-encoded.
+      - website-cache:/app/apps/website/.next/cache
+
   # Routing (./Caddyfile). Listens on a unix socket in EDGE_SOCKET_DIR for the host Caddy; nothing
   # in this project publishes a port.
   caddy:
@@ -125,6 +146,7 @@ services:
     image: caddy:2.11-alpine
     environment:
       ADMIN_HOST: ${ADMIN_HOST:?}
+      SITE_HOST: ${SITE_HOST:?}
       NOINDEX: ${NOINDEX:-false}
       CADDY_BIND: ${CADDY_BIND:-unix//run/edge/caddy.sock|0666}
     volumes:
@@ -134,6 +156,7 @@ services:
     depends_on:
       web: { condition: service_healthy }
       admin: { condition: service_healthy }
+      website: { condition: service_healthy }
 
   # One-shot jobs (infra/deploy.sh): migrations, and the demo seed on staging's first deploy.
   tools:
@@ -160,3 +183,4 @@ volumes:
   postgres-data:
   valkey-data:
   caddy-data:
+  website-cache:

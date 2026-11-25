@@ -5,10 +5,11 @@
 #
 #   infra/rehearsal/rehearse.sh <tag>
 #
-# Expects the images built locally as crmpro-local-{api,admin-api,admin}:<tag> and
+# Expects the images built locally as crmpro-local-{api,admin-api,admin,website}:<tag> and
 # crmpro-local-web:<tag>-staging, the web image with
 #   NEXT_PUBLIC_WORKSPACE_URL_TEMPLATE=http://{slug}-staging.localhost:8080
 #   NEXT_PUBLIC_APEX_URL=http://staging.localhost:8080
+# and the website image with NEXT_PUBLIC_SITE_URL=http://site.localhost:8080.
 # Leaves the stack running for a look (http://staging.localhost:8080); remove it with
 #   docker compose -p crmpro-staging down -v
 set -euo pipefail
@@ -33,6 +34,7 @@ APEX_URL=http://staging.localhost:8080
 ADMIN_URL=http://admin-staging.localhost:8080
 ADMIN_HOST=admin-staging.localhost
 WORKSPACE_URL_TEMPLATE=http://{slug}-staging.localhost:8080
+SITE_HOST=site.localhost
 SMTP_HOST=mailpit
 SMTP_PORT=1025
 SMTP_SECURE=false
@@ -41,12 +43,15 @@ EOF
 
 secrets=$work/secrets/staging.env
 printf '%s\n' R2_ACCOUNT_ID=rehearsal R2_ACCESS_KEY_ID=rehearsal R2_SECRET_ACCESS_KEY=rehearsal \
-  RESEND_API_KEY=rehearsal SEED_ADMIN_EMAIL=platform-admin@nomow.test >"$secrets"
+  RESEND_API_KEY=rehearsal SEED_ADMIN_EMAIL=platform-admin@nomow.test DEMO_EMAIL_TO=team@nomow.test >"$secrets"
 bash "$repo/infra/server/init-secrets.sh" "$secrets"
 secret() { grep -E "^$1=" "$secrets" | tail -1 | cut -d= -f2-; }
 
+# deploy.sh runs with HOME set to the work folder (as on the server); keep the real Docker config
+# folder, where Docker Desktop keeps the compose plugin and its context.
+docker_config=${DOCKER_CONFIG:-$HOME/.docker}
 deploy() {
-  HOME=$work SECRETS_FILE=$secrets STATE_DIR=$work/app EDGE_SOCKET_DIR=$work/run \
+  DOCKER_CONFIG=$docker_config HOME=$work SECRETS_FILE=$secrets STATE_DIR=$work/app EDGE_SOCKET_DIR=$work/run \
     COMPOSE_EXTRA=$repo/infra/rehearsal/compose.rehearsal.yml SMOKE_URL=http://127.0.0.1:8080 \
     "$release/infra/deploy.sh" staging "$tag" --local
 }
@@ -112,6 +117,29 @@ for _ in $(seq 1 20); do
   sleep 1
 done
 expect "email links to the workspace host" yes "$([[ -n $link ]] && echo yes || echo no)"
+
+log "The public website"
+site=site.localhost
+site_headers=$(curl -s -D - -o /dev/null --max-time 20 --connect-to "::127.0.0.1:8080" "http://$site:8080/en" | tr -d '\r')
+expect "the website is served" 200 "$(awk 'NR==1{print $2}' <<<"$site_headers")"
+expect "the website is the one host staging lets crawlers index" "none" \
+  "$(awk -F': ' 'tolower($1)=="x-robots-tag"{print $2; found=1} END{if(!found) print "none"}' <<<"$site_headers")"
+expect "www redirects to the bare host" "308 https://$site/en" \
+  "$(curl -s -D - -o /dev/null --max-time 20 --connect-to "::127.0.0.1:8080" "http://www.$site:8080/en" \
+    | tr -d '\r' | awk -F': ' 'NR==1{code=$0; sub(/^HTTP\/[0-9.]+ /,"",code); sub(/ .*/,"",code)} tolower($1)=="location"{loc=$2} END{print code" "loc}')"
+# Submit the demo form the way a browser without JavaScript would (the server action's fields are
+# in the page), then look for the email in Mailpit.
+node "$repo/infra/rehearsal/demo-request.mjs" "http://$site:8080/en" 127.0.0.1:8080 >"$body_file" 2>&1 || true
+expect "a demo request is accepted" 200 "$(head -1 "$body_file")"
+demo=""
+for _ in $(seq 1 20); do
+  demo=$(curl -s --max-time 10 "http://127.0.0.1:18025/api/v1/search?query=to:team@nomow.test" \
+    | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=JSON.parse(s).messages?.[0];process.stdout.write(m?m.Subject:"")})' \
+    2>/dev/null || true)
+  [[ -n $demo ]] && break
+  sleep 1
+done
+expect "the demo request reaches the team by email" "Demo request: Rehearsal Realty (Rehearsal Visitor)" "$demo"
 
 rm -f "$headers" "$body_file"
 [[ $failed == 0 ]] || { echo "rehearsal failed" >&2; exit 1; }

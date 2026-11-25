@@ -10,3 +10,6 @@ services:
   api:
     depends_on:
       mailpit: { condition: service_started }
+  website:
+    depends_on:
+      mailpit: { condition: service_started }

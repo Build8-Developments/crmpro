@@ -35,10 +35,14 @@ so the image is built per environment, as for `apps/web`:
 | Variable                         | Default (dev)                 | Production                    |
 | -------------------------------- | ----------------------------- | ----------------------------- |
 | `NEXT_PUBLIC_SITE_URL`           | `http://localhost:3003`       | `https://nomow.app`           |
-| `NEXT_PUBLIC_FIND_WORKSPACE_URL` | `http://localhost:3001/login` | to decide (see below)         |
+| `NEXT_PUBLIC_FIND_WORKSPACE_URL` | `http://localhost:3001/login` | empty for now: hides "Sign in" |
 | `NEXT_PUBLIC_CONTACT_EMAIL`      | `hello@nomow.app`             | to confirm (see below)        |
-| `DEMO_LEADS_URL` (server)        | empty: requests are logged    | Nomow workspace inbound URL   |
-| `DEMO_LEADS_API_KEY` (server)    | empty                         | API key from that workspace   |
+| `DEMO_LEADS_URL` (server)        | empty                         | later: Nomow workspace inbound URL |
+| `DEMO_LEADS_API_KEY` (server)    | empty                         | later: API key from that workspace |
+| `DEMO_EMAIL_TO` (server)         | empty                         | the team's address (now)      |
+| `SITE_MAIL_FROM`, `SMTP_*` (server) | empty                      | Resend, as for the API        |
+
+With no delivery set, development logs demo requests instead of sending them.
 
 `robots.txt` allows crawling only when `NEXT_PUBLIC_SITE_URL` is exactly `https://nomow.app`;
 every other build (staging, local) disallows everything.
@@ -74,7 +78,7 @@ apps/website
     │                                    <ProductShot> + <BrowserFrame>
     ├── features/home/components/        hero, problem-section, product-section (+ preview tabs),
     │                                    feature-grid, rising-arcade
-    └── features/demo/                   actions.ts (server action), types.ts, components/
+    └── features/demo/                   actions.ts (server action), mail.ts, types.ts, components/
 ```
 
 New pages go under `app/[locale]/<page>/page.tsx` with their sections in
@@ -319,10 +323,13 @@ to their fields (`aria-invalid`, `aria-describedby`) and announced, focus moved 
 problem (or to the thank-you message), and it works without JavaScript (a server action with
 `useActionState`). A hidden honeypot field drops bots.
 
-**Where requests go:** the server action (`features/demo/actions.ts`) sends each request as a
-**lead in Nomow's own workspace** through the CRM's inbound leads API
-(`POST /api/v1/inbound/leads`, see `docs/api/inbound-leads.md`). So demo requests are followed up
-in Nomow itself, with an owner and a next step.
+**Where requests go:** the server action (`features/demo/actions.ts`) delivers each request one
+of two ways. **Now:** as an **email to the team** (`DEMO_EMAIL_TO`, sent over SMTP by
+`features/demo/mail.ts`, Resend on the server), since production and Nomow's own workspace don't
+exist yet. **Later:** as a **lead in Nomow's own workspace** through the CRM's inbound leads API
+(`POST /api/v1/inbound/leads`, see `docs/api/inbound-leads.md`), so demo requests are followed up
+in Nomow itself, with an owner and a next step. The leads API wins when both are set. Abuse
+limits: 5 requests per visitor an hour and 300 a day per server process; one email per form view.
 
 - Payload: `fullName`, `phone`, `source: "Website"`, `externalId` (one per form view, so retries
   and double clicks never create a second lead), a `message` with the company, team size,
@@ -330,36 +337,64 @@ in Nomow itself, with an owner and a next step.
 - Setup: in Nomow's workspace, create an API key (Settings → Integrations; the workspace's plan
   needs API access), optionally pinned to a "Website" lead source. Set `DEMO_LEADS_URL` and
   `DEMO_LEADS_API_KEY` on the website server. Both are server-only.
-- Without them, development logs the request and shows the thank-you message; production shows
-  an error with the contact email instead.
+- With no delivery set, development logs the request and shows the thank-you message;
+  production shows an error with the contact email instead.
 - Tested locally against a stub that records the request; not yet against a real workspace (the
   seeded workspace's plan has no API access).
 
 ---
 
-## Deployment (handoff)
+## Deployment
 
-`docs/infrastructure/deployment-plan.md` is the source of truth for hosting. Its §3 gives
-`nomow.app` (production) to the "public site". What the website needs from it:
+Live on `nomow.app` from the **staging project on rovlex-vps** (`crmpro-staging`), until
+production has its own server (decided 2026-11-25; `docs/infrastructure/deployment-plan.md` §3,
+and [`infra/README.md`](../../infra/README.md) for the server side). It is one more container in
+the same compose project, deploy job and secrets file, not a project of its own.
 
-1. An image built from `apps/website` like `apps/web`'s (`NEXT_OUTPUT=standalone`, monorepo
-   root traced, `@crmpro/shared` built first). It runs a Node server (server action, image
-   optimization, proxy), not static files.
-2. Caddy: `nomow.app` → the website; `www.nomow.app` → redirect to `nomow.app`.
-3. Env per environment (table above), with the two `DEMO_LEADS_*` values as secrets.
+- **Image:** `apps/website/Dockerfile`, Next standalone (`NEXT_OUTPUT=standalone`, monorepo root
+  traced, `@crmpro/shared` built first), Node 24, non-root, health check on `/robots.txt`. Built
+  once by `release.yml` as `crmpro-website:<tree>` with `NEXT_PUBLIC_SITE_URL=https://nomow.app`
+  and an empty `NEXT_PUBLIC_FIND_WORKSPACE_URL`, so "Sign in" is hidden everywhere.
+- **Routing:** host Caddy → staging socket for `nomow.app` and `www.nomow.app`; the project Caddy
+  sends `SITE_HOST` (`nomow.app`) to `website:3003`, redirects `www.` with a 308, and keeps the
+  site out of staging's `noindex` (the site's own `robots.txt` allows indexing only when it was
+  built for `https://nomow.app`).
+- **Demo requests:** emailed to `DEMO_EMAIL_TO` (server secrets file) over the same SMTP settings
+  as the API (Resend), from `SITE_MAIL_FROM`. Limits per process: 5 per visitor (client address
+  from Caddy) an hour, 300 a day, and one email per form view. Once production has Nomow's own
+  workspace, set `DEMO_LEADS_URL` + `DEMO_LEADS_API_KEY` and requests become leads instead
+  (they win when both are set).
+- **Images:** the optimised-image cache is the `website-cache` volume, so a redeploy keeps the
+  encoded sizes; `deploy.sh` encodes the hero's sizes after the smoke tests. Encoding a size for
+  the first time is the one heavy thing the site does: the 3840px hero AVIF takes ~8 s and peaks
+  at ~425 MB (measured; ten at once ran a 320 MB container out of memory). So the container has
+  512 MB / 1 CPU (idle ~50 MB), sharp runs one thread per encode with a 30 s limit
+  (`experimental.imgOpt*` in `next.config.ts`), `MALLOC_ARENA_MAX=2` returns freed memory, and
+  the project Caddy sends `/_next/image` to the site one request at a time.
+- **Checks:** every deploy (`/en`, `/ar`, the `www` redirect); every pull request's rehearsal
+  also submits the demo form without JavaScript and finds the email in Mailpit.
+
+| Setting (build) | Value |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | `https://nomow.app` |
+| `NEXT_PUBLIC_FIND_WORKSPACE_URL` | empty (hides "Sign in") until production serves "find my workspace" |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@nomow.app` (default) |
+
+### When production arrives
+
+Build the image with production's "find my workspace" URL, set `SITE_HOST=nomow.app` in
+production's settings and point the host Caddy's `nomow.app` + `www` at production's socket;
+staging then serves a `noindex` preview on its own host (for example `site-staging.nomow.app`,
+which the `-staging` route already reaches) or nothing.
 
 ### Open decisions
 
-- **Where "find my workspace" lives.** The deployment plan has the apex serving
-  "find my workspace" from `apps/web`. With the website on `nomow.app`, that flow needs its own
-  address (for example a path on the apex routed to `apps/web`, or the website calling
-  `POST /public/workspaces/find` itself). The site only needs the final URL in
-  `NEXT_PUBLIC_FIND_WORKSPACE_URL`.
-- **Staging.** `staging.nomow.app` is the staging "find my workspace" host today. A staging
-  preview of the website needs its own host, one level under `nomow.app` (for example
-  `site-staging.nomow.app`), and stays `noindex`.
+- **Where "find my workspace" lives in production.** The deployment plan had the apex serving it
+  from `apps/web`; the website now has the apex. It needs its own address (for example a path on
+  the apex routed to `apps/web`, or the website calling `POST /public/workspaces/find` itself);
+  the site only needs the final URL in `NEXT_PUBLIC_FIND_WORKSPACE_URL`.
 - **Nomow's own workspace** for demo leads, on a plan with API access.
-- **Contact inbox.** `hello@nomow.app` is a placeholder until the inbox exists
+- **Contact inbox.** `hello@nomow.app` is shown in the footer but no inbox exists yet
   (`mail.nomow.app` is a sending domain only).
 - **Seed project names** in screenshots (see "Product screenshots").
 

@@ -38,9 +38,11 @@ export function SiteFooter({
           <a href="#demo" className="text-muted-foreground hover:text-foreground">
             {dict.nav.bookDemo}
           </a>
-          <a href={signInHref} className="text-muted-foreground hover:text-foreground">
-            {dict.nav.signIn}
-          </a>
+          {signInHref && (
+            <a href={signInHref} className="text-muted-foreground hover:text-foreground">
+              {dict.nav.signIn}
+            </a>
+          )}
         </nav>
         <div className="flex flex-col items-start gap-3 text-[15px] lg:col-span-3">
           <span className="eyebrow text-subtle-foreground">{dict.footer.contact}</span>

@@ -84,6 +84,7 @@ log "Smoke tests (through the project Caddy)"
 apex=$(setting APEX_URL)
 apex=${apex#*://}
 admin=$(setting ADMIN_HOST)
+site=$(setting SITE_HOST)
 workspace=$(setting WORKSPACE_URL_TEMPLATE)
 workspace=${workspace#*://}
 workspace=${workspace//\{slug\}/$(setting SMOKE_WORKSPACE)}
@@ -106,6 +107,30 @@ check "workspace sign-in" "$workspace" /login 200 || failed=1
 check "workspace lookup" "$workspace" "/api/v1/public/workspaces/$(setting SMOKE_WORKSPACE)" 200 || failed=1
 check "admin app" "$admin" /login 200 || failed=1
 check "admin api (signed out)" "$admin" /api/v1/auth/me 401 || failed=1
+check "website" "$site" /en 200 || failed=1
+check "website (Arabic)" "$site" /ar 200 || failed=1
+check "website www redirect" "www.$site" / 308 || failed=1
+
+# The website's first-screen photo is encoded once per size (AVIF, slow) and kept in the
+# website-cache volume. Encode the sizes now, so the first visitors after a new photo don't wait;
+# sizes already cached answer at once. The sizes come from the page's own image preload.
+if [[ $failed == 0 ]]; then
+  page=$(curl -s --max-time 20 "${via[@]}" "http://$site/en" || true)
+  warmed=0
+  while read -r path; do
+    [[ -n $path ]] || continue
+    if curl -sf -o /dev/null --max-time 90 "${via[@]}" -H "Accept: image/avif,image/webp,*/*" "http://$site$path"; then
+      warmed=$((warmed + 1))
+    fi
+  done < <(grep -oE 'imageSrcSet="[^"]*"' <<<"$page" | sed -e 's/^imageSrcSet="//' -e 's/"$//' -e 's/&amp;/\&/g' \
+    | tr ',' '\n' | awk '{print $1}' | sort -u)
+  printf '  %-4s %-26s %s sizes\n' ok "website images warmed" "$warmed"
+fi
+
+# The website still works without these, but its demo form can't deliver: say so loudly.
+if [[ -z $(setting DEMO_EMAIL_TO) && -z $(setting DEMO_LEADS_URL) ]]; then
+  echo "  WARN website demo requests have nowhere to go: set DEMO_EMAIL_TO in $secrets" >&2
+fi
 
 printf '%s %s %s %s\n' "$(date -u +%FT%TZ)" "$env" "$tag" "$([[ $failed == 0 ]] && echo ok || echo smoke-failed)" \
   >>"$state/releases.log"

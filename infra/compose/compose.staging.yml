@@ -1,6 +1,6 @@
 # Staging on rovlex-vps: sized for the project's 3 GB / 200% slice (deployment-plan.md §2).
-# The limits add up to ~2.6 GB with everything running; tools runs only during a deploy, before
-# the apps are restarted.
+# The limits add up to 3 GB with everything running (real use is ~1 GB); tools runs only during a
+# deploy, before the apps are restarted.
 services:
   postgres:
     command:
@@ -36,6 +36,13 @@ services:
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 256M }
+  website:
+    deploy:
+      resources:
+        # Idle it needs ~50 MB; the rest is for encoding an image size the first time it is asked
+        # for (sharp: the 3840px hero AVIF takes ~8 s and ~425 MB on one CPU). The project Caddy
+        # sends those requests one at a time (Caddyfile).
+        limits: { cpus: "1.0", memory: 512M }
   caddy:
     deploy:
       resources:
