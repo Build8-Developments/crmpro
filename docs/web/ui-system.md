@@ -89,6 +89,14 @@ Avoid app-specific visual divergence unless explicitly required.
 
 ---
 
+# Logo
+
+The Nomow logo paths (symbol and wordmark) live in `@crmpro/shared/brand`, shared with
+`apps/admin` and `apps/website`. Draw it with `src/components/brand/product-logo.tsx`; never
+retype the wordmark in a font.
+
+---
+
 # Color System
 
 ## Primary Accent

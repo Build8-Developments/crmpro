@@ -44,6 +44,10 @@
     "./workspaces": {
       "types": "./dist/workspaces/index.d.ts",
       "default": "./dist/workspaces/index.js"
+    },
+    "./brand": {
+      "types": "./dist/brand/index.d.ts",
+      "default": "./dist/brand/index.js"
     }
   },
   "scripts": {
@@ -64,7 +68,8 @@
       "workflow": ["dist/workflow/index.d.ts"],
       "achievements": ["dist/achievements/index.d.ts"],
       "billing": ["dist/billing/index.d.ts"],
-      "workspaces": ["dist/workspaces/index.d.ts"]
+      "workspaces": ["dist/workspaces/index.d.ts"],
+      "brand": ["dist/brand/index.d.ts"]
     }
   }
 }

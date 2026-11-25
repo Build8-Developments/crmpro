@@ -147,13 +147,15 @@ Structure:
 
 ```text id="monorepo"
 /apps
-  /crm
-  /admin
-  /api
+  /web        tenant CRM (Next.js)
+  /admin      platform admin (Next.js)
+  /api        CRM API (NestJS)
+  /admin-api  platform admin API (NestJS)
+  /website    public website at nomow.app (Next.js)
 
 /packages
-  /shared
-  /theme
+  /shared     shared constants, permissions, brand (logo paths)
+  /database   Prisma schema, migrations, seed
 ```
 
 ---
@@ -194,6 +196,21 @@ Tech:
 - React
 - Tailwind
 - shadcn/ui
+
+---
+
+## Website App
+
+Public marketing site at `nomow.app` (`apps/website`). Today a bilingual (English/Arabic)
+"coming soon" page with real product screenshots and a demo request form; it grows into the full
+website.
+
+Responsibilities:
+
+- marketing pages, in `/en` and `/ar`
+- demo requests, sent as leads to Nomow's own workspace through the inbound leads API
+
+It has no auth, no tenant data and no business logic. See `/docs/website/README.md`.
 
 ---
 

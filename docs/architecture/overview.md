@@ -113,13 +113,15 @@ CRMPro uses a monorepo architecture.
 
 ```text
 /apps
-  /crm
+  /web        (tenant CRM; "apps/crm" below)
   /admin
   /api
+  /admin-api
+  /website    (public website)
 
 /packages
   /shared
-  /theme
+  /database
 
 /docs
 ```
@@ -166,6 +168,25 @@ Responsibilities:
 - tenant administration
 
 This application is isolated from tenant workflows.
+
+---
+
+## apps/website
+
+Public marketing website at `nomow.app`.
+
+Tech stack:
+
+- Next.js
+- React
+- Tailwind
+
+Responsibilities:
+
+- marketing pages in English and Arabic
+- demo requests (sent to Nomow's own workspace through the inbound leads API)
+
+No auth, no tenant data, no business logic. Details: `docs/website/README.md`.
 
 ---
 

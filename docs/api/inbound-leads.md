@@ -2,6 +2,9 @@
 
 Push leads into CRMPro from website forms, Zapier, Make, or ad platforms such as Meta Lead Ads.
 
+Nomow's own website uses it: demo requests from `nomow.app` arrive as leads in Nomow's workspace
+(`apps/website/src/features/demo/actions.ts`, see `docs/website/README.md`).
+
 - **Endpoint:** `POST https://<your-crm-host>/api/v1/inbound/leads`
 - **Auth:** an API key from **Settings → Integrations** (needs `settings.manage` and a plan with API access)
 - **Body:** JSON, `Content-Type: application/json`

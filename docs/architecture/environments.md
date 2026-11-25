@@ -89,6 +89,8 @@ Default local ports:
 - API → 3000
 - CRM → 3001
 - Admin → 3002
+- Website → 3003
+- Admin API → 3200
 
 These may change but should remain documented.
 
