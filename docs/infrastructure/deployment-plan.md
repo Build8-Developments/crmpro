@@ -76,7 +76,7 @@ Certificate Manager). `.app` is on the browsers' HSTS preload list, so it is HTT
 | `staging.nomow.app`                     | Staging    | "Find my workspace" (email → link to the workspace host), `noindex`     |
 | `<slug>-staging.nomow.app`, e.g. `prime-estates-x7k2-staging.nomow.app` | Staging | One demo workspace — `/api/*`, `/socket.io/*` → api (same origin), `noindex` |
 | `admin-staging.nomow.app`               | Staging    | Staging admin — `/api/*` → admin-api; **Cloudflare Access** optional until production |
-| `nomow.app`                             | Production | Public site; "find my workspace"                                        |
+| `nomow.app`, `www.nomow.app` (→ `nomow.app`) | Production (served from staging for now) | The public website (`apps/website`), indexed; see below |
 | `<slug>.nomow.app`, e.g. `prime-estates-x7k2.nomow.app` | Production | One workspace                                   |
 | `admin.nomow.app`                       | Production | Platform admin, behind Cloudflare Access                                |
 | `mail.nomow.app` (DNS only)             | Both       | Email sending domain (Resend): SPF/DKIM/DMARC records                   |
@@ -89,6 +89,16 @@ production slug can never end in `-staging`.
 Caddy site file sends `staging.nomow.app` and every host matching `^[a-z0-9-]+-staging\.nomow\.app$`
 to the `crmpro-staging` socket. Until production exists, every other `*.nomow.app` host gets a
 plain 404 from the host Caddy; later they go to the `crmpro` socket.
+
+**The public website** (`apps/website`, decided 2026-11-25): the coming-soon site goes live on
+`nomow.app` before production exists, so it runs inside the `crmpro-staging` project (one more
+container, `website`, in the same compose project, deploy and secrets file) rather than as a
+project of its own. The host Caddy sends `nomow.app` and `www.nomow.app` to the staging socket;
+the project Caddy routes `SITE_HOST` to the website, redirects `www`, and leaves the site out of
+staging's `noindex`. Its "Sign in" links stay hidden and demo requests arrive by email
+(`DEMO_EMAIL_TO`) until production serves "find my workspace" and has Nomow's own workspace;
+then `SITE_HOST` moves to production's settings and staging stops serving it. Where "find my
+workspace" lives on production's apex is still open (docs/website/README.md).
 
 **Workspace hosts** (built):
 
@@ -189,7 +199,8 @@ Guard rails:
 ## 6. CI/CD
 
 - **CI** (`ci.yml`, already green): lint, typecheck, tests on every PR and push.
-- **Release** (`release.yml`, new, staging only for now): push to `main` → build the four images
+- **Release** (`release.yml`, new, staging only for now): push to `main` → build the five images
+  (the four apps and the public website)
   with the staging build variables, push to GHCR tagged with the git tree hash → deploy
   **staging** → smoke tests.
 - Later, **production** = the same tree hash, deployed by `workflow_dispatch` through the GitHub
@@ -198,7 +209,8 @@ Guard rails:
 - Deploy over SSH with a restricted key and the existing `rovlex-deploy-entry`; the server pulls
   with the job's short-lived `GITHUB_TOKEN`.
 - `infra/deploy.sh`: pull images → start postgres/redis → migrate (`tools`) → start apps with
-  `--wait` → smoke tests through the socket (`/api/v1/health` on both APIs, apex and admin hosts)
+  `--wait` → smoke tests through the socket (`/api/v1/health` on both APIs, apex and admin hosts,
+  the website and its `www` redirect) → encode the website's hero sizes
   → append to `~/app/releases.log` → keep the last five releases.
 
 ## 7. Work, in order (staging)

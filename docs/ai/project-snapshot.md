@@ -13,7 +13,8 @@ crmpro/
 │   ├── api/           # Tenant CRM API (NestJS)
 │   ├── admin-api/     # Platform admin API (NestJS)
 │   ├── web/           # Tenant CRM frontend (Next.js) — scaffold only
-│   └── admin/         # Admin frontend (Next.js) — scaffold only
+│   ├── admin/         # Admin frontend (Next.js) — scaffold only
+│   └── website/       # Public website, nomow.app (Next.js) — see docs/website/README.md
 ├── packages/
 │   ├── shared/        # Shared constants, permissions, errors, bootstrap
 │   └── database/      # Prisma schema, migrations, seed
@@ -27,6 +28,7 @@ crmpro/
 | `apps/admin-api` | Functional control plane — tenants, plans, contracts, admins |
 | `apps/web` | Scaffold only (placeholder page) |
 | `apps/admin` | Scaffold only (placeholder page) |
+| `apps/website` | Coming-soon landing page with demo form (added Nov 2026) |
 
 **Tooling:** pnpm workspaces, `concurrently` for multi-app dev.
 

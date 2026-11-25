@@ -36,6 +36,13 @@ nomow.app, *.nomow.app {
 		import nomow_env /srv/crmpro-staging
 	}
 
+	# The public website (apps/website): nomow.app, and www.nomow.app, which its Caddy redirects.
+	# Served by the staging project until production has its own server; it moves there with it.
+	@site host nomow.app www.nomow.app
+	handle @site {
+		import nomow_env /srv/crmpro-staging
+	}
+
 	# Production gets its own server; nothing else is served here.
 	handle {
 		respond 404

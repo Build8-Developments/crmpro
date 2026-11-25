@@ -1,6 +1,6 @@
 # Build the images and deploy staging (docs/infrastructure/deployment-plan.md §6).
 #
-# - Pull request: build the four images on the runner and rehearse the whole staging deploy there
+# - Pull request: build the five images on the runner and rehearse the whole staging deploy there
 #   with the real infra/deploy.sh (infra/rehearsal/rehearse.sh). Nothing is pushed or deployed.
 # - Push to main (a merged pull request): build the images, tagged with the git tree hash, push
 #   them to GHCR and deploy staging on rovlex-vps.
@@ -78,6 +78,17 @@ jobs:
           tags: crmpro-local-web:${{ steps.tree.outputs.hash }}-staging
           cache-from: type=gha,scope=web-rehearsal
           cache-to: type=gha,mode=max,scope=web-rehearsal
+      - name: Image website (rehearsal host)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/website/Dockerfile
+          load: true
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=http://site.localhost:8080
+          tags: crmpro-local-website:${{ steps.tree.outputs.hash }}
+          cache-from: type=gha,scope=website-rehearsal
+          cache-to: type=gha,mode=max,scope=website-rehearsal
       - name: Rehearse the staging deploy
         run: infra/rehearsal/rehearse.sh "${{ steps.tree.outputs.hash }}"
       - name: Logs
@@ -109,6 +120,13 @@ jobs:
             build_args: |
               NEXT_PUBLIC_WORKSPACE_URL_TEMPLATE=https://{slug}-staging.nomow.app
               NEXT_PUBLIC_APEX_URL=https://staging.nomow.app
+          # The public website, built once for nomow.app (served from staging for now). "Sign in"
+          # stays hidden until production serves "find my workspace".
+          - image: website
+            suffix: ""
+            build_args: |
+              NEXT_PUBLIC_SITE_URL=https://nomow.app
+              NEXT_PUBLIC_FIND_WORKSPACE_URL=
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Tree hash

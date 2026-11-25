@@ -4,8 +4,8 @@
 #   bash init-secrets.sh ~/secrets/staging.env
 #
 # Generates the random values that are missing and leaves every existing line alone, so it is
-# safe to run again. The values pasted in by hand (R2, Resend) and SEED_ADMIN_EMAIL are added
-# empty for you to fill in with an editor; nothing is ever printed.
+# safe to run again. The values pasted in by hand (R2, Resend), SEED_ADMIN_EMAIL and the website's
+# DEMO_EMAIL_TO are added empty for you to fill in with an editor; nothing is ever printed.
 set -euo pipefail
 umask 077
 file=${1:?secrets file}
@@ -29,7 +29,7 @@ done
 for name in SEED_USER_PASSWORD SEED_ADMIN_PASSWORD; do
   has "$name" || add "$name" "$(random 20)"
 done
-for name in SEED_ADMIN_EMAIL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY RESEND_API_KEY; do
+for name in SEED_ADMIN_EMAIL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY RESEND_API_KEY DEMO_EMAIL_TO; do
   grep -qE "^$name=" "$file" || printf '%s=\n' "$name" >>"$file"
 done
 
