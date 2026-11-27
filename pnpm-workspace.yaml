@@ -10,3 +10,13 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+
+# Security floors for transitive dependencies that their parents pin exactly.
+# Drop an entry once every parent's own range already resolves above it.
+overrides:
+  browserslist: ^4.28.7
+  effect: ^3.22.1
+  fast-uri: ^3.1.7
+  mysql2: ^3.22.0
+  source-map-js: ^1.2.2
+  '@prisma/config>deepmerge-ts': ^8.0.2
