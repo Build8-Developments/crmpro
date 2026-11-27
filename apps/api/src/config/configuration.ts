@@ -41,6 +41,8 @@ export default () => {
 
   return {
     app: {
+      // Namespaces this plane's keys in the Redis both APIs share (rate limits).
+      name: 'api',
       port: parseInt(process.env.PORT ?? '3000', 10),
       nodeEnv: process.env.NODE_ENV ?? 'development',
       version: process.env.API_VERSION ?? '1.0.0',

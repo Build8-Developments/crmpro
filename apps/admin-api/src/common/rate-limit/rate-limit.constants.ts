@@ -17,7 +17,8 @@ export const DEFAULT_REFRESH_PER_IP_LIMIT = 60;
 
 // Both backends share one Redis, so keys carry the plane name: without it the
 // tenant and admin planes would decrement the same counter and could lock each
-// other out. Both configuration files set app.name; this only keeps keys
+// other out. Both configuration files set app.name (`api`, `admin-api`;
+// see configuration.spec.ts); the default only keeps keys
 // well-formed if that is ever missing.
 export const RATE_LIMIT_KEY_PREFIX = 'rate-limit';
 export const DEFAULT_RATE_LIMIT_PLANE = 'default';
