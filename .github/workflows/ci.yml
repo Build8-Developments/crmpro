@@ -1,17 +1,27 @@
-# CRMPro CI: the same gates as `pnpm build && pnpm lint && pnpm typecheck && pnpm test`.
+# CI: the same gates as `pnpm build && pnpm lint && pnpm typecheck && pnpm test`, plus a
+# dependency audit of production packages.
+#
+# Runs on every pull request. On main it runs as part of release.yml (workflow_call), so the
+# staging deploy waits for it instead of racing it.
 #
 # To enforce it, add a branch protection rule on `main` that requires the
 # "Lint, typecheck & test" check to pass before merging.
+# Third-party actions are pinned by commit SHA.
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
+  # Distinct from release.yml's group, which calls this workflow on main.
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a pull request replaces its run; runs on main always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -20,20 +30,25 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # pnpm's version comes from `packageManager` in package.json.
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Fails on any high or critical advisory in production dependencies. Fix it with an update,
+      # or a floor under `overrides` in pnpm-workspace.yaml when a parent pins the version exactly.
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=high
 
       # Builds @crmpro/database (Prisma client) and @crmpro/shared first.
       - name: Build

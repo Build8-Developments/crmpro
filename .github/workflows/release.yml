@@ -3,7 +3,7 @@
 # - Pull request: build the five images on the runner and rehearse the whole staging deploy there
 #   with the real infra/deploy.sh (infra/rehearsal/rehearse.sh). Nothing is pushed or deployed.
 # - Push to main (a merged pull request): build the images, tagged with the git tree hash, push
-#   them to GHCR and deploy staging on rovlex-vps.
+#   them to GHCR, run ci.yml (the `quality` job) and deploy staging on rovlex-vps once both pass.
 # Production comes later: the same tree, deployed by hand through the GitHub Environment
 # `production`.
 #
@@ -95,6 +95,15 @@ jobs:
         if: failure()
         run: docker compose -p crmpro-staging logs --no-color --tail 200
 
+  # On main, the deploy waits for the same gates CI runs on pull requests (on pull requests,
+  # ci.yml runs on its own).
+  quality:
+    name: CI
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   images:
     name: Image ${{ matrix.image }}${{ matrix.suffix }}
     if: github.event_name != 'pull_request'
@@ -155,7 +164,7 @@ jobs:
 
   deploy-staging:
     name: Deploy staging
-    needs: images
+    needs: [quality, images]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
