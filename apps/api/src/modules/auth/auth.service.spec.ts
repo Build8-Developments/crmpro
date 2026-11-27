@@ -266,6 +266,7 @@ describe('AuthService refresh token rotation', () => {
   let authLoggingService: {
     refreshSuccess: jest.Mock;
     refreshFailure: jest.Mock;
+    sessionRevoked: jest.Mock;
   };
 
   const session = {
@@ -274,6 +275,8 @@ describe('AuthService refresh token rotation', () => {
     hashedRefreshToken: 'old-hash',
     revokedAt: null,
     expiresAt: new Date('2099-01-01'),
+    // Rotated long ago: an outdated secret now is a replay, not a race.
+    updatedAt: new Date('2026-01-01'),
   };
 
   const activeUser = {
@@ -309,6 +312,7 @@ describe('AuthService refresh token rotation', () => {
     authLoggingService = {
       refreshSuccess: jest.fn(),
       refreshFailure: jest.fn(),
+      sessionRevoked: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -327,7 +331,6 @@ describe('AuthService refresh token rotation', () => {
             ...authLoggingService,
             loginSuccess: jest.fn(),
             loginFailure: jest.fn(),
-            sessionRevoked: jest.fn(),
           },
         },
         {
@@ -370,5 +373,47 @@ describe('AuthService refresh token rotation', () => {
     });
     expect(tokenService.generateAccessToken).not.toHaveBeenCalled();
     expect(authLoggingService.refreshSuccess).not.toHaveBeenCalled();
+  });
+
+  it('revokes the session when an earlier secret is replayed', async () => {
+    tokenService.verifyRefreshToken.mockResolvedValue(false);
+
+    await expect(service.refresh('session-1.old-secret')).rejects.toThrow(
+      UnauthorizedException,
+    );
+
+    expect(prisma.userSession.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.userSession.updateMany).toHaveBeenCalledWith({
+      where: { id: 'session-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    expect(authLoggingService.refreshFailure).toHaveBeenCalledWith({
+      reason: 'refresh_token_reuse',
+      sessionId: 'session-1',
+    });
+    expect(authLoggingService.sessionRevoked).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      reason: 'refresh_token_reuse',
+    });
+    expect(tokenService.generateAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('only rejects an outdated secret right after a rotation (second tab)', async () => {
+    tokenService.verifyRefreshToken.mockResolvedValue(false);
+    prisma.userSession.findUnique.mockResolvedValue({
+      ...session,
+      updatedAt: new Date(Date.now() - 5_000),
+    });
+
+    await expect(service.refresh('session-1.old-secret')).rejects.toThrow(
+      UnauthorizedException,
+    );
+
+    expect(prisma.userSession.updateMany).not.toHaveBeenCalled();
+    expect(authLoggingService.refreshFailure).toHaveBeenCalledWith({
+      reason: 'stale_token_after_rotation',
+      sessionId: 'session-1',
+    });
+    expect(authLoggingService.sessionRevoked).not.toHaveBeenCalled();
   });
 });
