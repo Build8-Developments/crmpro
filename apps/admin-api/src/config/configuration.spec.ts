@@ -9,8 +9,6 @@ describe('configuration', () => {
   it('names this plane for rate-limit keys', () => {
     const config = new ConfigService(configuration());
 
-    expect(config.get<string>(RATE_LIMIT_CONFIG_KEYS.plane)).toBe(
-      'admin-api',
-    );
+    expect(config.get<string>(RATE_LIMIT_CONFIG_KEYS.plane)).toBe('admin-api');
   });
 });
