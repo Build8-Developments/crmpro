@@ -1,10 +1,14 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { TENANT_ROLE_NAMES } from '@crmpro/shared/bootstrap';
-import { assertActorCanAssignRole } from '../../../common/auth/utils/permission-escalation.util';
+import {
+  assertActorCanAssignRole,
+  assertActorCanManageUser,
+} from '../../../common/auth/utils/permission-escalation.util';
 import { PermissionsService } from '../../../common/auth/services/permissions.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
@@ -76,6 +80,42 @@ export class UserGuardService {
         'You cannot perform this action on yourself',
       );
     }
+  }
+
+  /**
+   * Whoever changes, deactivates, resets or signs out another user must hold
+   * every permission that user holds, and only an Owner may act on an Owner.
+   * Without this, any role with user.manage could set an Owner's password and
+   * sign in as them. Acting on yourself is governed by the endpoints' own
+   * rules (assertNotSelf), not by this check.
+   */
+  async assertActorCanManageUser(
+    tenantId: string,
+    actorUserId: string,
+    target: ResolvedUser,
+  ): Promise<void> {
+    if (actorUserId === target.id) {
+      return;
+    }
+
+    const [actor, actorPermissionKeys, targetPermissionKeys] =
+      await Promise.all([
+        this.resolveUser(tenantId, actorUserId),
+        this.permissionsService.getPermissionKeysForUser(actorUserId, tenantId),
+        this.permissionsService.getPermissionKeysForRole(
+          target.role.id,
+          tenantId,
+        ),
+      ]);
+
+    if (
+      target.role.name === TENANT_ROLE_NAMES.owner &&
+      actor.role.name !== TENANT_ROLE_NAMES.owner
+    ) {
+      throw new ForbiddenException('Only an Owner can manage another Owner');
+    }
+
+    assertActorCanManageUser(actorPermissionKeys, targetPermissionKeys);
   }
 
   async assertRoleBelongsToTenant(

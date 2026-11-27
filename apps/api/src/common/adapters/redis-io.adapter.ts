@@ -14,7 +14,7 @@ import {
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
 
-  private readonly logger = new Logger(RedisIoAdapter.name);
+  private readonly redisLogger = new Logger(RedisIoAdapter.name);
 
   constructor(private app: INestApplicationContext) {
     super(app);
@@ -34,10 +34,10 @@ export class RedisIoAdapter extends IoAdapter {
 
     // ioredis retries forever, so an auth or host failure would otherwise be silent.
     pubClient.on('error', (error: Error) => {
-      this.logger.error(`Redis pub client error: ${error.message}`);
+      this.redisLogger.error(`Redis pub client error: ${error.message}`);
     });
     subClient.on('error', (error: Error) => {
-      this.logger.error(`Redis sub client error: ${error.message}`);
+      this.redisLogger.error(`Redis sub client error: ${error.message}`);
     });
 
     this.adapterConstructor = createAdapter(pubClient, subClient);

@@ -1,0 +1,36 @@
+# Weekly update pull requests, grouped so they stay reviewable. Security updates are separate and
+# arrive as soon as an advisory is published (enable "Dependabot security updates" in the
+# repository's Code security settings).
+version: 2
+updates:
+  # The pnpm workspace: every package.json plus pnpm-lock.yaml.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Base images in the app Dockerfiles.
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/admin-api
+      - /apps/web
+      - /apps/admin
+      - /apps/website
+    schedule:
+      interval: weekly
+    groups:
+      base-images:
+        patterns: ["*"]

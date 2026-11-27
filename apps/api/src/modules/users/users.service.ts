@@ -185,6 +185,11 @@ export class UsersService {
     dto: UpdateUserDto,
   ): Promise<UserListItem> {
     const existing = await this.userGuardService.resolveUser(tenantId, id);
+    await this.userGuardService.assertActorCanManageUser(
+      tenantId,
+      actorUserId,
+      existing,
+    );
     const fullName = normalizeDisplayName(dto.fullName);
 
     if (fullName === existing.name) {
@@ -221,6 +226,11 @@ export class UsersService {
     this.userGuardService.assertNotSelf(actorUserId, id);
 
     const existing = await this.userGuardService.resolveUser(tenantId, id);
+    await this.userGuardService.assertActorCanManageUser(
+      tenantId,
+      actorUserId,
+      existing,
+    );
     const role = await this.userGuardService.assertActorCanAssignRole(
       tenantId,
       actorUserId,
@@ -269,6 +279,11 @@ export class UsersService {
     this.userGuardService.assertNotSelf(actorUserId, id);
 
     const existing = await this.userGuardService.resolveUser(tenantId, id);
+    await this.userGuardService.assertActorCanManageUser(
+      tenantId,
+      actorUserId,
+      existing,
+    );
 
     if (!existing.isActive) {
       throw new BadRequestException('User is already inactive');
@@ -313,6 +328,11 @@ export class UsersService {
     id: string,
   ): Promise<UserListItem> {
     const existing = await this.userGuardService.resolveUser(tenantId, id);
+    await this.userGuardService.assertActorCanManageUser(
+      tenantId,
+      actorUserId,
+      existing,
+    );
 
     if (existing.isActive) {
       throw new BadRequestException('User is already active');
@@ -345,7 +365,12 @@ export class UsersService {
     id: string,
     dto: ResetUserPasswordDto,
   ): Promise<{ revokedSessions: number }> {
-    await this.userGuardService.resolveUser(tenantId, id);
+    const target = await this.userGuardService.resolveUser(tenantId, id);
+    await this.userGuardService.assertActorCanManageUser(
+      tenantId,
+      actorUserId,
+      target,
+    );
     const passwordHash = await this.passwordService.hash(dto.newPassword);
 
     const revokedSessions = await this.prisma.$transaction(async (tx) => {
@@ -378,7 +403,12 @@ export class UsersService {
     actorUserId: string,
     id: string,
   ): Promise<{ revokedCount: number }> {
-    await this.userGuardService.resolveUser(tenantId, id);
+    const target = await this.userGuardService.resolveUser(tenantId, id);
+    await this.userGuardService.assertActorCanManageUser(
+      tenantId,
+      actorUserId,
+      target,
+    );
     const revokedCount = await this.userSessionService.revokeAllSessions(id);
 
     if (revokedCount > 0) {

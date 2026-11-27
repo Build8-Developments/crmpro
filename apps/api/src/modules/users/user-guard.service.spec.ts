@@ -150,3 +150,138 @@ describe('UserGuardService role assignment escalation protection', () => {
     });
   });
 });
+
+describe('UserGuardService actor-versus-target protection', () => {
+  let service: UserGuardService;
+  let permissionsService: {
+    getPermissionKeysForUser: jest.Mock;
+    getPermissionKeysForRole: jest.Mock;
+  };
+  let prisma: { user: { findFirst: jest.Mock } };
+
+  const userWithRole = (id: string, roleName: string) => ({
+    id,
+    tenantId: 'tenant-1',
+    name: id,
+    email: `${id}@example.com`,
+    isActive: true,
+    role: {
+      id: `role-${roleName}`,
+      name: roleName,
+      tenantId: 'tenant-1',
+      deletedAt: null,
+    },
+  });
+
+  const target = (roleName: string) => userWithRole('target-1', roleName);
+
+  beforeEach(async () => {
+    permissionsService = {
+      getPermissionKeysForUser: jest.fn(),
+      getPermissionKeysForRole: jest.fn(),
+    };
+    prisma = { user: { findFirst: jest.fn() } };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserGuardService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: PermissionsService, useValue: permissionsService },
+      ],
+    }).compile();
+
+    service = module.get(UserGuardService);
+  });
+
+  it('rejects a non-Owner acting on an Owner even with every permission', async () => {
+    prisma.user.findFirst.mockResolvedValue(
+      userWithRole('admin-1', 'Workspace admin'),
+    );
+    permissionsService.getPermissionKeysForUser.mockResolvedValue(
+      new Set(Object.values(PERMISSIONS)),
+    );
+    permissionsService.getPermissionKeysForRole.mockResolvedValue([
+      PERMISSIONS.USER_MANAGE,
+    ]);
+
+    await expect(
+      service.assertActorCanManageUser(
+        'tenant-1',
+        'admin-1',
+        target(TENANT_ROLE_NAMES.owner),
+      ),
+    ).rejects.toThrow('Only an Owner can manage another Owner');
+  });
+
+  it('rejects acting on a user who holds permissions the actor lacks', async () => {
+    prisma.user.findFirst.mockResolvedValue(
+      userWithRole('manager-1', TENANT_ROLE_NAMES.manager),
+    );
+    permissionsService.getPermissionKeysForUser.mockResolvedValue(
+      new Set([PERMISSIONS.USER_UPDATE, PERMISSIONS.LEAD_READ]),
+    );
+    permissionsService.getPermissionKeysForRole.mockResolvedValue([
+      PERMISSIONS.LEAD_READ,
+      PERMISSIONS.BILLING_MANAGE,
+    ]);
+
+    await expect(
+      service.assertActorCanManageUser(
+        'tenant-1',
+        'manager-1',
+        target('Finance'),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('allows acting on a user whose permissions the actor holds', async () => {
+    prisma.user.findFirst.mockResolvedValue(
+      userWithRole('manager-1', TENANT_ROLE_NAMES.manager),
+    );
+    permissionsService.getPermissionKeysForUser.mockResolvedValue(
+      new Set([PERMISSIONS.USER_UPDATE, PERMISSIONS.LEAD_READ]),
+    );
+    permissionsService.getPermissionKeysForRole.mockResolvedValue([
+      PERMISSIONS.LEAD_READ,
+    ]);
+
+    await expect(
+      service.assertActorCanManageUser(
+        'tenant-1',
+        'manager-1',
+        target(TENANT_ROLE_NAMES.agent),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('lets an Owner act on another Owner', async () => {
+    prisma.user.findFirst.mockResolvedValue(
+      userWithRole('owner-1', TENANT_ROLE_NAMES.owner),
+    );
+    permissionsService.getPermissionKeysForUser.mockResolvedValue(
+      new Set(Object.values(PERMISSIONS)),
+    );
+    permissionsService.getPermissionKeysForRole.mockResolvedValue(
+      Object.values(PERMISSIONS),
+    );
+
+    await expect(
+      service.assertActorCanManageUser(
+        'tenant-1',
+        'owner-1',
+        target(TENANT_ROLE_NAMES.owner),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('leaves self-service actions to the endpoint rules', async () => {
+    await expect(
+      service.assertActorCanManageUser(
+        'tenant-1',
+        'target-1',
+        target(TENANT_ROLE_NAMES.owner),
+      ),
+    ).resolves.toBeUndefined();
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+});

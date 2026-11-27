@@ -128,10 +128,35 @@ export type ListFilesAccess = {
   leadScope: LeadScope;
 };
 
-/** Files not tied to a lead are unaffected; lead files follow lead visibility. */
+/**
+ * Import and export files hold lead data from the whole scope of whoever ran
+ * the job, and carry no leadId. Like the jobs themselves (see `jobOwnerWhere`
+ * in export-jobs and `importOwnerWhere` in import-jobs), a user without the
+ * all-leads scope only sees the ones they created.
+ */
+const JOB_FILE_CATEGORIES: FileAssetCategory[] = [
+  FileAssetCategory.IMPORT_FILE,
+  FileAssetCategory.EXPORT_FILE,
+];
+
+/**
+ * Lead files follow lead visibility, and import/export files are only visible
+ * to their creator unless the scope covers every lead. Other files are
+ * unaffected.
+ */
 function fileLeadScopeWhere(scope: LeadScope): Prisma.FileAssetWhereInput {
   if (scope.kind === 'all') return {};
-  return { OR: [{ leadId: null }, { lead: leadScopeWhere(scope) }] };
+  return {
+    AND: [
+      { OR: [{ leadId: null }, { lead: leadScopeWhere(scope) }] },
+      {
+        OR: [
+          { category: { notIn: JOB_FILE_CATEGORIES } },
+          { uploadedByUserId: scope.actorUserId },
+        ],
+      },
+    ],
+  };
 }
 
 /** Categories that are never shown in the Files gallery. */

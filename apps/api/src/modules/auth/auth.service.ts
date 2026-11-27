@@ -14,6 +14,13 @@ import { RefreshResult } from './types/refresh-result.type';
 import { SanitizedUser } from './types/sanitized-user.type';
 import { SessionListItem } from './types/session-list-item.type';
 
+/**
+ * How long after a rotation an outdated refresh secret is treated as a
+ * concurrent request (two tabs) rather than a replay. Rotation is the only
+ * write that touches a live session's updatedAt.
+ */
+const REFRESH_ROTATION_GRACE_MS = 30_000;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -114,10 +121,7 @@ export class AuthService {
       session.hashedRefreshToken,
     );
     if (!tokenValid) {
-      this.authLoggingService.refreshFailure({
-        reason: 'invalid_token',
-        sessionId: session.id,
-      });
+      await this.handleStaleRefreshSecret(session);
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -269,6 +273,38 @@ export class AuthService {
         },
       },
     };
+  }
+
+  /**
+   * A known session presented with a secret that is not its current one.
+   * Right after a rotation that is usually a second tab that sent the same
+   * cookie a moment later, so it is only rejected. Later, it means an earlier
+   * secret was replayed: someone holds a copy of this session's token. The
+   * session is revoked, which signs out the copy and the real user alike, as
+   * the admin API does on reuse.
+   */
+  private async handleStaleRefreshSecret(session: UserSession): Promise<void> {
+    const sinceRotationMs = Date.now() - session.updatedAt.getTime();
+    if (sinceRotationMs < REFRESH_ROTATION_GRACE_MS) {
+      this.authLoggingService.refreshFailure({
+        reason: 'stale_token_after_rotation',
+        sessionId: session.id,
+      });
+      return;
+    }
+
+    await this.prisma.userSession.updateMany({
+      where: { id: session.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    this.authLoggingService.refreshFailure({
+      reason: 'refresh_token_reuse',
+      sessionId: session.id,
+    });
+    this.authLoggingService.sessionRevoked({
+      sessionId: session.id,
+      reason: 'refresh_token_reuse',
+    });
   }
 
   private assertSessionActive(session: UserSession): void {

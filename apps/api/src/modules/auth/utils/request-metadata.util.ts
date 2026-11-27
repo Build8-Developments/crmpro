@@ -9,15 +9,12 @@ function getHeader(req: Request, name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The client address as Express resolves it under `trust proxy`
+ * (TRUST_PROXY_HOPS), the same value the rate limits use. Reading the first
+ * X-Forwarded-For entry directly would trust whatever the client sent.
+ */
 function getClientIp(req: Request): string | undefined {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0]?.trim();
-  }
-  if (Array.isArray(forwarded) && forwarded[0]) {
-    return forwarded[0].split(',')[0]?.trim();
-  }
-
   return req.ip || req.socket.remoteAddress;
 }
 
