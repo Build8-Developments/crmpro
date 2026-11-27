@@ -24,6 +24,17 @@ export function assertCanGrantPermissions(
   );
 }
 
+export function assertActorCanManageUser(
+  actorPermissionKeys: Set<PermissionKey>,
+  targetPermissionKeys: PermissionKey[],
+): void {
+  assertPermissionSubset(
+    actorPermissionKeys,
+    targetPermissionKeys,
+    'Cannot manage a user who has permissions you do not have',
+  );
+}
+
 export function assertActorCanAssignRole(
   actorPermissionKeys: Set<PermissionKey>,
   targetRolePermissionKeys: PermissionKey[],
