@@ -36,13 +36,16 @@ so the image is built per environment, as for `apps/web`:
 | -------------------------------- | ----------------------------- | ----------------------------- |
 | `NEXT_PUBLIC_SITE_URL`           | `http://localhost:3003`       | `https://nomow.app`           |
 | `NEXT_PUBLIC_FIND_WORKSPACE_URL` | `http://localhost:3001/login` | empty for now: hides "Sign in" |
-| `NEXT_PUBLIC_CONTACT_EMAIL`      | `hello@nomow.app`             | to confirm (see below)        |
+| `NEXT_PUBLIC_CONTACT_EMAIL`      | `hello@mail.nomow.app`        | `hello@mail.nomow.app`        |
 | `DEMO_LEADS_URL` (server)        | empty                         | later: Nomow workspace inbound URL |
 | `DEMO_LEADS_API_KEY` (server)    | empty                         | later: API key from that workspace |
 | `DEMO_EMAIL_TO` (server)         | empty                         | the team's address (now)      |
 | `SITE_MAIL_FROM`, `SMTP_*` (server) | empty                      | Resend, as for the API        |
 
 With no delivery set, development logs demo requests instead of sending them.
+
+The contact inbox is `hello@mail.nomow.app`. The apex `nomow.app` has no MX record, so an address
+on it bounces; mail lives on the `mail.nomow.app` subdomain.
 
 `robots.txt` allows crawling only when `NEXT_PUBLIC_SITE_URL` is exactly `https://nomow.app`;
 every other build (staging, local) disallows everything.
@@ -378,7 +381,7 @@ the same compose project, deploy job and secrets file, not a project of its own.
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | `https://nomow.app` |
 | `NEXT_PUBLIC_FIND_WORKSPACE_URL` | empty (hides "Sign in") until production serves "find my workspace" |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@nomow.app` (default) |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | `hello@mail.nomow.app` (default) |
 
 ### When production arrives
 
@@ -394,8 +397,6 @@ which the `-staging` route already reaches) or nothing.
   the apex routed to `apps/web`, or the website calling `POST /public/workspaces/find` itself);
   the site only needs the final URL in `NEXT_PUBLIC_FIND_WORKSPACE_URL`.
 - **Nomow's own workspace** for demo leads, on a plan with API access.
-- **Contact inbox.** `hello@nomow.app` is shown in the footer but no inbox exists yet
-  (`mail.nomow.app` is a sending domain only).
 - **Seed project names** in screenshots (see "Product screenshots").
 
 ---

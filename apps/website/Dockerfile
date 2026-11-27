@@ -16,7 +16,7 @@ ENV pnpm_config_fetch_timeout=600000 pnpm_config_fetch_retries=5 \
 ARG NEXT_PUBLIC_SITE_URL
 # Empty hides "Sign in" (no production CRM yet); set it once production serves "find my workspace".
 ARG NEXT_PUBLIC_FIND_WORKSPACE_URL=
-ARG NEXT_PUBLIC_CONTACT_EMAIL=hello@nomow.app
+ARG NEXT_PUBLIC_CONTACT_EMAIL=hello@mail.nomow.app
 ENV NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_PUBLIC_FIND_WORKSPACE_URL=$NEXT_PUBLIC_FIND_WORKSPACE_URL \

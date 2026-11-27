@@ -19,4 +19,4 @@ export const FIND_WORKSPACE_URL =
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:3001/login");
 
 /** Public contact address (footer, and the fallback when the demo form can't send). */
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@nomow.app";
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@mail.nomow.app";
